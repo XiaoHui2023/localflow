@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "masterslave"
+version = "0.0.0"
+description = "离线 Ubuntu 本地 Web 工具：React 静态页 + Python 标准库 HTTP 服务"
+readme = "README.md"
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[tool.setuptools]
+packages = []
