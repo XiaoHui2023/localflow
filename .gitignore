@@ -17,4 +17,10 @@ frontend/dist/
 .env
 .env.*
 
+config.yaml
+debug.bat
+
+.automation/
+.localflow/
+
 *.spec.bak
