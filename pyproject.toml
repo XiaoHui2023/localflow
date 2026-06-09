@@ -3,11 +3,17 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "masterslave"
+name = "localflow"
 version = "0.0.0"
-description = "离线 Ubuntu 本地 Web 工具：React 静态页 + Python 标准库 HTTP 服务"
+description = "本机任务自动化平台：配置文件定义命令、监听器与工作流，网页管理与执行日志"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
+dependencies = [
+    "python-library-automation>=1.2.0",
+    "psutil>=5.9",
+    "python-library-configlib>=0.1.0",
+    "rich>=13.0",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]

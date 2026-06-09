@@ -16,7 +16,7 @@
 tools\pack.bat
 ```
 
-脚本会创建或复用根目录 `.venv`，安装项目依赖，在缺少 `frontend/dist` 时执行 `npm run build`，再调用 PyInstaller。详细参数见 [tools/README.md](tools/README.md)。
+脚本会创建或复用根目录 `.venv`，每次执行 `pip install --upgrade --force-reinstall -e ".[dev]"` 重装项目及其依赖，在缺少 `frontend/dist` 时执行 `npm run build`，再调用 PyInstaller。详细参数见 [tools/README.md](tools/README.md)。
 
 | 命令 | 产物（`dist/`） |
 | --- | --- |

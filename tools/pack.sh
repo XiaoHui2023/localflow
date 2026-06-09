@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # 统一打包：构建前端、PyInstaller onefile、Linux 上 staticx。
+# 每次 pip 对项目与打包工具 --force-reinstall，避免 .venv 残留旧依赖。
 # 用法（仓库根）：./tools/pack.sh [app]
 set -euo pipefail
 
@@ -15,16 +16,24 @@ ensure_venv() {
     PYTHON_CMD=("$ROOT/.venv/bin/python")
   else
     echo "未找到 .venv，正在创建 ..."
-    if command -v python3 >/dev/null 2>&1; then
-      python3 -m venv "$ROOT/.venv"
-      PYTHON_CMD=("$ROOT/.venv/bin/python")
-    elif command -v py >/dev/null 2>&1; then
-      py -3 -m venv "$ROOT/.venv"
-      PYTHON_CMD=("$ROOT/.venv/Scripts/python.exe")
-    else
-      echo "错误: 需要 python3 或 py 以创建 .venv。" >&2
-      exit 1
-    fi
+    case "$(uname -s 2>/dev/null || true)" in
+      MINGW*|MSYS*|CYGWIN*|Windows_NT)
+        if command -v py >/dev/null 2>&1; then
+          py -3 -m venv "$ROOT/.venv"
+        else
+          python -m venv "$ROOT/.venv"
+        fi
+        PYTHON_CMD=("$ROOT/.venv/Scripts/python.exe")
+        ;;
+      *)
+        if ! command -v python3 >/dev/null 2>&1; then
+          echo "错误: 需要 python3 以创建 .venv。" >&2
+          exit 1
+        fi
+        python3 -m venv "$ROOT/.venv"
+        PYTHON_CMD=("$ROOT/.venv/bin/python")
+        ;;
+    esac
   fi
   echo "==> 使用虚拟环境: ${PYTHON_CMD[*]} ($("${PYTHON_CMD[@]}" -V 2>/dev/null || true))"
 }

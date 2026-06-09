@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import asyncio
 import socket
 import sys
-from typing import NoReturn
+import threading
+from pathlib import Path
 
-from server import create_server
+from automation import run as automation_run, stop as automation_stop
+from automation.script.runner import set_script_work_dir
+from plugin_loader import load_plugins, repo_root
+from server import AppHTTPServer, create_server
 from static_files import dist_dir
+
+from app_config import AppConfig
 
 
 def _local_lan_ip() -> str:
@@ -17,15 +24,19 @@ def _local_lan_ip() -> str:
         return "127.0.0.1"
 
 
-def print_listen_info(host: str, port: int) -> None:
+def print_listen_info(config: AppConfig, port: int) -> None:
     lan = _local_lan_ip()
-    print(f"服务已监听: {host}:{port}")
+    print(f"服务已监听: {config.bind_host}:{port}")
     print(f"本机访问: http://127.0.0.1:{port}")
     print(f"局域网访问: http://{lan}:{port}")
+    if config.whitelist:
+        joined = ", ".join(config.whitelist)
+        print(f"IP 白名单: {joined}")
 
 
-def run_server(port: int = 0) -> NoReturn:
-    bind_host = "0.0.0.0"
+def _start_http_server(
+    config: AppConfig,
+) -> tuple[AppHTTPServer, threading.Thread, int]:
     dist = dist_dir()
     if not dist.is_dir():
         print(
@@ -33,13 +44,35 @@ def run_server(port: int = 0) -> NoReturn:
             file=sys.stderr,
         )
 
-    httpd = create_server(bind_host, port)
+    httpd = create_server(
+        config.bind_host,
+        config.port,
+        whitelist=frozenset(config.whitelist),
+    )
     actual_port = httpd.server_address[1]
-    print_listen_info(bind_host, actual_port)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True, name="localflow-http")
+    thread.start()
+    return httpd, thread, actual_port
+
+
+async def _run_automation_service(config: AppConfig) -> None:
+    set_script_work_dir(repo_root())
+    load_plugins(config.plugin_paths())
+
+    httpd, _thread, actual_port = _start_http_server(config)
+    print_listen_info(config, actual_port)
 
     try:
-        httpd.serve_forever()
+        await automation_run()
+    finally:
+        await automation_stop()
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def run_app(*, config: AppConfig) -> None:
+    try:
+        asyncio.run(_run_automation_service(config))
     except KeyboardInterrupt:
         print("\n正在退出…")
-        httpd.server_close()
         raise SystemExit(0) from None

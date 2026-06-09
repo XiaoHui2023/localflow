@@ -16,7 +16,17 @@
 tools\pack.bat
 ```
 
-默认构建 `app` 入口。若 `frontend/dist` 不存在，脚本会先执行 `npm install` 与 `npm run build`。
+默认构建 `app` 入口。只打该入口时可显式传入子命令（两脚本一致）：
+
+```bash
+./tools/pack.sh app
+```
+
+```bat
+tools\pack.bat app
+```
+
+若 `frontend/dist` 不存在，脚本会先执行 `npm install` 与 `npm run build`。
 
 产物写入 `dist/`：
 

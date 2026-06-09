@@ -7,11 +7,39 @@ from api import handle_api
 from static_files import guess_content_type, resolve_static
 
 
+class AppHTTPServer(ThreadingHTTPServer):
+    """带客户端 IP 白名单的 HTTP 服务。"""
+
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        RequestHandlerClass: type[BaseHTTPRequestHandler],
+        *,
+        whitelist: frozenset[str] = frozenset(),
+    ) -> None:
+        super().__init__(server_address, RequestHandlerClass)
+        self.whitelist = whitelist
+
+    def is_client_allowed(self, client_ip: str) -> bool:
+        if not self.whitelist:
+            return True
+        return client_ip in self.whitelist
+
+
 class AppHTTPRequestHandler(BaseHTTPRequestHandler):
-    server_version = "masterslave/0.0.0"
+    server_version = "localflow/0.0.0"
 
     def log_message(self, fmt: str, *args) -> None:
         return
+
+    def handle(self) -> None:
+        server = self.server
+        if isinstance(server, AppHTTPServer) and not server.is_client_allowed(
+            self.client_address[0],
+        ):
+            self.send_error(HTTPStatus.FORBIDDEN, "禁止访问")
+            return
+        super().handle()
 
     def _send_bytes(
         self,
@@ -45,5 +73,14 @@ class AppHTTPRequestHandler(BaseHTTPRequestHandler):
         self.send_error(HTTPStatus.METHOD_NOT_ALLOWED, "Method Not Allowed")
 
 
-def create_server(bind_host: str, port: int) -> ThreadingHTTPServer:
-    return ThreadingHTTPServer((bind_host, port), AppHTTPRequestHandler)
+def create_server(
+    bind_host: str,
+    port: int,
+    *,
+    whitelist: frozenset[str] = frozenset(),
+) -> AppHTTPServer:
+    return AppHTTPServer(
+        (bind_host, port),
+        AppHTTPRequestHandler,
+        whitelist=whitelist,
+    )

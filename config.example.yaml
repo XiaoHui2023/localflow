@@ -1,0 +1,13 @@
+# 复制为 config.yaml 后按需修改（config.yaml 已加入 .gitignore）。
+
+port: 0
+bind_host: "0.0.0.0"
+
+sources:
+  - plugins
+  - examples
+
+# 非空时仅下列 IP 可访问网页与 API；留空表示不限制
+whitelist:
+  - "127.0.0.1"
+  # - "192.168.1.100"
