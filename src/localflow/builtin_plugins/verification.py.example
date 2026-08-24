@@ -1,0 +1,46 @@
+from __future__ import annotations
+
+import secrets
+from pathlib import Path
+
+from localflow.models import TaskCreate
+from localflow.plugins import plugin
+
+
+@plugin("verification", version="1")
+class Verification:
+    fields = [
+        {"name": "case_root", "type": "path", "required": True, "label": "Case 目录"},
+        {"name": "cases", "type": "case-picker", "multiple": True, "required": True, "label": "Cases"},
+        {"name": "runs_per_case", "type": "integer", "minimum": 1, "default": 1, "label": "每个 case 次数"},
+        {"name": "seed", "type": "seed", "allow_auto": True, "default": "auto", "label": "Seed"},
+        {"name": "command", "type": "string-list", "required": True, "label": "命令前缀"},
+        {"name": "mutex_keys", "type": "string-list", "required": False, "label": "串行互斥键"},
+    ]
+
+    def discover(self, context):
+        root = Path(context["case_root"])
+        return [path.name for path in sorted(root.iterdir()) if path.is_dir()]
+
+    def expand(self, values, context):
+        case_root = Path(values["case_root"]).resolve()
+        available = {path.name for path in case_root.iterdir() if path.is_dir()}
+        tasks = []
+        for case_name in values["cases"]:
+            if case_name not in available:
+                raise ValueError(f"case not found: {case_name}")
+            case_runs = values.get("case_runs", {})
+            for index in range(int(case_runs.get(case_name, values.get("runs_per_case", 1)))):
+                configured = values.get("seed", "auto")
+                seed = secrets.randbelow(2**31) if configured == "auto" else int(configured) + index
+                tasks.append(
+                    TaskCreate(
+                        name=f"{case_name} #{index + 1}",
+                        working_directory=str(case_root),
+                        command=[*values["command"], "--case", case_name, "--seed", str(seed)],
+                        labels=["verification", case_name],
+                        mutex_keys=list(values.get("mutex_keys", [])),
+                        custom={"case": case_name, "seed": seed, "run": index + 1},
+                    )
+                )
+        return tasks

@@ -1,0 +1,45 @@
+.case-picker {
+  grid-column: 1 / -1;
+  border: 1px solid #334158;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.case-picker legend {
+  color: #b7c3d4;
+  font-size: 13px;
+  padding: 0 6px;
+}
+
+.case-picker .case-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.case-picker .case-list label {
+  display: grid;
+  grid-template-columns: 18px 1fr 66px 20px;
+  align-items: center;
+  gap: 7px;
+  background: #0d151f;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.case-picker .case-tools {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.case-picker .case-tools input {
+  min-width: 120px;
+}
+
+.case-picker input[type="number"] {
+  width: 66px;
+  padding: 5px;
+}

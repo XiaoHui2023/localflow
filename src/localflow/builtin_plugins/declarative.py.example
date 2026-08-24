@@ -1,0 +1,90 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import yaml
+
+from localflow.models import TaskCreate
+from localflow.plugins import plugin
+from localflow.settings import parse_config
+from localflow.variables import VariableResolver
+
+
+@plugin("declarative", version="1")
+class Declarative:
+    fields = [
+        {
+            "name": "template_file",
+            "type": "template-picker",
+            "required": True,
+            "label": "任务配置",
+        },
+        {
+            "name": "run_variables",
+            "type": "json",
+            "default": "{}",
+            "label": "本次运行变量",
+        },
+    ]
+
+    @property
+    def root(self) -> Path:
+        return Path(__file__).resolve().parent.parent
+
+    def discover(self, _values):
+        directory = self.root / "config" / "templates"
+        return [
+            str(path.relative_to(directory)).replace("\\", "/")
+            for path in sorted(directory.rglob("*"))
+            if path.is_file() and path.suffix.lower() in {".yaml", ".yml", ".toml", ".json"}
+        ]
+
+    def _load_variables(self):
+        path = self.root / "config" / "variables.yaml"
+        if not path.exists():
+            return {}, {}
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        return data.get("global", {}), data.get("projects", {})
+
+    def expand(self, values, _context):
+        directory = (self.root / "config" / "templates").resolve()
+        path = (directory / values["template_file"]).resolve()
+        if directory not in path.parents or not path.is_file():
+            raise ValueError("template file is outside config/templates or does not exist")
+        document = parse_config(path, path.read_text(encoding="utf-8")) or {}
+        global_values, projects = self._load_variables()
+        global_values = {"runtime_root": str(self.root), **global_values}
+        project_name = document.get("project")
+        project_values = projects.get(project_name, {}) if project_name else {}
+        run_values = values.get("run_variables", {})
+        if isinstance(run_values, str):
+            run_values = json.loads(run_values or "{}")
+        if not isinstance(run_values, dict):
+            raise ValueError("run_variables must be a JSON object")
+        resolver = VariableResolver(
+            [
+                ("global", global_values),
+                ("project", project_values),
+                ("template", document.get("variables", {})),
+                ("run", run_values),
+            ]
+        )
+        task_data = {
+            key: value
+            for key, value in document.items()
+            if key
+            in {
+                "name",
+                "working_directory",
+                "command",
+                "labels",
+                "mutex_keys",
+                "custom",
+            }
+        }
+        resolved = resolver.resolution(task_data)
+        custom = dict(resolved.value.get("custom", {}))
+        custom["variable_sources"] = resolved.sources
+        resolved.value["custom"] = custom
+        return [TaskCreate.model_validate(resolved.value)]

@@ -1,0 +1,37 @@
+{
+  "completed_at": "2026-08-24T14:09:23.742Z",
+  "browser": "Microsoft Edge",
+  "browser_version": "151.0.4129.101",
+  "base_url": "http://127.0.0.1:3280",
+  "result": "passed",
+  "source_files": {
+    "frontend/src/App.jsx": "4a1a54fdb915366234f7b8f9dccd4dd7fef1ce8424ae47a0b5a57813489ae2a6",
+    "frontend/src/main.jsx": "4e4f7d4b0e7ffc54ddbd2a140a595562cb0e9e4f80de102f984d894d4cd5db39",
+    "frontend/src/index.css": "d142dfb3df67c5766afc5c285342791ebfef42f4e2c36fdb69a71b14db920a4f",
+    "frontend/src/extra.css": "0300f5dfda332da6aaf7672db9d9b31c304e7486018a065523af12ffbaec0637",
+    "frontend/src/case-picker.css": "e2a16bef95c0b520372b4197ca9acc7e9018fa489962849a29f2348d38ed7074",
+    "frontend/e2e/localflow.spec.js": "5d04b905abbfced461e95de141f0a675ce59e2f352dfc004730820edcf728f0c",
+    "frontend/playwright.config.js": "b758469bb6e18918763a7399a819c536ec0a557f7c82f0c2dfbc7544b50d33e3",
+    "frontend/package-lock.json": "08eca443049377320bd68e12eee60bccd90cc2981550f6150945d6f6cf991f47",
+    "tools/run_browser_quality.py": "5394741c759f8d01baa4888dcdfeeda1c2b417cc608968b677754e6e5d656519"
+  },
+  "screenshots": {
+    "admin-config-monaco.png": "42d4e4d45c1fad1ebf348807c7b674eb8e6c0bc2cbf0d81952b8fb40023268f0",
+    "admin-mobile-390.png": "e716c27f45c9ad865cb1b3c915e9c9e867f489cdb033f086b191c3ca5ffcdb58",
+    "admin-task-detail.png": "2a7c6d0d61faef6857b96383a8b81286bb5adbc4adebbe7af4f8f7ed9670d177",
+    "admin-template-cases.png": "25f63f8c218d17b9014712f081cf7b421c8d00552f97cc148a8ab8f17f8aa0f2"
+  },
+  "assertions": [
+    "anonymous-summary-readonly",
+    "keyboard-login-and-admin-navigation",
+    "newly-completed-acknowledgement",
+    "admin-detail-projection",
+    "xterm-live-output-and-interrupt",
+    "verification-case-discovery-selection",
+    "monaco-config-create",
+    "wcag-a-aa-no-serious-or-critical",
+    "390px-no-horizontal-overflow",
+    "390px-single-line-navigation",
+    "no-browser-console-errors"
+  ]
+}

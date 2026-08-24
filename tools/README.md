@@ -1,43 +1,21 @@
-# 打包工具
+# 打包与发布工具
 
-## 一键打包（PyInstaller；Linux 再 staticx）
-
-在仓库根执行（使用根目录 `.venv`，无则创建）：
-
-### Linux / macOS / Git Bash
+## 一键 Linux 静态打包
 
 ```bash
 ./tools/pack.sh
 ```
 
-### Windows
+每次执行都会先运行 `npm ci` 和前端生产构建。CI 可在宿主机完成前端后设置 `PACK_SKIP_FRONTEND_BUILD=1`，并通过 `PACK_PYTHON` 指定固定的 Python 3.11。
 
-```bat
-tools\pack.bat
-```
+本地修复打包规格后可临时设置 `PACK_SKIP_PYTHON_INSTALL=1` 复用刚建立的发布环境；正式 CI 不使用该开关。
 
-默认构建 `app` 入口。只打该入口时可显式传入子命令（两脚本一致）：
-
-```bash
-./tools/pack.sh app
-```
-
-```bat
-tools\pack.bat app
-```
-
-若 `frontend/dist` 不存在，脚本会先执行 `npm install` 与 `npm run build`。
-
-产物写入 `dist/`：
-
-| 目标 | 产物 |
+| 产物 | 文件 |
 | --- | --- |
-| `app` | `app` / `app.exe` |
+| 直接执行 | `dist/localflow` |
+| 部署包 | `dist/localflow-<version>-linux-x86_64.tar.gz` |
+| 校验 | `dist/SHA256SUMS` |
 
-| 平台 | 脚本 | staticx |
-| --- | --- | --- |
-| Linux | `pack.sh` | 需要系统 **patchelf** |
-| macOS 等 | `pack.sh` | 跳过 |
-| Windows | `pack.bat` | 跳过 |
+`ci_pack_ubuntu16.sh` 固定 CI 的 glibc/Python 构建基线。`run_frozen_smoke.py` 对最终单文件与解压文件分别完成服务启动、管理员登录、任务执行和日志断言。
 
-更完整的说明见仓库根目录 [PACKAGING.md](../PACKAGING.md)。
+更完整的发布说明见 [PACKAGING.md](../PACKAGING.md)。

@@ -1,0 +1,21 @@
+[Unit]
+Description=LocalFlow offline task control plane (static release)
+After=local-fs.target
+
+[Service]
+Type=simple
+User=localflow
+Group=localflow
+ExecStart=/opt/localflow/localflow serve --root /var/lib/localflow
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/localflow
+UMask=0027
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

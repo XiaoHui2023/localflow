@@ -1,0 +1,1 @@
+localflow ALL=(root) NOPASSWD: /usr/libexec/localflow-set-time.py *

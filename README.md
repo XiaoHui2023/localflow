@@ -1,151 +1,81 @@
-# localflow
+# LocalFlow
 
-本机任务自动化平台：通过配置文件定义命令、监听器和工作流，并提供网页管理、执行日志与通知能力。浏览器访问 React 页面，同一进程内的 Python 标准库 HTTP 服务提供 `/api` 与静态资源。可打包为 Linux 单文件 `app`，启动后监听 `0.0.0.0`，默认由系统分配空闲端口。
+LocalFlow 是面向 Ubuntu 离线服务器的任务调度与执行平台。调用方提交名称、工作目录、命令、标签和互斥键，服务返回任务 ID；网页显示队列、运行中和历史任务，并提供日志终端、模板运行和磁盘配置编辑。
 
-## 命令行
+当前版本已替换旧 `automation` 运行核心。生产执行器使用 systemd 用户瞬态服务持有任务，网页服务重启不应终止任务；开发环境可选 POSIX 子进程执行器。
 
-入口：`python src/app_main/__main__.py <配置文件>`（或打包后的 `./app <配置文件>`）
-
-| 参数 | 类型 | 说明 |
-| --- | --- | --- |
-| `config` | 文件路径（必填） | 主配置，支持 YAML / JSON / TOML |
-
-示例：
+## 快速试用
 
 ```bash
-# 首次：复制 config.example.yaml 为 config.yaml
-python src/app_main/__main__.py config.yaml
-./dist/app /path/to/config.yaml
-example.bat
+python3.11 -m venv .venv
+. .venv/bin/activate
+pip install -e '.[dev]'
+cd frontend
+npm ci
+npm run build
+cd ..
+localflow init --root ./demo-root
 ```
 
-仓库根提供 `config.example.yaml`；复制为 `config.yaml` 后修改（`config.yaml` 已 gitignore）。
+试用环境把 `demo-root/config/server.yaml` 中的执行器改为：
 
-启动后终端会打印本机与局域网访问地址、IP 白名单（若已配置），以及已加载的插件包、Automation 与动作。
-
-## 主配置
-
-由 [python-library-configlib](https://pypi.org/project/python-library-configlib/) 加载；模型定义见 `src/app_main/app_config.py`。
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `port` | 整数 | `0` | 监听端口；`0` 表示随机空闲端口 |
-| `bind_host` | 字符串 | `0.0.0.0` | 监听地址 |
-| `sources` | 字符串列表 | 仓库 `plugins/` | 插件根目录，路径相对配置文件所在目录 |
-| `whitelist` | 字符串列表 | 空 | 客户端 IP 白名单；**非空时仅列表内 IP 可访问**；留空不限制 |
-
-`sources` 中 `plugins` 须排在 `examples` 之前，以便 `examples` 可 `import plugins.*`。
-
-局域网远程访问时，在 `whitelist` 填入管理机 IP（例如 `192.168.1.100`），浏览器用服务器局域网地址打开，不要用 `0.0.0.0`。
-
-## 插件与示例
-
-| 目录 | 作用 |
-| --- | --- |
-| `plugins/` | 可复用的 Automation 类、工具函数；导入时不实例化、不绑定监听；每个子目录一份 `README.md` 写用法 |
-| `examples/` | 实例化 `plugins` 中的 Automation，注册监听函数与 `action` |
-
-`plugins/` 下每个**子目录**是一个插件包（须有 `__init__.py`）；`plugins/` 自身**不要**放 `__init__.py`。
-
-`examples/` 可平铺 `.py` 文件，每个文件单独加载为模块；也可继续用子目录包，或直接指定某个 `.py` 路径。
-
-配置里 `sources` 列出 `plugins` 与 `examples` 时：前者展开为各插件子目录，后者展开为目录下顶层 `.py` 文件。
-
-### 目录结构
-
-```text
-repo/
-  plugins/
-    a/
-      README.md
-      __init__.py
-      automation.py
-    b/
-      README.md
-      __init__.py
-      util.py
-  examples/
-    git_watch.py
+```yaml
+execution:
+  backend: subprocess
+  max_concurrency: 4
 ```
 
-### 限定名
+随后启动：
 
-| 磁盘路径 | 加载后限定名 |
-| --- | --- |
-| `plugins/a/` | `plugins.a` |
-| `plugins/b/` | `plugins.b` |
-| `examples/git_watch.py` | `examples.git_watch` |
-
-终端启动日志会打印实际限定名，例如 `plugins.git_update (包, …/plugins/git_update)`。
-
-### 导入写法
-
-| 所在位置 | 写法 | 说明 |
-| --- | --- | --- |
-| `examples/*.py` | `from plugins.a import SomeClass` | 从 plugins 子包导入符号 |
-| `examples/*.py` | `from plugins import a` | 导入子模块 `plugins.a` |
-| `plugins/a/` 包内 | `from .helper import fn` | 引用 `plugins.a.helper` |
-| `plugins/a/` 引用同级 `plugins/b/` | `from ..b import fn` | 引用 `plugins.b` |
-| `plugins/a/` | `from .b import fn` | 不可用；表示 `plugins.a.b`（a 的子包），不是兄弟目录 `plugins/b/` |
-
-`examples` 引用 `plugins` 时，配置中 `plugins` 须排在 `examples` 之前，以便 `plugins.*` 已进入 `sys.modules`。
-
-### 代码示例
-
-```python
-# examples/git_watch.py
-from pathlib import Path
-
-from plugins.git_update import GitRepoUpdatePayload, GitUpdateAutomation
-
-_repo = Path(__file__).resolve().parents[1]
-
-git_watch = GitUpdateAutomation(
-    name="git_watch",
-    repo_path=_repo,
-    interval=30.0,
-)
-
-@git_watch.register
-async def on_git_update(payload: GitRepoUpdatePayload) -> None:
-    commit = payload.update.commit
-    print(payload.previous_hash[:7], "->", commit.short_hash, commit.subject)
+```bash
+localflow serve --root ./demo-root
+localflow status --root ./demo-root
+localflow login-code --root ./demo-root
 ```
 
-```python
-# plugins/a/automation.py
-from automation import Automation
-from ..b.util import shared_check   # 同级 plugins/b
+默认绑定 `127.0.0.1`，端口为 `0`，实际随机端口写入 `runtime/port`。回环地址和随机端口不是身份验证；匿名访问默认只能读取去敏摘要，提交、中断、终端输入和配置修改需要管理员身份。
 
-class SomeAutomation(Automation):
-    ...
+## Ubuntu 安装要点
+
+GitHub Release 提供 `localflow` 静态单文件、部署压缩包和 `SHA256SUMS`。`main` 每次 push 只有在静态包真实任务冒烟通过后才更新滚动 Release；目标 Ubuntu 无需安装 Python。源码部署仍可使用下述虚拟环境方式。
+
+```bash
+sudo useradd --system --create-home --home-dir /var/lib/localflow localflow
+sudo loginctl enable-linger localflow
+sudo install -D -m 0644 deploy/localflow.service /etc/systemd/system/localflow.service
+sudo install -D -m 0644 deploy/localflow.tmpfiles.conf /usr/lib/tmpfiles.d/localflow.conf
+sudo install -D -m 0755 deploy/localflow-set-time.py /usr/libexec/localflow-set-time.py
+sudo visudo -cf deploy/localflow.sudoers
+sudo install -D -m 0440 deploy/localflow.sudoers /etc/sudoers.d/localflow
+sudo systemd-tmpfiles --create /usr/lib/tmpfiles.d/localflow.conf
+sudo -u localflow XDG_RUNTIME_DIR=/run/user/$(id -u localflow) localflow init --root /var/lib/localflow
+sudo systemctl daemon-reload
+sudo systemctl enable --now localflow
 ```
 
-```python
-# plugins/b/util.py
-async def shared_check() -> bool:
-    return True
+把仓库或发行包部署到 `/opt/localflow`，在其中建立 Python 环境并把 `frontend/dist` 生产产物保留在 `/opt/localflow/frontend/dist`；保证 `/opt/localflow/venv/bin/localflow` 存在。服务单元通过 `LOCALFLOW_WEB_DIST` 明确网页产物位置。systemd 用户管理器必须启用 linger；主服务通过用户 D-Bus 建立任务瞬态单元。
+
+生产使用前必须在目标 Ubuntu 主机运行 systemd 验收。没有 systemd 的容器测试不能证明主服务重启接管、PTY 信号与真实权限行为。
+
+## 质量检查
+
+```bash
+ruff check src/localflow tests_v2 tests_target tools/check_quality.py tools/run_browser_quality.py
+pytest
+python tools/check_quality.py
+npm --prefix frontend audit
+python tools/run_browser_quality.py
 ```
 
-插件用法见各子目录 README，例如 [plugins/git_update/README.md](plugins/git_update/README.md)、[plugins/diff_render/README.md](plugins/diff_render/README.md)、[plugins/mail_send/README.md](plugins/mail_send/README.md)、[plugins/git_mail_notify/README.md](plugins/git_mail_notify/README.md)、[plugins/sim_run/README.md](plugins/sim_run/README.md)。接线示例见 [examples/git_watch.py](examples/git_watch.py)、[examples/git_mail_notify.py](examples/git_mail_notify.py)。
+设计与使用资料：
 
-## 开发与发布
+- [需求规格](docs/requirements.md)
+- [系统设计](docs/architecture.md)
+- [HTTP 接口](docs/api.md)
+- [配置说明](docs/configuration.md)
+- [插件开发](docs/plugins.md)
+- [安全设计](docs/security.md)
+- [Ubuntu 运维](docs/operations.md)
+- [质量指标](docs/quality-metrics.md)
 
-| 阶段 | 前端 | 后端 |
-| --- | --- | --- |
-| 开发 | `cd frontend && npm run dev`（代理 `/api`） | `python src/app_main/__main__.py config.yaml` 或 `debug.bat` |
-| 发布 | `npm run build` | `./tools/pack.sh` → `dist/app` |
-
-前端说明见 [frontend/README.md](frontend/README.md)。打包说明见 [PACKAGING.md](PACKAGING.md)。
-
-## HTTP 接口
-
-| 路径 | 方法 | 说明 |
-| --- | --- | --- |
-| `/api/status` | GET | 服务与任务运行状态 |
-| `/api/config` | GET | 当前配置 |
-| `/api/run` | POST | 启动任务（JSON 体，占位） |
-| `/api/progress` | GET | 任务进度 |
-| `/api/result` | GET | 任务结果 |
-
-静态页：`/`、`/assets/...` 来自 `frontend/dist/`。
+验证仿真插件示例位于 `plugins/verification.py`。每个 case 的每次运行展开为独立任务，seed 写入任务快照，互斥键控制串行队列。

@@ -1,119 +1,60 @@
 #!/usr/bin/env bash
-# 统一打包：构建前端、PyInstaller onefile、Linux 上 staticx。
-# 每次 pip 对项目与打包工具 --force-reinstall，避免 .venv 残留旧依赖。
-# 用法（仓库根）：./tools/pack.sh [app]
+# 构建新前端、PyInstaller onefile，并在 Linux 上强制转换为 staticx 单文件。
+# PACK_SKIP_FRONTEND_BUILD=1 仅供 CI 在宿主机已完成 npm ci/build 后使用。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-TARGET="${1:-app}"
+PYTHON_BOOTSTRAP="${PACK_PYTHON:-python3}"
+if [[ ! -x "$ROOT/.venv-release/bin/python" ]]; then
+  rm -rf "$ROOT/.venv-release"
+  "$PYTHON_BOOTSTRAP" -m venv "$ROOT/.venv-release"
+fi
+PYTHON="$ROOT/.venv-release/bin/python"
 
-ensure_venv() {
-  if [[ -f "$ROOT/.venv/Scripts/python.exe" ]]; then
-    PYTHON_CMD=("$ROOT/.venv/Scripts/python.exe")
-  elif [[ -f "$ROOT/.venv/bin/python" ]]; then
-    PYTHON_CMD=("$ROOT/.venv/bin/python")
-  else
-    echo "未找到 .venv，正在创建 ..."
-    case "$(uname -s 2>/dev/null || true)" in
-      MINGW*|MSYS*|CYGWIN*|Windows_NT)
-        if command -v py >/dev/null 2>&1; then
-          py -3 -m venv "$ROOT/.venv"
-        else
-          python -m venv "$ROOT/.venv"
-        fi
-        PYTHON_CMD=("$ROOT/.venv/Scripts/python.exe")
-        ;;
-      *)
-        if ! command -v python3 >/dev/null 2>&1; then
-          echo "错误: 需要 python3 以创建 .venv。" >&2
-          exit 1
-        fi
-        python3 -m venv "$ROOT/.venv"
-        PYTHON_CMD=("$ROOT/.venv/bin/python")
-        ;;
-    esac
-  fi
-  echo "==> 使用虚拟环境: ${PYTHON_CMD[*]} ($("${PYTHON_CMD[@]}" -V 2>/dev/null || true))"
-}
+if [[ "${PACK_SKIP_FRONTEND_BUILD:-0}" != "1" ]]; then
+  command -v npm >/dev/null || { echo "npm is required" >&2; exit 1; }
+  npm --prefix frontend ci
+  npm --prefix frontend run build
+fi
+test -f frontend/dist/index.html || { echo "frontend/dist/index.html is missing" >&2; exit 1; }
 
-build_frontend() {
-  if [[ ! -d "$ROOT/frontend/dist" ]]; then
-    echo "==> 构建前端 frontend/dist"
-    if ! command -v npm >/dev/null 2>&1; then
-      echo "错误: 未找到 npm，无法构建 frontend/dist。" >&2
-      exit 1
-    fi
-    (cd "$ROOT/frontend" && npm install && npm run build)
-  else
-    echo "==> 已存在 frontend/dist，跳过 npm build（删除 dist 可强制重建）"
-  fi
-}
+if [[ "${PACK_SKIP_PYTHON_INSTALL:-0}" != "1" ]]; then
+  "$PYTHON" -m pip install --upgrade pip setuptools wheel
+  "$PYTHON" -m pip install --upgrade --force-reinstall . "pyinstaller>=6,<7" "staticx>=0.14,<1"
+fi
+command -v patchelf >/dev/null || { echo "patchelf is required by staticx" >&2; exit 1; }
 
-apply_staticx_linux() {
-  local dist_name="$1"
-  local pyi_out="$ROOT/dist/${dist_name}"
-  if [[ ! -f "$pyi_out" ]]; then
-    return 0
-  fi
-  if ! command -v patchelf >/dev/null 2>&1; then
-    echo "错误: Linux 下 staticx 需要系统命令 patchelf（例如: sudo apt install patchelf）。" >&2
-    exit 1
-  fi
-  "${PYTHON_CMD[@]}" -m pip install -q --upgrade --force-reinstall staticx
-  local staticx="$ROOT/.venv/bin/staticx"
-  if [[ ! -x "$staticx" ]]; then
-    echo "错误: 未找到可执行的 .venv/bin/staticx。" >&2
-    exit 1
-  fi
-  local tmp_out="$ROOT/dist/.${dist_name}-staticx.tmp"
-  rm -f "$tmp_out"
-  echo "==> staticx: $pyi_out"
-  "$staticx" "$pyi_out" "$tmp_out"
-  mv -f "$tmp_out" "$pyi_out"
-  chmod +x "$pyi_out"
-  echo "完成: $pyi_out（staticx 自解压包；请在目标机实测）"
-}
+rm -rf build dist
+"$PYTHON" -m PyInstaller --clean --noconfirm app.spec
+test -x dist/localflow || { echo "PyInstaller did not produce dist/localflow" >&2; exit 1; }
 
-build_app() {
-  local spec="$ROOT/app.spec"
-  if [[ ! -f "$spec" ]]; then
-    echo "错误: 未找到 $spec" >&2
-    exit 1
-  fi
-  build_frontend
-  echo "==> PyInstaller: $spec"
-  "${PYTHON_CMD[@]}" -m PyInstaller --clean --noconfirm "$spec"
-  local dist_name="app"
-  if [[ -f "$ROOT/dist/${dist_name}.exe" ]]; then
-    echo "完成: $ROOT/dist/${dist_name}.exe（Windows：无 staticx 步骤）"
-    return 0
-  fi
-  if [[ ! -f "$ROOT/dist/${dist_name}" ]]; then
-    echo "错误: 未在 dist 找到 ${dist_name}。" >&2
-    exit 1
-  fi
-  case "$(uname -s 2>/dev/null || true)" in
-    Linux) apply_staticx_linux "$dist_name" ;;
-    *) echo "完成: $ROOT/dist/${dist_name}（非 Linux，跳过 staticx）" ;;
-  esac
-}
+STATICX="$ROOT/.venv-release/bin/staticx"
+# 默认压缩形式在 Xenial 实测启动 SIGSEGV；兼容发布固定使用官方无压缩模式。
+"$STATICX" --no-compress dist/localflow dist/localflow.staticx
+mv dist/localflow.staticx dist/localflow
+chmod 0755 dist/localflow
 
-ensure_venv
+VERSION="$($PYTHON -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+BUNDLE="localflow-${VERSION}-linux-x86_64"
+mkdir -p "dist/$BUNDLE/deploy" "dist/$BUNDLE/docs"
+install -m 0755 dist/localflow "dist/$BUNDLE/localflow"
+install -m 0644 README.md "dist/$BUNDLE/README.md"
+install -m 0644 deploy/localflow-static.service "dist/$BUNDLE/deploy/localflow.service"
+install -m 0644 deploy/localflow.tmpfiles.conf "dist/$BUNDLE/deploy/localflow.tmpfiles.conf"
+install -m 0755 deploy/localflow-set-time.py "dist/$BUNDLE/deploy/localflow-set-time.py"
+install -m 0644 deploy/localflow.sudoers "dist/$BUNDLE/deploy/localflow.sudoers"
+install -m 0644 docs/operations.md "dist/$BUNDLE/docs/operations.md"
+tar -C dist -czf "dist/$BUNDLE.tar.gz" "$BUNDLE"
+rm -rf "dist/$BUNDLE"
+(cd dist && sha256sum localflow "$BUNDLE.tar.gz" > SHA256SUMS)
 
-"${PYTHON_CMD[@]}" -m pip install -q -U pip setuptools wheel
-"${PYTHON_CMD[@]}" -m pip install -q --upgrade --force-reinstall -e ".[dev]"
-"${PYTHON_CMD[@]}" -m pip install -q --upgrade --force-reinstall "pyinstaller>=6.0"
-
-rm -rf "$ROOT/build" "$ROOT/dist"
-
-case "$TARGET" in
-  app) build_app ;;
-  *)
-    echo "用法: ./tools/pack.sh [app]" >&2
-    exit 1
-    ;;
-esac
-
-echo "PyInstaller 输出目录: $ROOT/dist"
+file dist/localflow
+LDD_OUTPUT="$(ldd dist/localflow 2>&1 || true)"
+if ! grep -q 'not a dynamic executable' <<<"$LDD_OUTPUT"; then
+  echo "staticx structural audit failed: final executable is dynamically linked" >&2
+  echo "$LDD_OUTPUT" >&2
+  exit 1
+fi
+echo "release assets: dist/localflow, dist/$BUNDLE.tar.gz, dist/SHA256SUMS"

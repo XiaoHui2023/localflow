@@ -1,4 +1,6 @@
 .venv/
+.venv-release/
+.release-conda/
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -12,7 +14,12 @@ dist/
 frontend/node_modules/
 frontend/dist/
 
-.cursor/
+.cursor/*
+!.cursor/skills/
+.cursor/skills/*
+!.cursor/skills/project-required-skills.json
+!.cursor/skills/localflow-platform/
+!.cursor/skills/localflow-platform/**
 
 .env
 .env.*
@@ -22,5 +29,7 @@ debug.bat
 
 .automation/
 .localflow/
+.qa/
+quality/evidence/browser/test-results/
 
 *.spec.bak

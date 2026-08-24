@@ -4,19 +4,47 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "localflow"
-version = "0.0.0"
-description = "本机任务自动化平台：配置文件定义命令、监听器与工作流，网页管理与执行日志"
+version = "0.1.0"
+description = "Ubuntu offline task scheduling, execution, and observation platform"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
-    "python-library-automation>=1.2.0",
-    "psutil>=5.9",
-    "python-library-configlib>=0.1.0",
-    "rich>=13.0",
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "pydantic>=2.9,<3",
+    "PyYAML>=6,<7",
+    "watchfiles>=0.24,<2",
 ]
 
+[project.scripts]
+localflow = "localflow.cli:main"
+
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+dev = [
+    "httpx>=0.27,<1",
+    "pytest>=8,<9",
+    "pytest-asyncio>=0.24,<1",
+    "ruff>=0.8,<1",
+]
 
 [tool.setuptools]
-packages = []
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["localflow*"]
+
+[tool.setuptools.package-data]
+"localflow.builtin_plugins" = ["*.example"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests_v2"]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]

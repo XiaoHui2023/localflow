@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": [
+    {
+      "id": "project-skill-manifest-policy",
+      "scope": "user",
+      "sha256": "5502d3d614381d392cc809d4a84d5cac8592e18a9fc5e02b9f5e0b3eb72a2602"
+    },
+    {
+      "id": "project-evolution-engine",
+      "scope": "user",
+      "sha256": "482d4589fcad32b8293e3b9ed58c5feead77f9660c4cfccb60db2c38e520ce20"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "required_skills_manifest": ".cursor/skills/project-required-skills.json",
+  "commands": [
+    ".venv/Scripts/ruff check src/localflow tests_v2 tests_target tools/check_quality.py tools/run_browser_quality.py",
+    ".venv/Scripts/python -m pytest",
+    "npm --prefix frontend audit",
+    ".venv/Scripts/python tools/run_browser_quality.py",
+    ".venv/Scripts/python tools/check_quality.py"
+  ],
+  "target_gate": "tests_target/test_localflow_systemd_executor.py",
+  "target_status": "passed-ubuntu-systemd-9-tests",
+  "browser_status": "passed-edge-playwright-see-quality-evidence"
+}

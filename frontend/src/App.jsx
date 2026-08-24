@@ -1,573 +1,82 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link, NavLink, Route, Routes } from "react-router-dom";
-import {
-  createBlueprint,
-  fetchAutomations,
-  fetchConfig,
-  fetchRunHistory,
-  fetchRunHistoryRecord,
-  fetchScript,
-  fetchScripts,
-  fetchStatus,
-  postScriptCancel,
-} from "./api.js";
-import RunScriptPage from "./RunScriptPage.jsx";
-import TemplateView from "./TemplateView.jsx";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Editor, { DiffEditor } from "@monaco-editor/react";
+import { FitAddon } from "@xterm/addon-fit";
+import { Terminal } from "@xterm/xterm";
+import "@xterm/xterm/css/xterm.css";
+import { Activity, Clock3, FileCode2, KeyRound, ListChecks, Play, RefreshCw, Settings, Square, TerminalSquare, X } from "lucide-react";
+import { api } from "./api";
 
-function HomePage() {
-  const [status, setStatus] = useState(null);
-  const [error, setError] = useState("");
+const finalStates = new Set(["succeeded", "failed", "cancelled", "lost"]);
+const labels = { queued: "队列中", starting: "启动中", running: "运行中", succeeded: "成功", failed: "失败", cancelled: "已中断", lost: "状态丢失" };
+const showTime = (value) => value ? new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(value)) : "—";
 
-  const load = useCallback(async () => {
-    setError("");
-    try {
-      setStatus(await fetchStatus());
-    } catch (err) {
-      setError(String(err));
-    }
-  }, []);
+function Login({ done }) {
+  const [code, setCode] = useState(""); const [bad, setBad] = useState(false);
+  return <form className="login" onSubmit={async (event) => { event.preventDefault(); try { await api.login(code); done(); } catch { setBad(true); } }}><KeyRound size={16}/><input aria-label="管理员登录码" value={code} onChange={(e) => setCode(e.target.value)} placeholder="输入 login-code 输出"/><button>管理员登录</button>{bad && <span>代码无效</span>}</form>;
+}
 
+function TaskRow({ task, active, fresh, select, ack }) {
+  return <button className={`task-row ${active ? "active" : ""}`} onClick={select} onMouseEnter={() => fresh && ack()} onFocus={() => fresh && ack()}><i className={task.state}/><span className="task-name"><b>{task.name}</b><small>{task.labels?.map((item) => <em key={item}>{item}</em>)}</small></span>{fresh && <strong>新完成</strong>}<span>{labels[task.state]}</span><time>{showTime(task.ended_at || task.started_at || task.created_at)}</time></button>;
+}
+
+function TaskTerminal({ task, interactive }) {
+  const host = useRef();
   useEffect(() => {
-    load();
-  }, [load]);
-
-  return (
-    <section className="card">
-      <h1>localflow</h1>
-      <p>本机任务自动化（React + Python 标准库 HTTP）</p>
-      <button type="button" onClick={load}>
-        刷新状态
-      </button>
-      {error ? <p className="msg-error">{error}</p> : null}
-      <pre>{status ? JSON.stringify(status, null, 2) : "加载中…"}</pre>
-    </section>
-  );
+    const term = new Terminal({ convertEol: true, fontSize: 13, fontFamily: "Cascadia Mono, monospace", theme: { background: "#0a1018", foreground: "#dbe4f2" } }); const fit = new FitAddon(); term.loadAddon(fit); term.open(host.current); fit.fit();
+    const socket = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/v1/tasks/${task.id}/terminal`);
+    socket.onopen = () => term.writeln(interactive ? "[终端已连接]" : "[只读回放已连接]"); socket.onmessage = (event) => { const message = JSON.parse(event.data); if (message.type === "output") term.write(Uint8Array.from(atob(message.data), (x) => x.charCodeAt(0))); else if (message.type === "error") term.writeln(`\r\n[${message.message}]`); }; socket.onclose = () => term.writeln("\r\n[连接关闭]");
+    term.onData((data) => { if (interactive && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "input", data: btoa(unescape(encodeURIComponent(data))) })); });
+    term.onResize(({ rows, cols }) => { if (interactive && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "resize", rows, cols })); });
+    return () => { socket.close(); term.dispose(); };
+  }, [task.id, interactive]);
+  return <div className="terminal" ref={host}/>;
 }
 
-function SettingsPage() {
-  const [config, setConfig] = useState(null);
-
-  useEffect(() => {
-    fetchConfig().then(setConfig).catch(() => setConfig({ ok: false }));
-  }, []);
-
-  return (
-    <section className="card">
-      <h2>配置</h2>
-      <pre>{config ? JSON.stringify(config, null, 2) : "加载中…"}</pre>
-    </section>
-  );
+function Detail({ task, role, close, interrupt }) {
+  const [tab, setTab] = useState("detail");
+  if (!task) return <aside className="detail empty"><Activity/><p>选择任务查看详情</p></aside>;
+  return <aside className="detail"><header><div><span className={`badge ${task.state}`}>{labels[task.state]}</span><h2>{task.name}</h2></div><button className="icon" onClick={close} aria-label="关闭"><X/></button></header><nav><button className={tab === "detail" ? "active" : ""} onClick={() => setTab("detail")}>详情</button><button className={tab === "terminal" ? "active" : ""} onClick={() => setTab("terminal")}><TerminalSquare/>终端</button></nav>{tab === "terminal" ? <TaskTerminal task={task} interactive={role === "admin"}/> : <div className="details"><dl><dt>任务 ID</dt><dd>{task.id}</dd><dt>开始</dt><dd>{showTime(task.started_at)}</dd><dt>结束</dt><dd>{showTime(task.ended_at)}</dd><dt>退出码</dt><dd>{task.exit_code ?? "—"}</dd>{task.blocked_keys?.length > 0 && <><dt>阻塞互斥键</dt><dd>{task.blocked_keys.join(", ")}</dd><dt>前序任务</dt><dd>{task.blocked_by.join(", ")}</dd></>}</dl>{task.command && <><h3>命令</h3><pre>{task.command.join(" ")}</pre><h3>工作目录</h3><pre>{task.working_directory}</pre></>}{task.custom && <><h3>计算信息</h3>{Object.entries(task.custom).map(([key, value]) => <p className="computed" key={key}><span>{key}</span><b>{typeof value === "object" ? JSON.stringify(value) : String(value)}</b></p>)}</>}{role === "admin" && !finalStates.has(task.state) && <button className="danger" onClick={interrupt}><Square/>温和中断</button>}</div>}</aside>;
 }
 
-function ScriptListItem({ item, selected, onSelect }) {
-  const failed = item.status === "failed";
-  return (
-    <button
-      type="button"
-      className={`script-item${selected ? " selected" : ""}${failed ? " failed" : ""}`}
-      onClick={() => onSelect(item)}
-    >
-      <div className="script-item-head">
-        <strong>{item.name}</strong>
-        <span className={`status-pill status-${item.status}`}>{item.status}</span>
-      </div>
-      {item.view ? <TemplateView node={item.view} /> : null}
-    </button>
-  );
+function Config() {
+  const [files, setFiles] = useState([]); const [file, setFile] = useState(); const [content, setContent] = useState(""); const [notice, setNotice] = useState(""); const [newPath, setNewPath] = useState(""); const [conflict, setConflict] = useState();
+  const [referenceTime, setReferenceTime] = useState("");
+  const open = async (path) => { const value = await api.file(path); setFile(value); setContent(value.content); setConflict(undefined); };
+  useEffect(() => { api.files().then((result) => { setFiles(result.items); if (result.items[0]) open(result.items[0]); }).catch((e) => setNotice(e.message)); }, []);
+  useEffect(() => { const events = new EventSource("/api/v1/events"); const changed = (event) => { const data = JSON.parse(event.data); if (data.path === file?.path) { open(file.path); setNotice("检测到磁盘文件修改，已重新载入"); } }; events.addEventListener("config.changed", changed); events.addEventListener("config.invalid", (event) => { const data = JSON.parse(event.data); if (data.path === file?.path) setNotice(`磁盘文件无效：${data.error}`); }); return () => events.close(); }, [file?.path]);
+  const create = async () => { try { const saved = await api.saveFile(newPath, newPath.endsWith(".json") ? "{}\n" : "# LocalFlow configuration\n", "*"); setFiles((old) => [...new Set([...old, newPath])].sort()); setFile(saved); setContent(saved.content); setNewPath(""); setNotice("配置文件已创建"); } catch (error) { setNotice(`创建失败：${error.message}`); } };
+  const save = async () => { try { const saved = await api.saveFile(file.path, content, file.version); setFile(saved); setConflict(undefined); setNotice("已保存并校验"); } catch (error) { if (error.status === 412) { const current = await api.file(file.path); setConflict(current); setNotice("磁盘版本已变化，请比较后选择"); } else setNotice(`保存失败：${error.message}`); } };
+  return <div className="config"><aside><h2>配置文件</h2><div className="new-file"><input aria-label="新配置文件路径" placeholder="projects/new.yaml" value={newPath} onChange={(event) => setNewPath(event.target.value)}/><button disabled={!/\.(ya?ml|json|toml)$/i.test(newPath)} onClick={create}>新建</button></div>{files.map((path) => <button className={file?.path === path ? "active" : ""} key={path} onClick={() => open(path)}><FileCode2/>{path}</button>)}<div className="time-card"><h2>离线时间校准</h2><input aria-label="校准参考时间" type="datetime-local" value={referenceTime} onChange={(event) => setReferenceTime(event.target.value)}/><button disabled={!referenceTime} onClick={async () => { try { await api.adjustTime(new Date(referenceTime).toISOString()); setNotice("系统时间校准请求已执行并记录"); } catch (error) { setNotice(`校准失败：${error.message}`); } }}>校准时间</button><small>由固定的特权辅助程序执行</small></div></aside><section><header><div><h1>{file?.path || "选择配置"}</h1><p>磁盘文件是数据源，版本冲突不会覆盖。</p></div>{file && <div><button className="ghost" onClick={() => open(file.path)}><RefreshCw/>重载</button><button onClick={save}>保存</button></div>}</header>{notice && <p className="notice">{notice}</p>}{conflict ? <div className="conflict"><div><b>左侧：磁盘版本</b><span>右侧：你的编辑</span><button onClick={() => { setFile(conflict); setContent(conflict.content); setConflict(undefined); }}>采用磁盘版本</button></div><DiffEditor height="calc(100vh - 250px)" original={conflict.content} modified={content} language={file.path.endsWith("json") ? "json" : file.path.endsWith("toml") ? "ini" : "yaml"} theme="localflow-dark" options={{ readOnly: true, automaticLayout: true }}/></div> : file && <Editor height="calc(100vh - 210px)" language={file.path.endsWith("json") ? "json" : file.path.endsWith("toml") ? "ini" : "yaml"} theme="localflow-dark" value={content} onChange={(value) => setContent(value || "")} options={{ minimap: { enabled: false }, automaticLayout: true }}/>}</section></div>;
 }
 
-function formatFinishedAt(value) {
-  if (!value) {
-    return "";
-  }
-  try {
-    return new Date(value).toLocaleString();
-  } catch {
-    return value;
-  }
+function CasePicker({ template, values, setValues }) {
+  const [options, setOptions] = useState([]); const [error, setError] = useState(""); const [search, setSearch] = useState("");
+  const selected = new Set(values.cases || []); const runs = values.case_runs || {};
+  const visible = options.filter((name) => name.toLowerCase().includes(search.toLowerCase()));
+  const toggle = (name) => { const next = new Set(selected); next.has(name) ? next.delete(name) : next.add(name); setValues({...values, cases:[...next]}); };
+  const selectVisible = () => setValues({...values, cases:[...new Set([...(values.cases || []), ...visible])]});
+  return <fieldset className="case-picker"><legend>Cases *</legend><div className="case-tools"><button type="button" className="ghost" onClick={async () => { try { const result = await api.discoverTemplate(template, values); setOptions(result.items); setError(""); } catch (reason) { setError(reason.message); } }}><RefreshCw/>扫描目录</button><input aria-label="搜索 case" placeholder="搜索 case" value={search} onChange={(event) => setSearch(event.target.value)}/><button type="button" className="ghost" disabled={!visible.length} onClick={selectVisible}>全选当前结果</button></div>{error && <small className="error">{error}</small>}<div className="case-list">{visible.map((name) => <label key={name}><input type="checkbox" checked={selected.has(name)} onChange={() => toggle(name)}/><span>{name}</span><input aria-label={`${name} 运行次数`} type="number" min="1" value={runs[name] || values.runs_per_case || 1} onChange={(event) => setValues({...values, case_runs:{...runs,[name]:Number(event.target.value)}})}/><small>次</small></label>)}</div></fieldset>;
 }
 
-function SaveAsBlueprint({ scriptId, scriptName, isBatch, variables, batchParams }) {
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-
-  const save = async () => {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setError("请填写蓝图名称");
-      return;
-    }
-    setBusy(true);
-    setError("");
-    setMessage("");
-    try {
-      const body = {
-        name: trimmed,
-        script_id: scriptId,
-        script_name: scriptName,
-        is_batch: isBatch,
-      };
-      if (isBatch) {
-        body.batch_params = batchParams || {};
-      } else {
-        body.variables = variables || {};
-      }
-      await createBlueprint(body);
-      setName("");
-      setMessage("已保存为蓝图");
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="detail-blueprint-save">
-      <input
-        type="text"
-        placeholder="蓝图名称"
-        value={name}
-        disabled={busy}
-        onChange={(event) => setName(event.target.value)}
-      />
-      <button type="button" disabled={busy} onClick={save}>
-        保存为蓝图
-      </button>
-      {error ? <p className="msg-error">{error}</p> : null}
-      {message ? <p className="msg-ok">{message}</p> : null}
-    </div>
-  );
+function TemplatePicker({ template, field, values, setValues }) {
+  const [options, setOptions] = useState([]); const [error, setError] = useState("");
+  return <label className="template-picker"><span>{field.label || field.name}</span><div><select required={field.required} value={values[field.name] || ""} onChange={(event) => setValues({...values, [field.name]:event.target.value})}><option value="">选择磁盘配置</option>{options.map((name) => <option value={name} key={name}>{name}</option>)}</select><button type="button" className="ghost" onClick={async () => { try { const result = await api.discoverTemplate(template, values); setOptions(result.items); setError(""); } catch (reason) { setError(reason.message); } }}><RefreshCw/>扫描</button></div>{error && <small className="error">{error}</small>}</label>;
 }
 
-function HistoryListItem({ item, selected, onSelect }) {
-  const failed = item.status === "failed";
-  return (
-    <button
-      type="button"
-      className={`script-item${selected ? " selected" : ""}${failed ? " failed" : ""}`}
-      onClick={() => onSelect(item)}
-    >
-      <div className="script-item-head">
-        <strong>{item.script_name}</strong>
-        <span className={`status-pill status-${item.status}`}>{item.status}</span>
-      </div>
-      <p className="hint">{formatFinishedAt(item.finished_at)}</p>
-      {item.error ? <p className="msg-error">{item.error}</p> : null}
-    </button>
-  );
-}
-
-function HistoryDetail({ record }) {
-  if (!record) {
-    return <p className="hint">选择左侧历史记录查看详情</p>;
-  }
-
-  const runLink = `/run?id=${encodeURIComponent(record.script_id)}&history=${encodeURIComponent(record.id)}`;
-
-  return (
-    <div className="script-detail">
-      <div className="script-detail-head">
-        <div>
-          <h3>{record.script_name}</h3>
-          <p className="hint">
-            {formatFinishedAt(record.finished_at)}
-            {record.is_batch ? " · 批处理" : ""}
-          </p>
-        </div>
-        <div className="detail-actions">
-          <Link to={runLink} className="run-link">
-            编辑参数并运行
-          </Link>
-        </div>
-      </div>
-      {record.result ? <TemplateView node={record.result} /> : null}
-      {record.terminal_log_path ? (
-        <p className="hint">日志文件：{record.terminal_log_path}</p>
-      ) : null}
-      {record.terminal ? (
-        <>
-          <h4>终端输出</h4>
-          <pre className="terminal-box">{record.terminal}</pre>
-        </>
-      ) : null}
-      {record.error ? (
-        <>
-          <h4 className="msg-error">错误</h4>
-          <p className="msg-error">{record.error}</p>
-        </>
-      ) : null}
-      {record.error_traceback ? (
-        <>
-          <h4>堆栈</h4>
-          <pre className="terminal-box error-box">{record.error_traceback}</pre>
-        </>
-      ) : null}
-      <SaveAsBlueprint
-        scriptId={record.script_id}
-        scriptName={record.script_name}
-        isBatch={Boolean(record.is_batch)}
-        variables={record.variables}
-        batchParams={record.batch_params}
-      />
-    </div>
-  );
-}
-
-function StopScriptButton({ script, onUpdated, onError }) {
-  const [busy, setBusy] = useState(false);
-
-  if (!script || script.status !== "running") {
-    return null;
-  }
-
-  const force = Boolean(script.cancel_pending);
-  const label = force ? "强制停止" : "停止";
-
-  const onStop = async () => {
-    setBusy(true);
-    onError("");
-    try {
-      const payload = await postScriptCancel(script.id, { force });
-      if (!payload.ok) {
-        onError(payload.error || "停止失败");
-        return;
-      }
-      onUpdated(payload.script);
-    } catch (err) {
-      onError(String(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <button type="button" className="btn-danger" disabled={busy} onClick={onStop}>
-      {label}
-    </button>
-  );
-}
-
-function ScriptDetail({ script, onScriptUpdated, onError }) {
-  if (!script) {
-    return <p className="hint">选择左侧条目查看详情</p>;
-  }
-
-  const finished =
-    script.status === "succeeded" ||
-    script.status === "failed" ||
-    script.status === "cancelled";
-  const panel = finished && script.result ? script.result : script.view;
-  const canEdit =
-    script.status === "idle" ||
-    script.status === "succeeded" ||
-    script.status === "failed" ||
-    script.status === "cancelled";
-
-  return (
-    <div className="script-detail">
-      <div className="script-detail-head">
-        <h3>{script.name}</h3>
-        <div className="detail-actions">
-          <StopScriptButton
-            script={script}
-            onUpdated={onScriptUpdated}
-            onError={onError}
-          />
-          {canEdit ? (
-            <Link to={`/run?id=${encodeURIComponent(script.id)}`} className="run-link">
-              编辑参数并运行
-            </Link>
-          ) : null}
-        </div>
-      </div>
-      {script.cancel_pending ? (
-        <p className="hint">已发送停止信号，等待进程退出；可点击「强制停止」或等待超时。</p>
-      ) : null}
-      <TemplateView node={panel} />
-      {script.terminal_log_path ? (
-        <p className="hint">日志文件：{script.terminal_log_path}</p>
-      ) : null}
-      {script.terminal ? (
-        <>
-          <h4>终端输出</h4>
-          <pre className="terminal-box">{script.terminal}</pre>
-        </>
-      ) : null}
-      {script.error ? (
-        <>
-          <h4 className="msg-error">错误</h4>
-          <p className="msg-error">{script.error}</p>
-        </>
-      ) : null}
-      {script.error_traceback ? (
-        <>
-          <h4>堆栈</h4>
-          <pre className="terminal-box error-box">{script.error_traceback}</pre>
-        </>
-      ) : null}
-      {finished ? (
-        <SaveAsBlueprint
-          scriptId={script.id}
-          scriptName={script.name}
-          isBatch={Boolean(script.is_batch)}
-          variables={script.user_variables}
-          batchParams={script.batch_params}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-function TaskPage() {
-  const [data, setData] = useState({ running: [], history: [], idle: [] });
-  const [detailMode, setDetailMode] = useState("script");
-  const [selectedId, setSelectedId] = useState(null);
-  const [selectedHistoryId, setSelectedHistoryId] = useState(null);
-  const [detail, setDetail] = useState(null);
-  const [historyDetail, setHistoryDetail] = useState(null);
-  const [error, setError] = useState("");
-
-  const refresh = useCallback(async () => {
-    setError("");
-    try {
-      const [scriptsPayload, historyPayload] = await Promise.all([
-        fetchScripts(),
-        fetchRunHistory(),
-      ]);
-      const all = scriptsPayload.scripts || [];
-      setData({
-        running: scriptsPayload.running || [],
-        history: historyPayload.history || [],
-        idle: all.filter((item) => item.status === "idle"),
-      });
-    } catch (err) {
-      setError(String(err));
-    }
-  }, []);
-
-  const loadDetail = useCallback(async (id) => {
-    if (!id) {
-      setDetail(null);
-      return;
-    }
-    try {
-      const payload = await fetchScript(id);
-      if (payload.ok) {
-        setDetail(payload.script);
-      }
-    } catch {
-      setDetail(null);
-    }
-  }, []);
-
-  const loadHistoryDetail = useCallback(async (id) => {
-    if (!id) {
-      setHistoryDetail(null);
-      return;
-    }
-    try {
-      const payload = await fetchRunHistoryRecord(id);
-      if (payload.ok) {
-        setHistoryDetail(payload.record);
-      }
-    } catch {
-      setHistoryDetail(null);
-    }
-  }, []);
-
-  const selectScriptItem = (item) => {
-    setDetailMode("script");
-    setSelectedId(item.id);
-    setSelectedHistoryId(null);
-    setHistoryDetail(null);
-    setDetail(item);
-    loadDetail(item.id);
-  };
-
-  const selectHistoryItem = (item) => {
-    setDetailMode("history");
-    setSelectedHistoryId(item.id);
-    setSelectedId(null);
-    setDetail(null);
-    setHistoryDetail(item);
-    loadHistoryDetail(item.id);
-  };
-
-  useEffect(() => {
-    refresh().catch(() => {});
-    const timer = setInterval(() => {
-      refresh().catch(() => {});
-      if (detailMode === "script" && selectedId) {
-        loadDetail(selectedId).catch(() => {});
-      }
-      if (detailMode === "history" && selectedHistoryId) {
-        loadHistoryDetail(selectedHistoryId).catch(() => {});
-      }
-    }, 2000);
-    return () => clearInterval(timer);
-  }, [refresh, loadDetail, loadHistoryDetail, detailMode, selectedId, selectedHistoryId]);
-
-  return (
-    <section className="card task-layout">
-      <h2>工作流</h2>
-      {error ? <p className="msg-error">{error}</p> : null}
-      <div className="task-columns">
-        <div className="task-column">
-          <h3>可启动 ({data.idle.length})</h3>
-          {data.idle.length === 0 ? (
-            <p className="hint">暂无待启动 Script</p>
-          ) : (
-            data.idle.map((item) => (
-              <ScriptListItem
-                key={item.id}
-                item={item}
-                selected={selectedId === item.id}
-                onSelect={selectScriptItem}
-              />
-            ))
-          )}
-        </div>
-        <div className="task-column">
-          <h3>运行中 ({data.running.length})</h3>
-          {data.running.length === 0 ? (
-            <p className="hint">暂无运行中任务</p>
-          ) : (
-            data.running.map((item) => (
-              <ScriptListItem
-                key={item.id}
-                item={item}
-                selected={detailMode === "script" && selectedId === item.id}
-                onSelect={selectScriptItem}
-              />
-            ))
-          )}
-        </div>
-        <div className="task-column">
-          <h3>历史记录 ({data.history.length})</h3>
-          {data.history.length === 0 ? (
-            <p className="hint">暂无历史记录</p>
-          ) : (
-            data.history.map((item) => (
-              <HistoryListItem
-                key={item.id}
-                item={item}
-                selected={detailMode === "history" && selectedHistoryId === item.id}
-                onSelect={selectHistoryItem}
-              />
-            ))
-          )}
-        </div>
-      </div>
-      {detailMode === "history" ? (
-        <HistoryDetail record={historyDetail} />
-      ) : (
-        <ScriptDetail
-          script={detail}
-          onScriptUpdated={setDetail}
-          onError={setError}
-        />
-      )}
-    </section>
-  );
-}
-
-function AutomationsPage() {
-  const [items, setItems] = useState([]);
-  const [error, setError] = useState("");
-
-  const load = useCallback(async () => {
-    setError("");
-    try {
-      const payload = await fetchAutomations();
-      setItems(payload.automations || []);
-    } catch (err) {
-      setError(String(err));
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-    const timer = setInterval(() => {
-      load().catch(() => {});
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [load]);
-
-  return (
-    <section className="card">
-      <h2>Automation 事件</h2>
-      <button type="button" onClick={load}>
-        刷新
-      </button>
-      {error ? <p className="msg-error">{error}</p> : null}
-      {items.length === 0 ? (
-        <p className="hint">暂无已注册的 Automation</p>
-      ) : (
-        items.map((auto) => (
-          <article key={auto.name} className="automation-card">
-            <div className="automation-head">
-              <h3>{auto.name}</h3>
-              <span className="hint">
-                {auto.type} · {auto.mode} · {auto.interval}s
-              </span>
-            </div>
-            {auto.scripts.length > 0 ? (
-              <div className="bound-scripts automation-scripts">
-                {auto.scripts.map((script) => (
-                  <span
-                    key={script.id}
-                    className={`status-pill status-${script.status}`}
-                  >
-                    {script.name}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="hint">未注册 Script</p>
-            )}
-            {auto.handlers.length === 0 ? (
-              <p className="hint">未注册监听函数</p>
-            ) : (
-              <ul className="handler-list">
-                {auto.handlers.map((handler) => (
-                  <li key={`${handler.module}.${handler.qualname}`}>
-                    <div className="handler-title">
-                      <code>{handler.qualname}</code>
-                      <span className="hint">{handler.module}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </article>
-        ))
-      )}
-    </section>
-  );
+function Run() {
+  const [items, setItems] = useState([]); const [selected, setSelected] = useState(); const [values, setValues] = useState({}); const [notice, setNotice] = useState("");
+  useEffect(() => { api.templates().then((result) => { setItems(result.items); setSelected(result.items[0]); }).catch((e) => setNotice(e.message)); }, []);
+  const update = (field, raw) => setValues((old) => ({...old, [field.name]: field.type === "integer" ? Number(raw) : field.type === "string-list" ? raw.split(",").map((item) => item.trim()).filter(Boolean) : raw}));
+  return <div className="run"><header><h1>运行模板</h1><p>插件参数会展开成独立、可排队的任务。</p></header>{notice && <p className="notice">{notice}</p>}<div className="template"><aside>{items.map((item) => <button className={selected?.name === item.name ? "active" : ""} onClick={() => { setSelected(item); setValues({}); }} key={item.name}><Play/><span><b>{item.name}</b><small>版本 {item.version}</small></span></button>)}</aside><form onSubmit={async (event) => { event.preventDefault(); try { const result = await api.runTemplate(selected.name, values); setNotice(`已建立 ${result.count} 个任务`); } catch (e) { setNotice(e.message); } }}>{selected?.fields.map((field) => field.type === "case-picker" ? <CasePicker key={field.name} template={selected.name} values={values} setValues={setValues}/> : field.type === "template-picker" ? <TemplatePicker key={field.name} template={selected.name} field={field} values={values} setValues={setValues}/> : <label key={field.name}><span>{field.label || field.name}</span>{field.type === "json" ? <textarea required={field.required} defaultValue={field.default ?? "{}"} onChange={(event) => update(field, event.target.value)}/> : <input required={field.required} type={field.type === "integer" ? "number" : "text"} defaultValue={field.default ?? ""} onChange={(event) => update(field, event.target.value)}/>}<small>{field.type === "string-list" ? "多个参数用逗号分隔" : field.type}</small></label>)}{selected && <button className="submit"><Play/>展开并加入队列</button>}</form></div></div>;
 }
 
 export default function App() {
-  return (
-    <main>
-      <nav>
-        <NavLink to="/" end>
-          首页
-        </NavLink>
-        <NavLink to="/task">任务</NavLink>
-        <NavLink to="/run">运行</NavLink>
-        <NavLink to="/events">事件</NavLink>
-        <NavLink to="/settings">设置</NavLink>
-      </nav>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/task" element={<TaskPage />} />
-        <Route path="/run" element={<RunScriptPage />} />
-        <Route path="/events" element={<AutomationsPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-      </Routes>
-    </main>
-  );
+  const [page, setPage] = useState("tasks"); const [status, setStatus] = useState(); const [tasks, setTasks] = useState([]); const [selected, setSelected] = useState(); const [fresh, setFresh] = useState(new Set()); const [error, setError] = useState("");
+  const [filters, setFilters] = useState({ name: "", label: "", state: "", ended_from: "", ended_to: "" });
+  const refresh = useCallback(async () => { try { const query = new URLSearchParams(); Object.entries(filters).forEach(([key, value]) => { if (value) query.append(key, key.startsWith("ended_") ? new Date(value).toISOString() : value); }); const [state, result] = await Promise.all([api.status(), api.tasks(query.toString())]); setStatus(state); setTasks(result.items); setSelected((old) => old ? result.items.find((item) => item.id === old.id) || old : old); } catch (e) { setError(e.message); } }, [filters]);
+  useEffect(() => { refresh(); const timer = setInterval(refresh, 3000); return () => clearInterval(timer); }, [refresh]);
+  useEffect(() => { setFresh(new Set(tasks.filter((task) => task.newly_completed).map((task) => task.id))); }, [tasks]);
+  const groups = useMemo(() => ({ running: tasks.filter((x) => ["starting", "running"].includes(x.state)), queued: tasks.filter((x) => x.state === "queued"), history: tasks.filter((x) => finalStates.has(x.state)) }), [tasks]);
+  const ack = async (id) => { if (status?.role !== "admin") return; setFresh((old) => { const next = new Set(old); next.delete(id); return next; }); try { await api.acknowledge(id); } catch {} };
+  return <div><header className="top"><div className="brand"><i>LF</i><span><b>LocalFlow</b><small>离线任务控制台</small></span></div><nav>{[["tasks","任务中心",ListChecks],...(status?.role === "admin" ? [["run","运行模板",Play],["config","配置",Settings]] : [])].map(([id,text,Icon]) => <button className={page === id ? "active" : ""} onClick={() => setPage(id)} key={id}><Icon/>{text}</button>)}</nav><span className="role">● {status?.role === "admin" ? "管理员" : status?.role === "readonly" ? "完整只读" : "摘要只读"}</span></header>{status?.role !== "admin" && <Login done={refresh}/>} {error && <p className="error">{error}</p>}<main>{page === "config" ? <Config/> : page === "run" ? <Run/> : <div className="task-layout"><section className="workspace"><header><div><h1>任务中心</h1><p>实时查看队列、运行状态和最近完成任务</p></div><button className="ghost" onClick={refresh}><RefreshCw/>刷新</button></header><div className="filters"><input placeholder="任务名称" value={filters.name} onChange={(e) => setFilters({...filters, name:e.target.value})}/><input placeholder="标签" value={filters.label} onChange={(e) => setFilters({...filters, label:e.target.value})}/><select value={filters.state} onChange={(e) => setFilters({...filters, state:e.target.value})}><option value="">全部状态</option>{Object.entries(labels).map(([value,text]) => <option value={value} key={value}>{text}</option>)}</select><input aria-label="结束时间起点" type="datetime-local" value={filters.ended_from} onChange={(e) => setFilters({...filters, ended_from:e.target.value})}/><input aria-label="结束时间终点" type="datetime-local" value={filters.ended_to} onChange={(e) => setFilters({...filters, ended_to:e.target.value})}/></div>{[["running","正在运行",Activity],["queued","等待队列",Clock3],["history","历史任务",ListChecks]].map(([key,title,Icon]) => <section className="group" key={key}><h2><Icon/>{title}<span>{groups[key].length}</span></h2><div>{groups[key].length ? groups[key].map((task) => <TaskRow task={task} key={task.id} active={selected?.id === task.id} fresh={key === "history" && fresh.has(task.id)} select={() => setSelected(task)} ack={() => ack(task.id)}/>) : <p className="none">暂无任务</p>}</div></section>)}</section><Detail task={selected} role={status?.role} close={() => setSelected()} interrupt={async () => { await api.interrupt(selected.id); refresh(); }}/></div>}</main></div>;
 }

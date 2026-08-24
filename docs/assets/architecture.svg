@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc" xml:lang="zh-CN">
+  <title id="title">LocalFlow 架构与所有权</title>
+  <desc id="desc">管理员和只读用户访问控制面，控制面通过任务服务写入数据库，调度器创建 systemd 瞬态单元，监督程序管理任务和日志。</desc>
+  <defs>
+    <style>
+      text { font-family: "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; fill: #e8edf7; }
+      .title { font-size: 25px; font-weight: 700; }
+      .head { font-size: 17px; font-weight: 700; }
+      .body { font-size: 14px; fill: #b9c4d6; }
+      .box { fill: #151c29; stroke: #40516d; stroke-width: 1.5; rx: 12; }
+      .owner { fill: #17251f; stroke: #3d8d67; }
+      .data { fill: #201b2d; stroke: #765ca7; }
+      .warn { fill: #2a2116; stroke: #b57b37; }
+      .line { stroke: #7183a1; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .event { stroke: #4db88a; stroke-dasharray: 7 5; }
+      .label { font-size: 12px; fill: #93a4bf; }
+    </style>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#7183a1"/></marker>
+  </defs>
+  <rect width="1200" height="760" fill="#0d121b"/>
+  <text x="48" y="48" class="title">LocalFlow：控制面不持有长任务</text>
+  <text x="48" y="74" class="body">实线为命令或数据，虚线为事件与恢复观察</text>
+
+  <rect x="48" y="115" width="220" height="112" class="box"/>
+  <text x="70" y="148" class="head">访问者</text>
+  <text x="70" y="177" class="body">管理员：短时会话、全部操作</text>
+  <text x="70" y="201" class="body">匿名：默认仅去敏摘要</text>
+
+  <rect x="342" y="102" width="316" height="150" class="box"/>
+  <text x="366" y="136" class="head">HTTP 控制面</text>
+  <text x="366" y="165" class="body">身份验证 · 权限投影 · HTTP / SSE / WS</text>
+  <text x="366" y="190" class="body">配置编辑 · 插件参数表单 · 终端呈现</text>
+  <text x="366" y="215" class="body">不直接创建后台长任务</text>
+
+  <rect x="736" y="102" width="405" height="150" class="owner"/>
+  <text x="760" y="136" class="head">任务服务：唯一生命周期写入方</text>
+  <text x="760" y="165" class="body">不可变提交快照 · 状态转换 · 事件 · 幂等</text>
+  <text x="760" y="190" class="body">调度租约 · 互斥键 · 中断阶段 · 恢复结果</text>
+  <text x="760" y="215" class="body">接口与后台组件只提交意图</text>
+
+  <path d="M268 171 H342" class="line"/>
+  <text x="278" y="160" class="label">受控访问</text>
+  <path d="M658 177 H736" class="line"/>
+  <text x="666" y="166" class="label">意图</text>
+
+  <rect x="48" y="325" width="250" height="138" class="data"/>
+  <text x="72" y="359" class="head">配置与插件目录</text>
+  <text x="72" y="388" class="body">YAML · TOML · JSON</text>
+  <text x="72" y="413" class="body">文件监视 · 版本条件写入</text>
+  <text x="72" y="438" class="body">插件代次 · 最后有效配置</text>
+
+  <rect x="362" y="325" width="270" height="138" class="data"/>
+  <text x="386" y="359" class="head">SQLite WAL</text>
+  <text x="386" y="388" class="body">任务 · 批次 · 事件 · 确认</text>
+  <text x="386" y="413" class="body">配置摘要 · 随机数 · 幂等结果</text>
+  <text x="386" y="438" class="body">短事务与稳定恢复依据</text>
+
+  <rect x="708" y="325" width="196" height="138" class="box"/>
+  <text x="732" y="359" class="head">调度器</text>
+  <text x="732" y="388" class="body">FIFO 候选</text>
+  <text x="732" y="413" class="body">并发额度</text>
+  <text x="732" y="438" class="body">互斥键占用</text>
+
+  <rect x="944" y="325" width="197" height="138" class="warn"/>
+  <text x="968" y="359" class="head">执行器</text>
+  <text x="968" y="388" class="body">生产：systemd</text>
+  <text x="968" y="413" class="body">开发：POSIX 子进程</text>
+  <text x="968" y="438" class="body">统一状态语义</text>
+
+  <path d="M174 325 V276 H500 V252" class="line event"/>
+  <text x="190" y="290" class="label">文件变化</text>
+  <path d="M842 252 V325" class="line"/>
+  <path d="M736 213 C650 270 600 295 526 325" class="line"/>
+  <path d="M904 394 H944" class="line"/>
+
+  <rect x="90" y="565" width="242" height="128" class="warn"/>
+  <text x="114" y="599" class="head">systemd 瞬态服务</text>
+  <text x="114" y="628" class="body">跨控制面重启持有任务</text>
+  <text x="114" y="653" class="body">独立控制组与资源属性</text>
+  <text x="114" y="678" class="body">枚举状态供恢复核对</text>
+
+  <rect x="408" y="565" width="242" height="128" class="owner"/>
+  <text x="432" y="599" class="head">任务监督程序</text>
+  <text x="432" y="628" class="body">PTY · 输出记录 · 输入转发</text>
+  <text x="432" y="653" class="body">SIGINT → SIGTERM → SIGKILL</text>
+  <text x="432" y="678" class="body">保存可信退出结果</text>
+
+  <rect x="726" y="565" width="190" height="128" class="box"/>
+  <text x="750" y="599" class="head">用户任务</text>
+  <text x="750" y="628" class="body">命令由用户决定</text>
+  <text x="750" y="653" class="body">独立会话与进程组</text>
+  <text x="750" y="678" class="body">不继承服务密钥</text>
+
+  <rect x="976" y="565" width="165" height="128" class="data"/>
+  <text x="1000" y="599" class="head">任务日志</text>
+  <text x="1000" y="628" class="body">磁盘字节流</text>
+  <text x="1000" y="653" class="body">偏移续传</text>
+  <text x="1000" y="678" class="body">按保存期清理</text>
+
+  <path d="M1042 463 V510 H211 V565" class="line"/>
+  <text x="926" y="500" class="label">建立承载单元</text>
+  <path d="M332 629 H408" class="line"/>
+  <path d="M650 629 H726" class="line"/>
+  <path d="M916 629 H976" class="line"/>
+  <path d="M529 565 V510 H497 V463" class="line event"/>
+  <text x="538" y="530" class="label">退出与状态事件</text>
+</svg>
