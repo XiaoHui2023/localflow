@@ -9,8 +9,12 @@ const qaRoot = process.env.LOCALFLOW_QA_ROOT;
 const qaPython = process.env.LOCALFLOW_QA_PYTHON;
 const loginCode = process.env.LOCALFLOW_QA_LOGIN_CODE;
 
-function sha256(file) {
-  return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+function sha256(file, normalizeText = false) {
+  const content = fs.readFileSync(file);
+  const value = normalizeText
+    ? Buffer.from(content.toString("utf8").replace(/\r\n/g, "\n"))
+    : content;
+  return crypto.createHash("sha256").update(value).digest("hex");
 }
 
 async function browserApi(page, endpoint, options = {}) {
@@ -161,7 +165,7 @@ test("read-only and administrator workflows remain usable in a real browser", as
     "tools/run_browser_quality.py",
   ];
   const sourceFiles = Object.fromEntries(
-    boundFiles.map((relative) => [relative, sha256(path.join(repository, relative))]),
+    boundFiles.map((relative) => [relative, sha256(path.join(repository, relative), true)]),
   );
   const screenshots = Object.fromEntries(
     fs.readdirSync(evidence)

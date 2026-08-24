@@ -37,6 +37,12 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _source_sha256(path: Path) -> str:
+    """Hash text evidence with a Git-portable LF representation."""
+    normalized = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    return hashlib.sha256(normalized.encode()).hexdigest()
+
+
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     trace_path = (
@@ -81,8 +87,7 @@ def main() -> int:
     if unknown:
         errors.append(f"unknown requirements: {sorted(unknown)}")
     browser_passed = any(
-        item.get("metric") == "QM-008" and item.get("status") == "passed"
-        for item in metrics
+        item.get("metric") == "QM-008" and item.get("status") == "passed" for item in metrics
     )
     if browser_passed:
         if not receipt_path.is_file():
@@ -97,7 +102,7 @@ def main() -> int:
                 errors.append(f"browser receipt missing assertions: {sorted(missing_assertions)}")
             for relative, expected in receipt.get("source_files", {}).items():
                 source = root / relative
-                if not source.is_file() or _sha256(source) != expected:
+                if not source.is_file() or _source_sha256(source) != expected:
                     errors.append(f"browser receipt hash mismatch: {relative}")
             expected_sources = {
                 "frontend/src/App.jsx",

@@ -6,13 +6,13 @@
   "result": "passed",
   "source_files": {
     "frontend/src/App.jsx": "4a1a54fdb915366234f7b8f9dccd4dd7fef1ce8424ae47a0b5a57813489ae2a6",
-    "frontend/src/main.jsx": "4e4f7d4b0e7ffc54ddbd2a140a595562cb0e9e4f80de102f984d894d4cd5db39",
+    "frontend/src/main.jsx": "e68dfb18dc66ac3de4aa0386ba616c1a6d920680da847e3bc1b7ce8afacb30a3",
     "frontend/src/index.css": "d142dfb3df67c5766afc5c285342791ebfef42f4e2c36fdb69a71b14db920a4f",
     "frontend/src/extra.css": "0300f5dfda332da6aaf7672db9d9b31c304e7486018a065523af12ffbaec0637",
     "frontend/src/case-picker.css": "e2a16bef95c0b520372b4197ca9acc7e9018fa489962849a29f2348d38ed7074",
-    "frontend/e2e/localflow.spec.js": "5d04b905abbfced461e95de141f0a675ce59e2f352dfc004730820edcf728f0c",
+    "frontend/e2e/localflow.spec.js": "f46cf706599796e42ea6d1d945eeb3df9b65c8a4a61083bdafe804f18e5e15ab",
     "frontend/playwright.config.js": "b758469bb6e18918763a7399a819c536ec0a557f7c82f0c2dfbc7544b50d33e3",
-    "frontend/package-lock.json": "08eca443049377320bd68e12eee60bccd90cc2981550f6150945d6f6cf991f47",
+    "frontend/package-lock.json": "769ceda3cc80c794daac07b3e2c33546f3125117485f89a24c269776a15e135b",
     "tools/run_browser_quality.py": "5394741c759f8d01baa4888dcdfeeda1c2b417cc608968b677754e6e5d656519"
   },
   "screenshots": {
