@@ -16,5 +16,5 @@ if [[ ! -x "$CONDA_ROOT/bin/python" ]]; then
 fi
 
 rm -rf .venv-release build dist
-PACK_PYTHON="$CONDA_ROOT/bin/python" PACK_SKIP_FRONTEND_BUILD=1 ./tools/pack.sh
+PACK_PYTHON="$CONDA_ROOT/bin/python" PACK_SKIP_FRONTEND_BUILD=1 PACK_DEFER_STATICX=1 ./tools/pack.sh
 chown -R "${HOST_UID:-0}:${HOST_GID:-0}" build dist .venv-release

@@ -1,6 +1,6 @@
 # 打包发布
 
-Linux Release 是 PyInstaller onefile 再经 staticx 封装的 x86_64 单文件。GitHub Actions 在 Ubuntu 16.04/glibc 2.23 基线上构建，以降低目标 Ubuntu 的 glibc 要求。
+Linux Release 是 PyInstaller onefile 再经 staticx 封装的 x86_64 单文件。GitHub Actions 在 Ubuntu 16.04/glibc 2.23 基线上构建 PyInstaller 主体，以降低目标 Ubuntu 的 glibc 要求；随后在 Ubuntu 24.04 宿主机用 binutils 2.35+ 完成 staticx 封装，避免 [staticx #205](https://github.com/JonathonReinhart/staticx/issues/205) 记录的旧 `objcopy` 破坏 musl bootloader 问题。
 
 ## 本地打包
 
@@ -10,7 +10,7 @@ Linux Release 是 PyInstaller onefile 再经 staticx 封装的 x86_64 单文件�
 ./tools/pack.sh
 ```
 
-脚本使用独立 `.venv-release`，每次运行 `npm ci` 重建离线前端、重装项目与打包工具，然后清理 `build/`、`dist/` 并重新构建。Linux 需要系统命令 `patchelf`、`file` 和 `ldd`。
+脚本使用独立 `.venv-release`，每次运行 `npm ci` 重建离线前端、重装项目与打包工具，然后清理 `build/`、`dist/` 并重新构建。Linux 需要系统命令 `patchelf`、`file`、`ldd` 和 binutils 2.35+；版本不足时会明确拒绝生成可能损坏的 Release。
 
 | 产物 | 用途 |
 | --- | --- |
@@ -18,7 +18,7 @@ Linux Release 是 PyInstaller onefile 再经 staticx 封装的 x86_64 单文件�
 | `dist/localflow-<version>-linux-x86_64.tar.gz` | 单文件与 systemd 部署资料 |
 | `dist/SHA256SUMS` | 下载完整性校验 |
 
-staticx 固定使用 `--no-compress`：默认压缩形式曾在 Xenial 实测启动 `SIGSEGV`。最终文件仍必须通过静态结构检查和真实任务冒烟。
+staticx 固定使用 `--no-compress`。最终文件必须通过静态结构检查，以及直接文件、全新解压文件两次真实任务冒烟。
 
 ## 自动 Release
 

@@ -39,6 +39,14 @@ jobs:
             -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
             -v "$PWD:/work" -w /work ubuntu:16.04 \
             bash tools/ci_pack_ubuntu16.sh
+      - name: Finalize staticx with current binutils
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y patchelf
+          python3 -m venv .venv-staticx
+          .venv-staticx/bin/pip install 'staticx>=0.14,<1'
+          PACK_STATICX="$PWD/.venv-staticx/bin/staticx" \
+            ./tools/finalize_release.sh dist/localflow.pyinstaller
       - name: Smoke final static executable
         run: python3 tools/run_frozen_smoke.py --binary dist/localflow
       - name: Smoke freshly extracted archive
