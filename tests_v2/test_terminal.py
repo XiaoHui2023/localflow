@@ -71,7 +71,11 @@ def test_terminal_http_api_controls_and_fresh_offset_log(root: Path) -> None:
                     sys.executable,
                     "-u",
                     "-c",
-                    "import sys; print('ready',flush=True); print(ord(sys.stdin.read(1)),flush=True)",
+                    "import signal,sys; "
+                    "signal.signal(signal.SIGINT,lambda *_: "
+                    "(print('control-3',flush=True),sys.exit(0))); "
+                    "print('ready',flush=True); value=sys.stdin.read(1); "
+                    "print('control-'+str(ord(value)),flush=True)",
                 ],
             },
         ).json()
@@ -101,10 +105,10 @@ def test_terminal_http_api_controls_and_fresh_offset_log(root: Path) -> None:
                 f"/api/v1/tasks/{task_id}/logs?offset={first['next_offset']}&limit=1024"
             ).json()
             combined = base64.b64decode(tail["data"])
-            if b"3" in combined:
+            if b"control-3" in combined:
                 break
             time.sleep(0.02)
-        assert b"3" in combined
+        assert b"control-3" in combined
         detail = client.get(f"/api/v1/tasks/{task_id}")
         assert detail.status_code == 200
         assert detail.json()["name"] == "terminal-api"

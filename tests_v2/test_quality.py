@@ -1,7 +1,30 @@
+import fnmatch
 import json
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
+
+
+def test_every_starter_resource_is_covered_by_package_data() -> None:
+    root = Path(__file__).parents[1]
+    starter = root / "src" / "localflow" / "starter_root"
+    project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    patterns = project["tool"]["setuptools"]["package-data"][
+        "localflow.starter_root"
+    ]
+    uncovered = []
+    for resource in starter.rglob("*"):
+        if (
+            not resource.is_file()
+            or resource == starter / "__init__.py"
+            or "__pycache__" in resource.parts
+        ):
+            continue
+        relative = resource.relative_to(starter).as_posix()
+        if not any(fnmatch.fnmatchcase(relative, pattern) for pattern in patterns):
+            uncovered.append(relative)
+    assert uncovered == []
 
 
 def test_release_workflow_tracks_the_current_starter_examples() -> None:

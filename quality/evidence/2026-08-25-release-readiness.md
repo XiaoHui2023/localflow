@@ -6,6 +6,8 @@
 
 ## 本轮发现与修复
 
+- 首次远端运行 `32867398244` 在源码门禁失败。匿名 job 日志接口返回 HTTP 403，本机 Git 凭据的安全提取被执行策略拒绝；干净 Python 3.12 Linux 容器复现出 wheel 遗漏根层 `starter_root/cases/smoke.case`。包数据现覆盖 `cases/*`，并新增逐文件覆盖回归测试，后续远端运行与下载复验仍须闭合。
+- 干净 Linux 复验还发现终端测试把 Ctrl+C 错误限定为“读取到字节 3”；POSIX PTY 的正确行为是行规程触发 `SIGINT`。测试子进程现同时处理 POSIX 信号与 Windows 字节路径，并以统一的 `control-3` 用户语义作为预言。
 - workflow 原先检查已移除的 `heartbeat.yaml` 和 `heartbeat.py`，会在当前包正确生成后反而失败。已改为核对随机数、验证仿真、结果标记、交互退出四份 YAML、四个脚本、四个插件及 API/配置/插件文档。
 - `tests_v2/test_quality.py` 现在拒绝旧 heartbeat 名称，并要求 workflow 与当前 starter 清单一致。
 - 初始化插件 README 原先仍写“插件页”“修改 YAML”、过时的密钥能力和陈旧文档入口；已与当前“运行”页、HMAC 完整程序 API 和机器插件合同同步，并由初始化测试拒绝旧文案。
