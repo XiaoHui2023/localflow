@@ -19,17 +19,63 @@ FIELDS = {
 }
 STATUSES = {"passed", "partial", "blocked"}
 BROWSER_ASSERTIONS = {
-    "anonymous-summary-readonly",
-    "keyboard-login-and-admin-navigation",
-    "newly-completed-acknowledgement",
-    "admin-detail-projection",
-    "xterm-live-output-and-interrupt",
-    "verification-case-discovery-selection",
-    "monaco-config-create",
-    "wcag-a-aa-no-serious-or-critical",
-    "390px-no-horizontal-overflow",
-    "390px-single-line-navigation",
-    "no-browser-console-errors",
+    "loopback-direct-admin",
+    "nav-order",
+    "theme-memory",
+    "run-context-memory",
+    "inline-toggle-detail",
+    "dedicated-terminal",
+    "xterm-fit-search",
+    "explorer-create-rename-delete",
+    "config-use",
+    "plugin-arbitrary-status",
+    "removed-plugin-api-destinations",
+    "wcag-a-aa",
+    "mobile-no-overflow",
+    "explorer-icon-only-state",
+    "shared-fragment-semantic-icon",
+    "neutral-config-filenames",
+    "hidden-config-extensions",
+    "opened-invalid-inline-diagnosis",
+    "config-opens-in-use-mode",
+    "nonblocking-expiring-status",
+    "testing-ui-revision-auto-reload",
+    "plugin-config-discovery",
+    "run-fields-only",
+    "plugin-case-field-mapping",
+    "case-empty-default",
+    "case-hover-wheel",
+    "case-click-increment",
+    "case-count-progressive-editor",
+    "case-marquee-scope-only",
+    "case-group-relative-edit",
+    "case-group-fixed-edit",
+    "case-scope-dismissal",
+    "blank-seed",
+    "verification-seed-task-detail",
+    "required-run-field-gate",
+    "uniform-control-geometry",
+    "icon-only-run",
+    "aligned-settings-rows",
+    "idle-web-resource-budget",
+    "compact-copyable-task-detail",
+    "neutral-scroll-copy-feedback",
+    "unboxed-stop-action",
+    "case-intrinsic-compact-grid",
+    "direct-config-file-actions",
+    "terminal-responsive-fit",
+    "terminal-fill-layout",
+}
+REQUIRED_SCREENSHOTS = {
+    "admin-config-explorer-dark.png",
+    "admin-empty-light.png",
+    "admin-mobile-390.png",
+    "admin-run-verification-dark.png",
+    "admin-run-verification-empty-dark.png",
+    "admin-run-verification-scope-dark.png",
+    "admin-settings-compact-light.png",
+    "admin-task-inline-dark.png",
+    "admin-terminal-dark.png",
 }
 
 
@@ -94,33 +140,53 @@ def main() -> int:
             errors.append(f"missing browser receipt: {receipt_path}")
         else:
             receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            resource_contract = json.loads(
+                (root / "quality" / "resource-budgets.json").read_text(encoding="utf-8")
+            )
             if receipt.get("result") != "passed":
                 errors.append("browser receipt result is not passed")
             assertions = set(receipt.get("assertions", []))
             missing_assertions = BROWSER_ASSERTIONS - assertions
             if missing_assertions:
                 errors.append(f"browser receipt missing assertions: {sorted(missing_assertions)}")
+            if receipt.get("resource_contract") != resource_contract:
+                errors.append("browser receipt resource contract mismatch")
+            resource_metrics = receipt.get("resource_metrics", {})
+            for name, limit in resource_contract["limits"].items():
+                value = resource_metrics.get(name)
+                if not isinstance(value, (int, float)) or isinstance(value, bool):
+                    errors.append(f"browser receipt missing resource metric: {name}")
+                elif value > limit:
+                    errors.append(f"browser resource budget exceeded: {name}={value} > {limit}")
+            if resource_metrics.get("task_process_count") != 0:
+                errors.append("browser resource sample included task processes")
             for relative, expected in receipt.get("source_files", {}).items():
                 source = root / relative
                 if not source.is_file() or _source_sha256(source) != expected:
                     errors.append(f"browser receipt hash mismatch: {relative}")
             expected_sources = {
+                "frontend/index.html",
+                "frontend/public/theme-boot.js",
                 "frontend/src/App.jsx",
+                "frontend/src/api.js",
                 "frontend/src/main.jsx",
                 "frontend/src/index.css",
                 "frontend/src/extra.css",
+                "frontend/src/round6.css",
                 "frontend/src/case-picker.css",
                 "frontend/e2e/localflow.spec.js",
                 "frontend/playwright.config.js",
                 "frontend/package-lock.json",
+                "quality/resource-budgets.json",
+                "tools/check_quality.py",
                 "tools/run_browser_quality.py",
             }
             if set(receipt.get("source_files", {})) != expected_sources:
                 errors.append("browser receipt source scope mismatch")
             screenshot_root = receipt_path.parent
             screenshots = receipt.get("screenshots", {})
-            if len(screenshots) != 4:
-                errors.append("browser receipt must bind four screenshots")
+            if set(screenshots) != REQUIRED_SCREENSHOTS:
+                errors.append("browser receipt screenshot scope mismatch")
             for name, expected in screenshots.items():
                 screenshot = screenshot_root / name
                 if not screenshot.is_file() or _sha256(screenshot) != expected:

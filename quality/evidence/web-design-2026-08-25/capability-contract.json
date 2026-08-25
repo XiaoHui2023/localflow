@@ -1,0 +1,128 @@
+{
+  "capability_id": "localflow-progressive-web-design",
+  "owner": "modern-web-interface-design",
+  "problem": "界面曾有冗余标题和全局主题控件，少量页面入口不适合横排；运行页要求手动发现配置并暴露存储实现；发行目录没有可直接理解和运行的一次性/持续示例。",
+  "scope": "LocalFlow React SPA 的纵向导航、运行、配置、设置、API 文档与主题，以及初始化/发行根目录中的任务配置和示例脚本；不改变任务生命周期和程序 API key 机制。",
+  "baseline": "改版前目视基线：首屏含品牌块、角色徽标、五项筛选、刷新按钮和两个空分区；旧截图不混入新版签名收据。",
+  "benchmarks": [
+    "Microsoft Fluent Nav：少量一级入口使用短标签、图标和明确选中态",
+    "Atlassian Navigation/Forms：侧边导航、克制表单和日期时间组件",
+    "GitHub Actions：固定配置目录自动发现工作流",
+    "MDN Web Storage 与 color-scheme：持久主题",
+    "Swagger UI/Redoc：OpenAPI 端点按操作渐进展开"
+  ],
+  "advantages": [
+    "现有页面任务、模板、配置主路径完整",
+    "xterm 与 Monaco 已离线打包",
+    "现有 Edge Playwright 质量入口覆盖宽窄屏和 axe"
+  ],
+  "disadvantages": [
+    "深色写死且无偏好记忆",
+    "任务首屏有无关品牌、角色、筛选和刷新",
+    "空分区显示无行动价值的占位卡",
+    "没有管理员 API 文档页",
+    "运行页手动扫描且展示内部插件名",
+    "页面导航和同名标题重复",
+    "初始化与发布目录缺少通俗的真实脚本"
+  ],
+  "limitations": [
+    "离线部署不能依赖 CDN",
+    "浏览器无法仅凭 127.0.0.1 区分同机 Unix 用户",
+    "Monaco 与 xterm 暗色需要随主题同步",
+    "内置浏览器桥接受 fail-closed Hook 限制"
+  ],
+  "defects": [
+    "首屏元素关注度审计存在无所有者元素",
+    "默认主题不符合用户要求",
+    "匿名可访问 FastAPI 默认 OpenAPI 文档",
+    "空任务分组产生无意义版块"
+  ],
+  "bottlenecks": [
+    "App.jsx 高度集中导致视觉与行为耦合",
+    "现有 E2E 依赖手动刷新按钮",
+    "登录体验与同机多用户安全目标冲突"
+  ],
+  "metrics": [
+    {"name": "unowned_first_view_elements", "unit": "count", "direction": "decrease", "threshold": 0, "measurement": "element concern audit", "evidence": "comparison.md"},
+    {"name": "empty_task_sections_rendered", "unit": "count", "direction": "decrease", "threshold": 0, "measurement": "Playwright empty state assertion", "evidence": "browser-receipt.json"},
+    {"name": "theme_reload_retention", "unit": "percent", "direction": "increase", "threshold": 100, "measurement": "toggle dark then reload and inspect html dataset", "evidence": "browser-receipt.json"},
+    {"name": "anonymous_openapi_denials", "unit": "percent", "direction": "increase", "threshold": 100, "measurement": "HTTP and browser negative test", "evidence": "pytest and browser-receipt.json"},
+    {"name": "serious_critical_a11y_violations", "unit": "count", "direction": "decrease", "threshold": 0, "measurement": "axe WCAG A/AA", "evidence": "browser-receipt.json"},
+    {"name": "mobile_horizontal_overflow", "unit": "px", "direction": "decrease", "threshold": 0, "measurement": "390px document scrollWidth-clientWidth", "evidence": "browser-receipt.json"}
+    ,{"name": "manual_discovery_controls", "unit": "count", "direction": "decrease", "threshold": 0, "measurement": "Playwright button and candidate assertions", "evidence": "browser-receipt.json"}
+    ,{"name": "starter_example_process_success", "unit": "percent", "direction": "increase", "threshold": 100, "measurement": "one-shot completion and graceful interactive shutdown", "evidence": "pytest test_initialize"}
+  ],
+  "hypotheses": [
+    "删除品牌、角色、筛选和手动刷新会降低首屏阅读成本且不损害网页核心任务",
+    "窄型纵向 navigation rail 比横向 tabs 更适合左上角少量一级页面入口",
+    "语义 token 与首屏 boot 能同时实现默认浅色、暗色记忆和无闪烁",
+    "本地 launcher 的一次性 bootstrap 交换能替代危险的 IP=管理员判断",
+    "按 endpoint 折叠 OpenAPI 可在不增加依赖的情况下满足管理员查阅",
+    "固定 config/tasks 自动发现可消除扫描动作并让网页与解压目录一致",
+    "设置页集中低频主题与时间校准可减少全局视觉噪声"
+  ],
+  "allowed_variables": [
+    "frontend information hierarchy",
+    "theme tokens and persistence",
+    "navigation semantics",
+    "admin-only OpenAPI projection",
+    "local browser bootstrap launcher",
+    "browser quality assertions"
+    ,"starter root structure and examples"
+  ],
+  "stages": [
+    {"id": "S1", "input": "baseline screenshots and source", "output": "element audit and sources", "checker": "contract validator", "rollback": "current committed frontend", "allowed_variables": ["project evidence"]},
+    {"id": "S2", "input": "approved hierarchy", "output": "light/dark tokens and concise tabs", "checker": "frontend build and screenshot", "rollback": "S1 baseline", "allowed_variables": ["React markup", "CSS tokens", "theme boot"]},
+    {"id": "S3", "input": "OpenAPI and auth requirements", "output": "protected schema and local launcher", "checker": "pytest authorization matrix", "rollback": "existing login code flow", "allowed_variables": ["FastAPI routes", "CLI open command", "fragment bootstrap"]},
+    {"id": "S4", "input": "integrated application", "output": "wide/narrow/theme/empty/API evidence", "checker": "Edge Playwright, axe, repository gates", "rollback": "last accepted iteration", "allowed_variables": ["tests", "screenshots", "evidence"]}
+  ],
+  "hard_gates": [
+    "default first paint is light",
+    "dark theme survives reload",
+    "anonymous user cannot read OpenAPI schema or see API tab",
+    "no empty running or queued section",
+    "no task filter or manual refresh control in web UI",
+    "same-server users are not elevated solely by loopback IP",
+    "390px has no horizontal overflow",
+    "axe serious/critical violations remain zero"
+    ,"navigation remains vertical at desktop and 390px"
+    ,"no visible page heading repeats the selected navigation label"
+    ,"no manual scan control or storage-implementation copy in the run UI"
+    ,"server time preloads the calibration input"
+    ,"one-shot and continuous starter scripts pass real process tests"
+  ],
+  "failure_fixtures": [
+    "baseline dark first paint",
+    "baseline empty running and queued panels",
+    "anonymous GET /openapi.json succeeds",
+    "missing localStorage preference after reload",
+    "horizontal navigation and repeated Tasks title",
+    "manual scan button with no discovered candidates",
+    "interactive shutdown process ignores Ctrl+C or leaves a child process"
+  ],
+  "success_fixtures": [
+    "light empty task page",
+    "dark task detail after reload",
+    "admin API tab with collapsed operations",
+    "local launcher exchanges bootstrap fragment and removes it",
+    "vertical settings navigation with server time",
+    "automatic task and Case candidates",
+    "random script completes and interactive shutdown exits cleanly after Ctrl+C plus quit"
+  ],
+  "fault_injections": [
+    "set localflow-theme=dark then reload",
+    "return zero active and queued tasks",
+    "request schema without administrator cookie",
+    "supply invalid bootstrap fragment"
+  ],
+  "rollback": "git diff can restore frontend/auth changes to c267bf7 while preserving unrelated local examples.",
+  "iteration_budget": {"max_rounds": 6, "max_time": "8h", "review_trigger": "one hard gate failure or two rounds without measurable gain"},
+  "stop_conditions": [
+    "all hard gates pass",
+    "two consecutive element audits find no high-value deletion",
+    "source and browser quality gates pass",
+    "remaining differences do not change the top three user tasks"
+  ],
+  "promotion_decision": {"destination": "modern-web-interface-design references", "reason": "theme, concern audit and admin-localhost boundary are cross-project patterns", "independent_trigger": false, "repeatable_validation": true},
+  "writeback": "Project-specific evidence remains in quality/evidence/web-design-2026-08-25; durable rules update the owning modern-web-interface-design skill only after two project-validated rounds."
+}

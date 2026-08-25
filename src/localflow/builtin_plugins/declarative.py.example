@@ -4,36 +4,62 @@ import json
 from pathlib import Path
 
 import yaml
+from pydantic import BaseModel, ConfigDict
 
+from localflow.config_repository import ConfigRepository
 from localflow.models import TaskCreate
 from localflow.plugins import plugin
-from localflow.settings import parse_config
 from localflow.variables import VariableResolver
 
 
-@plugin("declarative", version="1")
+class CommandConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+@plugin("command", version="2")
 class Declarative:
-    fields = [
-        {
-            "name": "template_file",
-            "type": "template-picker",
-            "required": True,
-            "label": "任务配置",
-        },
-        {
-            "name": "run_variables",
-            "type": "json",
-            "default": "{}",
-            "label": "本次运行变量",
-        },
-    ]
+    config_model = CommandConfig
+    required_common_fields = {"name", "working_directory", "command"}
+    aliases = ["declarative"]
+    title = "命令"
+    description = "在指定目录执行一条命令"
+    instructions = "配置名称、工作目录和命令；使用时可选地覆盖变量。命令使用参数数组，不经过 shell 二次解析。"
+    example = {
+        "plugin": "command",
+        "name": "新命令",
+        "working_directory": "${scripts_dir}",
+        "command": ["python3", "-u", "script.py"],
+        "labels": [],
+        "mutex_keys": [],
+        "variables": {},
+    }
+    statuses = {
+        "waiting": {"label": "等待", "tone": "neutral", "finished": False},
+        "starting": {"label": "启动中", "tone": "info", "finished": False},
+        "running": {"label": "运行中", "tone": "info", "finished": False},
+        "stopping": {"label": "退出中", "tone": "warning", "finished": False},
+        "completed": {"label": "已完成", "tone": "success", "finished": True},
+        "error": {"label": "执行错误", "tone": "danger", "finished": True},
+        "stopped": {"label": "已停止", "tone": "warning", "finished": True},
+        "lost": {"label": "状态丢失", "tone": "danger", "finished": True},
+    }
+    lifecycle_statuses = {
+        "queued": "waiting",
+        "starting": "starting",
+        "running": "running",
+        "stopping": "stopping",
+        "lost": "lost",
+    }
+    result_statuses = {0: "completed", "default": "error"}
+    interrupt_status = "stopped"
+    run_fields = []
 
     @property
     def root(self) -> Path:
         return Path(__file__).resolve().parent.parent
 
     def discover(self, _values):
-        directory = self.root / "config" / "templates"
+        directory = self.root / "config" / "tasks"
         return [
             str(path.relative_to(directory)).replace("\\", "/")
             for path in sorted(directory.rglob("*"))
@@ -48,20 +74,29 @@ class Declarative:
         return data.get("global", {}), data.get("projects", {})
 
     def expand(self, values, _context):
-        directory = (self.root / "config" / "templates").resolve()
-        path = (directory / values["template_file"]).resolve()
-        if directory not in path.parents or not path.is_file():
-            raise ValueError("template file is outside config/templates or does not exist")
-        document = parse_config(path, path.read_text(encoding="utf-8")) or {}
+        task_name = values.get("task", values.get("template_file"))
+        if task_name:
+            directory = (self.root / "config" / "tasks").resolve()
+            path = (directory / task_name).resolve()
+            if directory not in path.parents or not path.is_file():
+                raise ValueError("task configuration is outside config/tasks or does not exist")
+            document = ConfigRepository(self.root).parse(f"tasks/{task_name}") or {}
+        else:
+            document = values
         global_values, projects = self._load_variables()
-        global_values = {"runtime_root": str(self.root), **global_values}
+        global_values = {
+            "root": str(self.root),
+            "scripts_dir": str(self.root / "scripts"),
+            "runtime_root": str(self.root),
+            **global_values,
+        }
         project_name = document.get("project")
         project_values = projects.get(project_name, {}) if project_name else {}
-        run_values = values.get("run_variables", {})
+        run_values = values.get("inputs", values.get("run_variables", {}))
         if isinstance(run_values, str):
             run_values = json.loads(run_values or "{}")
         if not isinstance(run_values, dict):
-            raise ValueError("run_variables must be a JSON object")
+            raise ValueError("inputs must be a JSON object")
         resolver = VariableResolver(
             [
                 ("global", global_values),
@@ -84,7 +119,4 @@ class Declarative:
             }
         }
         resolved = resolver.resolution(task_data)
-        custom = dict(resolved.value.get("custom", {}))
-        custom["variable_sources"] = resolved.sources
-        resolved.value["custom"] = custom
         return [TaskCreate.model_validate(resolved.value)]

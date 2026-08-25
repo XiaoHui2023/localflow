@@ -14,6 +14,7 @@ from contextlib import suppress
 from pathlib import Path
 
 from .control import control_socket_path
+from .log_files import BoundedLogWriter
 
 
 def supervise(root: Path, task_id: str) -> int:
@@ -22,6 +23,7 @@ def supervise(root: Path, task_id: str) -> int:
     )
     log_path = root / "logs" / task_id / "output.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
+    limits = task.get("_localflow", {})
     child_pid, master = pty.fork()
     if child_pid == 0:
         os.chdir(task["working_directory"])
@@ -42,7 +44,11 @@ def supervise(root: Path, task_id: str) -> int:
     os.chmod(control_path, 0o600)
     control.setblocking(False)
     selector.register(control, selectors.EVENT_READ)
-    with log_path.open("ab", buffering=0) as log:
+    with BoundedLogWriter(
+        log_path,
+        int(limits.get("task_log_max_bytes", 100 * 1024 * 1024)),
+        int(limits.get("keep_free_bytes", 0)),
+    ) as log:
         while True:
             for key, _ in selector.select(0.25):
                 if key.fileobj is control:

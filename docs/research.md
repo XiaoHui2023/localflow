@@ -46,10 +46,13 @@ HTTP Message Signatures 的组件覆盖、随机数和创建时间模型用于�
 - [watchfiles 文档](https://watchfiles.helpmanual.io/)
 - [pluggy 文档](https://pluggy.readthedocs.io/)
 - [SQLite WAL](https://www.sqlite.org/wal.html)
+- [Python RotatingFileHandler](https://docs.python.org/3/library/logging.handlers.html#rotatingfilehandler)
+- [SQLite PRAGMA journal_size_limit 与 max_page_count](https://www.sqlite.org/pragma.html)
+- [systemd-journald 空间限制](https://www.freedesktop.org/software/systemd/man/latest/journald.conf.html)
 
 ## 前端选择
 
-任务页采用信息密度适中的三段状态视图，详情抽屉承载命令、目录、自定义字段和终端。Monaco 用于原始配置编辑与模式提示，常用设置仍提供表单。组件只从本地构建产物加载。
+任务页采用信息密度适中的三段状态视图，详情在所选任务行下原位展开并可再次点击收起。配置以 React Arborist 资源树呈现，Monaco 负责原始文件编辑，“使用”与编辑共享同一文件上下文。终端使用 xterm.js、Fit/Search/WebLinks 官方附加组件，并由 `ResizeObserver` 跟随容器。组件只从本地构建产物加载。
 
 参考资料：
 
@@ -59,3 +62,16 @@ HTTP Message Signatures 的组件覆盖、随机数和创建时间模型用于�
 - [Playwright 可访问性测试](https://playwright.dev/docs/accessibility-testing)
 - [Vite 8 发布与 Node.js 要求](https://vite.dev/blog/announcing-vite8)
 - [WAI-ARIA Authoring Practices](https://www.w3.org/WAI/ARIA/apg/)
+
+## VCS 与 UVM 结果判定
+
+Accellera UVM 1.2 用户指南给出的终局格式包含 `--- UVM Report Summary ---`、按严重级别统计以及 `UVM_ERROR : N`、`UVM_FATAL : N`。UVM 参考实现的 report server 负责汇总，`run_test` 在结束阶段调用报告汇总。因此验证插件从最后一份摘要读取计数，不扫描全文中的任意 `UVM_ERROR` 字样；这能排除被后续摘要纠正的早期消息。没有 UVM 摘要时，才按 Synopsys 资料中编译/运行诊断的行首消息形态识别 VCS error/fatal。
+
+参考资料：
+
+- [Accellera UVM 1.2 User’s Guide](https://www.accellera.org/images/downloads/standards/uvm/uvm_users_guide_1.2.pdf)
+- [Accellera 官方 UVM 参考实现](https://github.com/accellera-official/uvm-core)
+- [Synopsys Advanced Verification Bulletin](https://www.synopsys.com/content/dam/synopsys/company/publications/advanced-verification-bulletin/advanced-verification-bulletin-issue1.pdf)
+- [Synopsys VCS 产品页](https://www.synopsys.com/verification/simulation/vcs.html)
+
+当前开发机没有 VCS 许可证和 Linux 仿真环境，因此判定器使用来自正式格式的 PASS、ERROR、FATAL、仅编译、非 UVM VCS 错误和多日志夹具验证；真实 VCS 回归仍属于 Ubuntu 目标机验收范围。

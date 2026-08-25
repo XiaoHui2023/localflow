@@ -1,0 +1,17 @@
+!include ../shared/task-defaults.yaml
+plugin: interactive
+name: 交互退出示例
+working_directory: "${scripts_dir}"
+command: [python3, -u, interactive_shutdown.py]
+labels: [example, interactive]
+stop:
+  actions:
+    - type: signal
+      signal: SIGINT
+      output_contains: "请输入 status、resume 或 quit"
+      timeout_seconds: 5
+      label: 请求停止
+    - type: input
+      data: "quit\n"
+      timeout_seconds: 120
+      label: 确认退出

@@ -1,0 +1,4 @@
+plugin: verification
+case_directory: cases
+command: python3 scripts/simulate.py
+labels: example

@@ -1,0 +1,5 @@
+labels: [example]
+mutex_keys: []
+variables:
+  scripts_dir: "${root}/scripts"
+  cases_dir: "${root}/cases"

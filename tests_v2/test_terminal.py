@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import sys
+import time
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
+from localflow.api import create_app
 from localflow.executor import SubprocessExecutor
 from localflow.models import TaskCreate
 from localflow.service import TaskService
+from localflow.settings import ExecutionSettings, ServerSettings, Settings
 from localflow.storage import Store
 
 
@@ -42,3 +47,64 @@ async def test_terminal_input_reaches_process(root: Path) -> None:
     assert resumed_end == end
     await service.stop()
     store.close()
+
+
+def test_terminal_http_api_controls_and_fresh_offset_log(root: Path) -> None:
+    settings = Settings(
+        server=ServerSettings(anonymous_access="summary"),
+        execution=ExecutionSettings(backend="subprocess", max_concurrency=1),
+    )
+    app = create_app(root, settings=settings, start_scheduler=True)
+    with TestClient(
+        app, base_url="http://127.0.0.1", client=("127.0.0.1", 50000)
+    ) as client:
+        session = client.get("/api/v1/auth/session").json()
+        client.headers.update(
+            {"Origin": "http://127.0.0.1", "X-CSRF-Token": session["csrf_token"]}
+        )
+        created = client.post(
+            "/api/v1/tasks",
+            json={
+                "name": "terminal-api",
+                "working_directory": str(root),
+                "command": [
+                    sys.executable,
+                    "-u",
+                    "-c",
+                    "import sys; print('ready',flush=True); print(ord(sys.stdin.read(1)),flush=True)",
+                ],
+            },
+        ).json()
+        task_id = created["task_id"]
+        deadline = time.monotonic() + 5
+        first = None
+        while time.monotonic() < deadline:
+            first = client.get(f"/api/v1/tasks/{task_id}/logs?offset=0&limit=1024").json()
+            if b"ready" in base64.b64decode(first["data"]):
+                break
+            time.sleep(0.02)
+        assert first is not None
+        assert first["next_offset"] > 0
+        resize = client.post(
+            f"/api/v1/tasks/{task_id}/terminal/resize", json={"rows": 42, "cols": 120}
+        )
+        assert resize.status_code == 200
+        assert resize.json() == {"accepted": True, "rows": 42, "cols": 120}
+        control = client.post(
+            f"/api/v1/tasks/{task_id}/terminal/controls", json={"key": "ctrl_c"}
+        )
+        assert control.status_code == 200
+        deadline = time.monotonic() + 5
+        combined = b""
+        while time.monotonic() < deadline:
+            tail = client.get(
+                f"/api/v1/tasks/{task_id}/logs?offset={first['next_offset']}&limit=1024"
+            ).json()
+            combined = base64.b64decode(tail["data"])
+            if b"3" in combined:
+                break
+            time.sleep(0.02)
+        assert b"3" in combined
+        detail = client.get(f"/api/v1/tasks/{task_id}")
+        assert detail.status_code == 200
+        assert detail.json()["name"] == "terminal-api"

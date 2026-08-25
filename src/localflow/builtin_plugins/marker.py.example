@@ -1,0 +1,65 @@
+from __future__ import annotations
+
+from pydantic import BaseModel, ConfigDict
+
+from localflow.models import TaskCreate
+from localflow.plugins import plugin
+from localflow.variables import VariableResolver
+
+
+class MarkerConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+@plugin("marker", version="1")
+class Marker:
+    config_model = MarkerConfig
+    required_common_fields = {"name", "working_directory", "command"}
+    title = "结果标记"
+    description = "用退出码表达完成、警告或拒绝"
+    instructions = "适合质量门和检查脚本：退出码 0 为通过，2 为有警告，3 为拒绝，其它退出码为异常。"
+    example = {
+        "plugin": "marker",
+        "name": "结果检查",
+        "working_directory": "${scripts_dir}",
+        "command": ["python3", "-u", "marker_result.py", "--result", "warning"],
+        "labels": ["example", "marker"],
+        "mutex_keys": [],
+    }
+    run_fields = []
+    statuses = {
+        "waiting": {"label": "等待检查", "tone": "neutral", "finished": False},
+        "checking": {"label": "检查中", "tone": "info", "finished": False},
+        "stopping": {"label": "退出中", "tone": "warning", "finished": False},
+        "clean": {"label": "检查通过", "tone": "success", "finished": True},
+        "warning": {"label": "需要关注", "tone": "warning", "finished": True},
+        "rejected": {"label": "未通过", "tone": "danger", "finished": True},
+        "error": {"label": "检查异常", "tone": "danger", "finished": True},
+        "stopped": {"label": "已停止", "tone": "warning", "finished": True},
+        "lost": {"label": "状态丢失", "tone": "danger", "finished": True},
+    }
+    lifecycle_statuses = {
+        "queued": "waiting",
+        "starting": "checking",
+        "running": "checking",
+        "stopping": "stopping",
+        "lost": "lost",
+    }
+    result_statuses = {0: "clean", 2: "warning", 3: "rejected", "default": "error"}
+    interrupt_status = "stopped"
+
+    def expand(self, values, _context):
+        resolver = VariableResolver(
+            [("root", {"root": _context["root"], "scripts_dir": f"{_context['root']}/scripts"})]
+        )
+        values = resolver.resolution(values).value
+        return [
+            TaskCreate(
+                name=values["name"],
+                working_directory=values["working_directory"],
+                command=list(values["command"]),
+                labels=list(values.get("labels", [])),
+                mutex_keys=list(values.get("mutex_keys", [])),
+                custom=dict(values.get("custom", {})),
+            )
+        ]

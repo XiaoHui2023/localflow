@@ -1,0 +1,123 @@
+{
+  "capability_id": "localflow-config-plugin-console",
+  "owner": "modern-web-interface-design",
+  "problem": "配置与运行割裂、配置列表不具备资源管理器操作、插件没有独立说明页、核心状态词限制领域结果、任务详情占用右栏、校时多一次确认、直接回环访问仍是只读。",
+  "scope": "配置文件合同与 CRUD、插件元数据和状态快照、配置/使用合一页面、任务内联详情、本地网页会话、设置即时提交、终端交互；保留核心调度生命周期、HMAC 程序 API 和 Ubuntu systemd 所有权。",
+  "baseline": "当前配置页为扁平按钮列表，仅能新建/读写；运行另占一页；任务详情固定右栏；插件状态不可扩展；校时有按钮；回环直达为 summary。",
+  "benchmarks": [
+    "VS Code Explorer tree and contextual actions",
+    "React Spectrum accessible tree drag and drop",
+    "React Arborist controlled file tree",
+    "Airflow core lifecycle plus operator extensibility",
+    "Kestra execution states and plugin documentation",
+    "xterm.js fit, search, links, security and flow control"
+  ],
+  "advantages": [
+    "现有配置仓库已经有路径隔离、原子写和版本冲突检测",
+    "现有插件加载器已经保存名称、版本、摘要和代次",
+    "现有 xterm.js、Monaco 与 Edge 自动化可复用"
+  ],
+  "disadvantages": [
+    "配置文件未强制声明插件",
+    "资源列表无层级、移动、重命名和删除",
+    "编辑后必须去另一页重新选择插件和配置",
+    "任务状态只允许核心枚举",
+    "终端只在首次打开 fit，容器变化后可能尺寸陈旧"
+  ],
+  "limitations": [
+    "配置只管理四种文本格式且不能越出 config",
+    "插件是受信任 Python 代码而非沙箱",
+    "回环自动管理员无法区分同机 Unix 用户",
+    "插件领域状态不能取代核心进程生命周期"
+  ],
+  "defects": [
+    "直接 127.0.0.1 打开显示非管理员",
+    "任务第二次点击不能收起",
+    "API 页面显示无决策价值的版本摘要",
+    "时间修改需要额外点击校准"
+  ],
+  "bottlenecks": [
+    "App.jsx 集中多个页面和交互所有者",
+    "状态同时承担调度和展示导致扩展冲突",
+    "扁平文件 API 无法表达原子移动和并发删除"
+  ],
+  "metrics": [
+    {"name":"config_to_run_page_changes","unit":"count","direction":"decrease","threshold":0,"measurement":"Playwright selected config use flow","evidence":"browser receipt"},
+    {"name":"supported_file_operations","unit":"count","direction":"increase","threshold":4,"measurement":"create rename move delete API and browser assertions","evidence":"pytest and browser receipt"},
+    {"name":"plugin_defined_status_acceptance","unit":"percent","direction":"increase","threshold":100,"measurement":"custom warning and rejected status fixtures","evidence":"pytest"},
+    {"name":"task_detail_columns","unit":"count","direction":"decrease","threshold":1,"measurement":"same-row inline geometry","evidence":"browser screenshot"},
+    {"name":"time_apply_buttons","unit":"count","direction":"decrease","threshold":0,"measurement":"browser role assertion and adjustment request","evidence":"browser receipt"},
+    {"name":"loopback_direct_admin","unit":"percent","direction":"increase","threshold":100,"measurement":"loopback and remote client matrix","evidence":"pytest and browser receipt"},
+    {"name":"serious_critical_a11y_violations","unit":"count","direction":"decrease","threshold":0,"measurement":"axe WCAG A/AA","evidence":"browser receipt"}
+  ],
+  "hypotheses": [
+    "一份配置明确一个插件可消除运行时重复选择",
+    "核心生命周期与插件显示状态分层可同时保证调度稳定和领域自由",
+    "资源树的主选择加上下文操作比常驻多按钮更简洁",
+    "有效 datetime 值防抖提交可安全删除应用按钮",
+    "详情原位展开可保持任务与详情的空间关系"
+  ],
+  "allowed_variables": [
+    "configuration repository operations",
+    "plugin metadata and status snapshot",
+    "loopback web session policy",
+    "React configuration and task layouts",
+    "xterm official addons and resize behavior",
+    "tests and project evidence"
+  ],
+  "stages": [
+    {"id":"S1","input":"requirements and current code","output":"contract and comparison","checker":"capability validator","rollback":"round 5 baseline","allowed_variables":["docs","evidence"]},
+    {"id":"S2","input":"contract","output":"config and plugin APIs","checker":"pytest positive and fault fixtures","rollback":"S1","allowed_variables":["Python models","repository","API","plugins"]},
+    {"id":"S3","input":"stable APIs","output":"configuration-centered UI","checker":"Vite build and Edge flow","rollback":"S2","allowed_variables":["React","CSS","dependencies"]},
+    {"id":"S4","input":"integrated candidate","output":"signed evidence and docs","checker":"full repository gates","rollback":"last accepted UI","allowed_variables":["tests","screenshots","receipts","documentation"]}
+  ],
+  "hard_gates": [
+    "every starter task configuration names a loaded plugin",
+    "create rename move and delete reject traversal overwrite and stale versions",
+    "configuration edit and use share one destination",
+    "navigation order is tasks configuration settings plugins API",
+    "API page has no version summary",
+    "loopback direct browser gets admin and remote browser remains read-only",
+    "plugin status snapshot supports non-success/failure terminal keys",
+    "same task row toggles its inline detail",
+    "time change submits without an apply button",
+    "terminal refits on container resize and retains authorization",
+    "axe serious and critical violations remain zero"
+  ],
+  "failure_fixtures": [
+    "move configuration outside config",
+    "rename over an existing configuration",
+    "delete after external content change",
+    "configuration references an unloaded plugin",
+    "plugin returns an undefined status key",
+    "remote request receives administrator session",
+    "second task click leaves detail open",
+    "time input still requires a button"
+  ],
+  "success_fixtures": [
+    "command random configuration completes",
+    "marker plugin exits with warning status",
+    "verification configuration maps nonzero result to mismatch",
+    "keyboard rename and menu move produce a new path",
+    "loopback page opens configuration tree without bootstrap fragment",
+    "terminal search finds streamed output"
+  ],
+  "fault_injections": [
+    "path traversal move target",
+    "stale If-Match delete",
+    "unknown plugin field",
+    "unknown plugin status key",
+    "non-loopback client scope",
+    "ResizeObserver changes terminal container"
+  ],
+  "rollback": "Restore the round 5 frontend, config repository and fixed TaskState projection while leaving user configuration files untouched.",
+  "iteration_budget": {"max_rounds":6,"max_time":"10h","review_trigger":"one hard gate failure or two visual rounds without measured improvement"},
+  "stop_conditions": [
+    "all hard gates pass",
+    "success and failure fixtures are accepted and rejected correctly",
+    "two element audits find no high-value merge or deletion",
+    "full Python, frontend, Edge and quality registry gates pass"
+  ],
+  "promotion_decision": {"destination":"modern-web-interface-design references","reason":"resource-tree actions, configuration-centered execution and terminal resize rules are reusable operator-console patterns","independent_trigger":false,"repeatable_validation":true},
+  "writeback": "Project facts stay in this evidence directory; only verified cross-project interaction and component-selection rules update the user-root web design skill."
+}

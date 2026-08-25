@@ -71,6 +71,9 @@ class AuthManager:
         if not hmac.compare_digest(code, expected):
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid local login code")
         self._atomic_secret(self.admin_path, secrets.token_urlsafe(48))
+        return self.create_admin_session()
+
+    def create_admin_session(self) -> tuple[str, str]:
         token = secrets.token_urlsafe(32)
         csrf_token = secrets.token_urlsafe(32)
         self.sessions[hashlib.sha256(token.encode()).hexdigest()] = AdminSession(

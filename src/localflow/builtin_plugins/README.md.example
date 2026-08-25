@@ -1,0 +1,120 @@
+# LocalFlow 插件
+
+此目录会被 LocalFlow 自动加载。每个 `*.py` 是受信任的本地插件；保存文件后会自动进入新代次，已有任务继续使用提交时保存的插件快照。
+
+## 使用插件
+
+任务配置位于 `config/tasks/`，顶层必须指定插件：
+
+```yaml
+plugin: command
+name: 示例
+working_directory: "${scripts_dir}"
+command: [python3, -u, script.py]
+labels: [example]
+```
+
+网页“运行”页会自动显示文件。有效任务默认直接显示插件声明的运行参数；需要修改稳定配置时点击“编辑”。插件合同和开发说明保留在本文件，不占用网页导航。
+
+## 开发最小插件
+
+```python
+from pydantic import BaseModel, ConfigDict
+
+from localflow.models import TaskCreate
+from localflow.plugins import plugin, run_field
+
+
+class HelloConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    greeting: str = "你好"
+
+
+@plugin("hello", version="1")
+class Hello:
+    title = "问候"
+    description = "输出一句问候"
+    instructions = "设置 name 后加入队列。"
+    config_model = HelloConfig
+    example = {
+        "plugin": "hello",
+        "name": "问候任务",
+        "working_directory": ".",
+        "command": ["echo", "由插件生成"],
+        "greeting": "你好",
+    }
+    api_inputs = {"name": "world"}
+    run_fields = [run_field("name", "string", label="名称", required=True)]
+    statuses = {
+        "waiting": {"label": "等待", "tone": "neutral", "finished": False},
+        "running": {"label": "输出中", "tone": "info", "finished": False},
+        "done": {"label": "已问候", "tone": "success", "finished": True},
+        "error": {"label": "异常", "tone": "danger", "finished": True},
+        "stopped": {"label": "已停止", "tone": "warning", "finished": True},
+        "lost": {"label": "状态丢失", "tone": "danger", "finished": True},
+    }
+    lifecycle_statuses = {"queued": "waiting", "starting": "running", "running": "running", "lost": "lost"}
+    result_statuses = {0: "done", "default": "error"}
+    interrupt_status = "stopped"
+
+    def expand(self, values, context):
+        return [TaskCreate(name=f"问候 {values['name']}", working_directory=context["root"], command=["echo", values["greeting"], values["name"]])]
+```
+
+`run_fields` 只声明每次运行确实要改变的值。命令、工作目录、标签和 Case 目录等稳定内容写在 YAML 中，不应暴露成运行控件。字段类型可用 `string`、`integer`、`seed`、`case-picker`、`string-list` 和 `json`。
+
+插件可实现 `discover(values, context)`。选择对应配置时核心先通过 configlib 解析显式 `!include`，再解析变量，最后调用此钩子。验证插件只读取 `case_directory` 的一层子项：目录使用目录名，文件去掉最后一个后缀；隐藏项与更深层内容不显示。钩子必须在 5 秒内返回字符串列表。
+
+`expand()` 只负责校验和生成 `TaskCreate`，不能自行启动主任务或写任务数据库。插件代码没有沙箱，只安装可信文件。
+
+## 停止策略
+
+不同程序的退出协议不同，因此停止策略跟随配置保存：
+
+```yaml
+stop:
+  actions:
+    - type: signal
+      signal: SIGINT
+      output_contains: "请输入 status、resume 或 quit"
+      timeout_seconds: 5
+      label: 请求停止
+    - type: input
+      data: "quit\n"
+      timeout_seconds: 120
+      label: 保存并退出
+```
+
+动作类型：
+
+- `signal`：向整个任务 control group 发送 `SIGINT` 或 `SIGTERM`；
+- `input`：向任务 PTY 写入原始文本，可包含 `\n`、`\x03` 等控制字符；
+- `exec`：在任务工作目录执行一个独立的轻量停止命令，适合调用程序自己的管理 CLI。
+
+`output_contains` 只匹配该动作开始后的新增输出，匹配即进入下一步；否则等待 `timeout_seconds`。同一个停止按钮再次点击会跳过当前等待。所有动作完成后仍未退出时，核心对整个 systemd control group 发送 `SIGKILL`，防止残留进程。停止动作应可重复执行，因为控制服务在恢复未完成流程时可能重发当前动作。
+
+不要给所有程序统一写入 `quit`：它可能成为业务输入或 shell 命令。只有插件或具体配置知道退出协议时才声明输入动作。
+
+## 人工终端控制
+
+“终端”页和终端 API 是人在环控制，不等同于停止任务。发送 Ctrl+C 只向 PTY 写控制字符，程序可以捕获后继续运行；只有点击“停止”才启动上述自动停止状态机。
+
+相关 API：
+
+- `GET /api/v1/tasks/{id}`：任务详情；
+- `GET /api/v1/tasks/{id}/logs?offset=...`：按字节偏移读取及时追加的输出；
+- `POST /api/v1/tasks/{id}/terminal/input`：发送 UTF-8 或 Base64 字节；
+- `POST /api/v1/tasks/{id}/terminal/controls`：发送 `ctrl_c`、`ctrl_d`、`enter`、`escape`、`tab`；
+- `POST /api/v1/tasks/{id}/terminal/resize`：调整 PTY 行列。
+
+浏览器 HTTP 写接口和 WebSocket 输入要求管理员会话、同源 Origin 和 CSRF。程序客户端每次从所有者只读的密钥文件重新读取密钥，并以 HMAC 签名配置、插件、任务、日志及 HTTP 终端控制请求；密钥不进入网页。WebSocket、时间校准和受保护 OpenAPI 仍只接受浏览器管理员会话。
+
+## 调试
+
+1. 保存插件文件；
+2. 调用 `GET /api/v1/plugins` 检查加载结果、诊断和机器可读合同；
+3. 用最小配置提交一次；
+4. 查看任务详情、终端和输出文件；
+5. 修改插件后新任务使用新代次，历史任务保持原快照。
+
+完整设计文档位于项目源码的 `docs/plugins.md`、`docs/configuration.md` 与 `docs/api.md`。

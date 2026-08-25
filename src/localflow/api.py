@@ -3,14 +3,16 @@ from __future__ import annotations
 import asyncio
 import base64
 import binascii
+import ipaddress
 import json
 import os
 import sys
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
+import yaml
 from fastapi import (
     Depends,
     FastAPI,
@@ -28,9 +30,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .auth import AuthManager
+from .config_diagnostics import ConfigDiagnosis, diagnose_config
 from .config_repository import ConfigConflict, ConfigRepository
 from .executor import SubprocessExecutor, SystemdExecutor
-from .models import BatchCreate, TaskCreate, TaskRecord
+from .models import BatchCreate, RunCreate, TaskCreate, TaskRecord
 from .plugins import PluginRegistry
 from .service import TaskService
 from .settings import Settings, initialize_root, load_settings
@@ -48,8 +51,36 @@ class ConfigWrite(BaseModel):
     content: str
 
 
+class ConfigMove(BaseModel):
+    target: str
+    version: str
+
+
+class ConfigRun(BaseModel):
+    inputs: dict[str, Any] = Field(default_factory=dict)
+
+
+class ConfigCreate(BaseModel):
+    path: str
+    plugin: str
+
+
 class TimeAdjustment(BaseModel):
     reference_time: datetime
+
+
+class TerminalInput(BaseModel):
+    data: str
+    encoding: Literal["utf-8", "base64"] = "utf-8"
+
+
+class TerminalControl(BaseModel):
+    key: Literal["ctrl_c", "ctrl_d", "enter", "escape", "tab"]
+
+
+class TerminalResize(BaseModel):
+    rows: int = Field(ge=2, le=1000)
+    cols: int = Field(ge=2, le=1000)
 
 
 class VariablePreview(BaseModel):
@@ -66,6 +97,7 @@ def _summary(task: TaskRecord) -> dict[str, Any]:
         "name": task.name,
         "labels": task.labels,
         "state": task.state,
+        "status": task.status.model_dump(),
         "created_at": task.created_at,
         "started_at": task.started_at,
         "ended_at": task.ended_at,
@@ -106,13 +138,26 @@ def create_app(
     root = root.resolve()
     initialize_root(root)
     settings = settings or load_settings(root)
-    store = Store(root / "runtime" / "localflow.db")
+    store = Store(
+        root / "runtime" / "localflow.db",
+        database_max_bytes=settings.logging.database_mb * 1024 * 1024,
+        wal_max_bytes=settings.logging.wal_mb * 1024 * 1024,
+    )
     auth = AuthManager(root)
-    config = ConfigRepository(root)
     plugins = PluginRegistry(root / "plugins")
     plugins.load()
+    config = ConfigRepository(root, lambda document: diagnose_config(document, plugins))
     executor = (
-        SystemdExecutor(root) if settings.execution.backend == "systemd" else SubprocessExecutor()
+        SystemdExecutor(
+            root,
+            task_log_max_bytes=settings.logging.task_file_mb * 1024 * 1024,
+            keep_free_bytes=settings.logging.keep_free_mb * 1024 * 1024,
+        )
+        if settings.execution.backend == "systemd"
+        else SubprocessExecutor(
+            task_log_max_bytes=settings.logging.task_file_mb * 1024 * 1024,
+            keep_free_bytes=settings.logging.keep_free_mb * 1024 * 1024,
+        )
     )
     tasks = TaskService(
         root,
@@ -121,6 +166,8 @@ def create_app(
         settings.execution.max_concurrency,
         auth.rotate_api_key,
         settings.retention,
+        settings.logging,
+        plugins.evaluate_result,
     )
     watcher = DirectoryWatcher(root, store, config, plugins)
     time_service = TimeService(store, settings.time.privileged_helper)
@@ -137,15 +184,48 @@ def create_app(
             await tasks.stop()
         store.close()
 
-    app = FastAPI(title="LocalFlow", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(
+        title="LocalFlow",
+        version="0.1.0",
+        lifespan=lifespan,
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
+
+    @app.middleware("http")
+    async def prevent_stale_operator_pages(request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
     app.state.root, app.state.store, app.state.tasks = root, store, tasks
     app.state.auth, app.state.config, app.state.plugins = auth, config, plugins
     app.state.watcher = watcher
     app.state.time_service = time_service
 
+    def is_loopback(request: Request) -> bool:
+        if request.client is None:
+            return False
+        try:
+            return ipaddress.ip_address(request.client.host).is_loopback
+        except ValueError:
+            return False
+
+    def set_admin_cookie(request: Request, response: Response, token: str) -> None:
+        response.set_cookie(
+            "localflow_session",
+            token,
+            httponly=True,
+            samesite="strict",
+            secure=request.url.scheme == "https",
+            max_age=3600,
+            path="/",
+        )
+
     async def require_admin(request: Request) -> str:
         authenticated = (
-            auth.is_admin(request)
+            auth.is_admin(request) or (request.method in {"GET", "HEAD", "OPTIONS"} and is_loopback(request))
             if request.method in {"GET", "HEAD", "OPTIONS"}
             else auth.is_admin_mutation(request)
         )
@@ -154,15 +234,31 @@ def create_app(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "administrator session required")
 
     async def require_submitter(request: Request) -> str:
-        if auth.is_admin_mutation(request):
+        if request.method in {"GET", "HEAD", "OPTIONS"}:
+            if auth.is_admin(request) or is_loopback(request):
+                return "admin"
+        elif auth.is_admin_mutation(request):
             return "admin"
         if await auth.is_signed(request):
             return "signed-client"
         raise HTTPException(status.HTTP_403_FORBIDDEN, "signed client or administrator required")
 
-    def can_read(request: Request) -> str:
-        if auth.is_admin(request):
+    async def can_read(request: Request) -> str:
+        if auth.is_admin(request) or is_loopback(request):
             return "admin"
+        signed_attempt = any(
+            request.headers.get(name)
+            for name in (
+                "x-localflow-nonce",
+                "x-localflow-created",
+                "x-localflow-generation",
+                "x-localflow-signature",
+            )
+        )
+        if await auth.is_signed(request):
+            return "signed-client"
+        if signed_attempt:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "invalid signed client request")
         mode = settings.server.anonymous_access
         if mode == "disabled":
             raise HTTPException(status.HTTP_403_FORBIDDEN, "anonymous access disabled")
@@ -187,27 +283,26 @@ def create_app(
     @app.post("/api/v1/auth/local-sessions")
     async def local_session(payload: LocalLogin, request: Request, response: Response):
         token, csrf_token = auth.exchange_admin(payload.code)
-        response.set_cookie(
-            "localflow_session",
-            token,
-            httponly=True,
-            samesite="strict",
-            secure=request.url.scheme == "https",
-            max_age=3600,
-            path="/",
-        )
+        set_admin_cookie(request, response, token)
         return {"role": "admin", "expires_in": 3600, "csrf_token": csrf_token}
 
     @app.get("/api/v1/auth/session")
-    async def current_session(request: Request):
+    async def current_session(request: Request, response: Response):
         csrf_token = auth.csrf_for(request)
+        if not csrf_token and is_loopback(request):
+            token, csrf_token = auth.create_admin_session()
+            set_admin_cookie(request, response, token)
         if not csrf_token:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "administrator session required")
         return {"role": "admin", "csrf_token": csrf_token}
 
+    @app.get("/api/v1/openapi", include_in_schema=False)
+    async def protected_openapi(_actor: str = Depends(require_admin)):
+        return app.openapi()
+
     @app.get("/api/v1/system/status")
     async def system_status(request: Request):
-        role = can_read(request)
+        role = await can_read(request)
         return {
             "status": "ok",
             "role": role,
@@ -224,7 +319,7 @@ def create_app(
             raise HTTPException(503, str(exc)) from None
 
     @app.post("/api/v1/variables/resolve")
-    async def resolve_variables(payload: VariablePreview, _actor: str = Depends(require_admin)):
+    async def resolve_variables(payload: VariablePreview, _actor: str = Depends(require_submitter)):
         resolver = VariableResolver(
             [
                 ("global", payload.global_values),
@@ -274,7 +369,7 @@ def create_app(
         limit: Annotated[int, Query(ge=1, le=200)] = 100,
         cursor: str | None = None,
     ):
-        role = can_read(request)
+        role = await can_read(request)
         records = store.list_tasks(
             states=state or [],
             labels=label or [],
@@ -292,7 +387,11 @@ def create_app(
         records = records[:limit]
         items = []
         for record in records:
-            item = _detail(record, root) if role in {"admin", "readonly"} else _summary(record)
+            item = (
+                _detail(record, root)
+                if role in {"admin", "readonly", "signed-client"}
+                else _summary(record)
+            )
             item["newly_completed"] = bool(
                 record.ended_at
                 and role == "admin"
@@ -306,15 +405,19 @@ def create_app(
 
     @app.get("/api/v1/tasks/{task_id}")
     async def get_task(task_id: str, request: Request):
-        role = can_read(request)
+        role = await can_read(request)
         try:
             record = store.get_task(task_id)
         except KeyError:
             raise HTTPException(404, "task not found") from None
-        return _detail(record, root) if role in {"admin", "readonly"} else _summary(record)
+        return (
+            _detail(record, root)
+            if role in {"admin", "readonly", "signed-client"}
+            else _summary(record)
+        )
 
     @app.post("/api/v1/tasks/{task_id}/acknowledgements")
-    async def acknowledge(task_id: str, _actor: str = Depends(require_admin)):
+    async def acknowledge(task_id: str, _actor: str = Depends(require_submitter)):
         try:
             store.acknowledge(task_id, "admin")
         except KeyError:
@@ -322,7 +425,7 @@ def create_app(
         return {"acknowledged": True}
 
     @app.post("/api/v1/tasks/{task_id}/interrupt")
-    async def interrupt(task_id: str, _actor: str = Depends(require_admin)):
+    async def interrupt(task_id: str, _actor: str = Depends(require_submitter)):
         try:
             return await tasks.interrupt(
                 task_id,
@@ -334,7 +437,7 @@ def create_app(
 
     @app.get("/api/v1/tasks/{task_id}/logs")
     async def logs(task_id: str, request: Request, offset: int = 0, limit: int = 262144):
-        role = can_read(request)
+        role = await can_read(request)
         if role == "summary":
             raise HTTPException(403, "logs require full read access")
         try:
@@ -347,9 +450,62 @@ def create_app(
             "data": base64.b64encode(data).decode(),
         }
 
+    @app.post("/api/v1/tasks/{task_id}/terminal/input")
+    async def terminal_input(
+        task_id: str, payload: TerminalInput, _actor: str = Depends(require_submitter)
+    ):
+        try:
+            data = (
+                base64.b64decode(payload.data, validate=True)
+                if payload.encoding == "base64"
+                else payload.data.encode()
+            )
+        except (ValueError, binascii.Error):
+            raise HTTPException(422, "invalid terminal input") from None
+        if not data or len(data) > 65536:
+            raise HTTPException(422, "terminal input must be 1..65536 bytes")
+        try:
+            accepted = await tasks.write_terminal(task_id, data)
+        except KeyError:
+            raise HTTPException(404, "task not found") from None
+        if not accepted:
+            raise HTTPException(409, "task terminal is not writable")
+        return {"accepted": len(data)}
+
+    @app.post("/api/v1/tasks/{task_id}/terminal/controls")
+    async def terminal_control(
+        task_id: str, payload: TerminalControl, _actor: str = Depends(require_submitter)
+    ):
+        controls = {
+            "ctrl_c": b"\x03",
+            "ctrl_d": b"\x04",
+            "enter": b"\r",
+            "escape": b"\x1b",
+            "tab": b"\t",
+        }
+        try:
+            accepted = await tasks.write_terminal(task_id, controls[payload.key])
+        except KeyError:
+            raise HTTPException(404, "task not found") from None
+        if not accepted:
+            raise HTTPException(409, "task terminal is not writable")
+        return {"accepted": payload.key}
+
+    @app.post("/api/v1/tasks/{task_id}/terminal/resize")
+    async def terminal_resize(
+        task_id: str, payload: TerminalResize, _actor: str = Depends(require_submitter)
+    ):
+        try:
+            accepted = await tasks.resize_terminal(task_id, payload.rows, payload.cols)
+        except KeyError:
+            raise HTTPException(404, "task not found") from None
+        if not accepted:
+            raise HTTPException(409, "task terminal is not resizable")
+        return {"accepted": True, "rows": payload.rows, "cols": payload.cols}
+
     @app.get("/api/v1/events")
     async def events(request: Request, after: int = 0):
-        can_read(request)
+        await can_read(request)
 
         async def stream():
             cursor = after
@@ -375,7 +531,7 @@ def create_app(
 
     @app.get("/api/v1/templates")
     async def templates(request: Request):
-        role = can_read(request)
+        role = await can_read(request)
         if role == "summary":
             raise HTTPException(403, "templates require full read access")
         return {
@@ -383,8 +539,14 @@ def create_app(
             "diagnostics": plugins.diagnostics if role == "admin" else {},
         }
 
+    @app.get("/api/v1/plugins")
+    async def loaded_plugins(_actor: str = Depends(require_submitter)):
+        return {"items": plugins.describe(), "diagnostics": plugins.diagnostics}
+
     @app.post("/api/v1/templates/{name}/runs", status_code=202)
-    async def run_template(name: str, values: dict[str, Any], _actor: str = Depends(require_admin)):
+    async def run_template(
+        name: str, values: dict[str, Any], _actor: str = Depends(require_submitter)
+    ):
         try:
             drafts = plugins.expand(name, values, {"root": str(root)})
         except KeyError:
@@ -394,7 +556,7 @@ def create_app(
 
     @app.post("/api/v1/templates/{name}/discover")
     async def discover_template(
-        name: str, values: dict[str, Any], _actor: str = Depends(require_admin)
+        name: str, values: dict[str, Any], _actor: str = Depends(require_submitter)
     ):
         try:
             options = await plugins.discover(name, values)
@@ -436,22 +598,120 @@ def create_app(
             store.idempotency_put(actor, route, idempotency_key, result)
         return result
 
+    @app.post("/api/v1/runs", status_code=202)
+    async def create_run(
+        payload: RunCreate,
+        actor: str = Depends(require_submitter),
+        idempotency_key: Annotated[str | None, Header()] = None,
+    ):
+        """Validate an inline configuration through its plugin and atomically queue its tasks."""
+
+        route = "/api/v1/runs"
+        if idempotency_key:
+            previous = store.idempotency_get(actor, route, idempotency_key)
+            if previous:
+                return previous
+        plugin_name = payload.configuration.get("plugin")
+        if isinstance(plugin_name, str) and plugin_name not in plugins.plugins:
+            raise HTTPException(404, "plugin not found")
+        diagnosis = diagnose_config(payload.configuration, plugins)
+        if not diagnosis.runnable:
+            raise HTTPException(
+                422,
+                {
+                    "message": "configuration is not runnable",
+                    "errors": diagnosis.errors,
+                    "warnings": diagnosis.warnings,
+                },
+            )
+        try:
+            drafts = plugins.expand_config(
+                payload.configuration,
+                payload.inputs,
+                {"root": str(root)},
+            )
+        except KeyError:
+            raise HTTPException(404, "plugin not found") from None
+        except Exception as exc:
+            raise HTTPException(422, f"configuration expansion failed: {exc}") from None
+        batch_id, records = tasks.submit_batch(
+            str(plugin_name),
+            {"configuration": payload.configuration, "inputs": payload.inputs},
+            drafts,
+        )
+        result = {
+            "batch_id": batch_id,
+            "task_ids": [record.id for record in records],
+            "count": len(records),
+        }
+        if idempotency_key:
+            store.idempotency_put(actor, route, idempotency_key, result)
+        return result
+
     @app.get("/api/v1/batches/{batch_id}")
     async def get_batch(batch_id: str, request: Request):
-        can_read(request)
+        await can_read(request)
         try:
             return store.get_batch(batch_id)
         except KeyError:
             raise HTTPException(404, "batch not found") from None
 
     @app.get("/api/v1/config/files")
-    async def config_files(_actor: str = Depends(require_admin)):
-        return {"items": config.list()}
+    async def config_files(_actor: str = Depends(require_submitter)):
+        items = config.list()
+        diagnostics: dict[str, dict[str, Any]] = {}
+        for path in items:
+            try:
+                diagnosis = diagnose_config(config.parse(path), plugins)
+            except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
+                diagnosis = ConfigDiagnosis(
+                    kind="generic",
+                    valid=False,
+                    runnable=False,
+                    errors=[f"syntax or import error: {error}"],
+                )
+            diagnostics[path] = diagnosis.model_dump()
+        return {"items": items, "diagnostics": diagnostics}
+
+    @app.post("/api/v1/config/files", status_code=201)
+    async def config_create(
+        payload: ConfigCreate, _actor: str = Depends(require_submitter)
+    ):
+        try:
+            example = plugins.example(payload.plugin)
+            example = {**example, "plugin": payload.plugin}
+            content = yaml.safe_dump(example, allow_unicode=True, sort_keys=False)
+            return config.write(payload.path, content, None).__dict__
+        except KeyError:
+            raise HTTPException(404, "configuration plugin is not loaded") from None
+        except (ConfigConflict, FileExistsError):
+            raise HTTPException(409, "configuration already exists") from None
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(422, str(exc)) from None
 
     @app.get("/api/v1/config/files/{path:path}")
-    async def config_read(path: str, _actor: str = Depends(require_admin)):
+    async def config_read(path: str, _actor: str = Depends(require_submitter)):
         try:
-            return config.read(path).__dict__
+            item = config.read(path)
+            try:
+                document = config.parse(path)
+                diagnosis = diagnose_config(document, plugins)
+            except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
+                document = None
+                diagnosis = ConfigDiagnosis(
+                    kind="generic",
+                    valid=False,
+                    runnable=False,
+                    errors=[f"syntax or import error: {error}"],
+                )
+            plugin_name = document.get("plugin") if isinstance(document, dict) else None
+            return {
+                **item.__dict__,
+                "document": document,
+                "plugin": plugin_name,
+                "plugin_loaded": plugin_name in plugins.plugins if plugin_name else False,
+                "diagnosis": diagnosis.model_dump(),
+            }
         except (ValueError, FileNotFoundError) as exc:
             raise HTTPException(404, str(exc)) from None
 
@@ -459,7 +719,7 @@ def create_app(
     async def config_write(
         path: str,
         payload: ConfigWrite,
-        _actor: str = Depends(require_admin),
+        _actor: str = Depends(require_submitter),
         if_match: Annotated[str | None, Header()] = None,
     ):
         try:
@@ -468,6 +728,78 @@ def create_app(
             raise HTTPException(412, {"current_version": str(exc)}) from None
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
+
+    @app.post("/api/v1/config/files/{path:path}/move")
+    async def config_move(
+        path: str, payload: ConfigMove, _actor: str = Depends(require_submitter)
+    ):
+        try:
+            return config.move(path, payload.target, payload.version).__dict__
+        except ConfigConflict as exc:
+            raise HTTPException(412, {"current_version": str(exc)}) from None
+        except FileExistsError:
+            raise HTTPException(409, "target configuration already exists") from None
+        except (TypeError, ValueError, FileNotFoundError, yaml.YAMLError) as exc:
+            raise HTTPException(422, str(exc)) from None
+
+    @app.delete("/api/v1/config/files/{path:path}", status_code=204)
+    async def config_delete(
+        path: str,
+        _actor: str = Depends(require_submitter),
+        if_match: Annotated[str | None, Header()] = None,
+    ):
+        if not if_match:
+            raise HTTPException(428, "If-Match is required")
+        try:
+            config.delete(path, if_match)
+        except ConfigConflict as exc:
+            raise HTTPException(412, {"current_version": str(exc)}) from None
+        except (ValueError, FileNotFoundError) as exc:
+            raise HTTPException(404, str(exc)) from None
+        return Response(status_code=204)
+
+    @app.post("/api/v1/config/files/{path:path}/runs", status_code=202)
+    async def config_run(
+        path: str, payload: ConfigRun, _actor: str = Depends(require_submitter)
+    ):
+        try:
+            document = config.parse(path)
+            diagnosis = diagnose_config(document, plugins)
+            if not diagnosis.runnable:
+                raise ValueError("; ".join(diagnosis.errors) or "configuration is not runnable")
+            drafts = plugins.expand_config(
+                document,
+                payload.inputs,
+                {"root": str(root), "config_path": path},
+            )
+        except KeyError:
+            raise HTTPException(404, "configuration plugin is not loaded") from None
+        except (TypeError, ValueError, FileNotFoundError, yaml.YAMLError) as exc:
+            raise HTTPException(422, str(exc)) from None
+        records = [tasks.submit(draft) for draft in drafts]
+        return {"task_ids": [item.id for item in records], "count": len(records)}
+
+    @app.post("/api/v1/config/files/{path:path}/discover")
+    async def config_discover(
+        path: str, payload: ConfigRun, _actor: str = Depends(require_submitter)
+    ):
+        try:
+            document = config.parse(path)
+            diagnosis = diagnose_config(document, plugins)
+            if not diagnosis.runnable:
+                raise ValueError("; ".join(diagnosis.errors) or "configuration is not runnable")
+            items = await plugins.discover_config(
+                document,
+                payload.inputs,
+                {"root": str(root), "config_path": path},
+            )
+        except KeyError:
+            raise HTTPException(404, "configuration plugin is not loaded") from None
+        except TimeoutError:
+            raise HTTPException(504, "plugin discovery timed out") from None
+        except (TypeError, ValueError, FileNotFoundError, OSError, yaml.YAMLError) as exc:
+            raise HTTPException(422, f"plugin discovery failed: {exc}") from None
+        return {"items": items}
 
     @app.websocket("/api/v1/tasks/{task_id}/terminal")
     async def terminal(websocket: WebSocket, task_id: str):
@@ -523,6 +855,12 @@ def create_app(
         except (WebSocketDisconnect, KeyError):
             return
 
+    @app.get("/docs", include_in_schema=False)
+    @app.get("/redoc", include_in_schema=False)
+    @app.get("/openapi.json", include_in_schema=False)
+    async def disabled_public_documentation():
+        raise HTTPException(404, "public API documentation is disabled")
+
     dist_candidates = []
     configured_dist = os.environ.get("LOCALFLOW_WEB_DIST")
     if configured_dist:
@@ -541,9 +879,23 @@ def create_app(
     if dist is not None:
         app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
 
+        @app.get("/api/v1/system/ui-revision", include_in_schema=False)
+        async def ui_revision():
+            index = dist / "index.html"
+            stat = index.stat()
+            return {"revision": f"{stat.st_mtime_ns:x}-{stat.st_size:x}"}
+
         @app.get("/{path:path}", include_in_schema=False)
         async def spa(path: str):
-            candidate = dist / path
-            return FileResponse(candidate if candidate.is_file() else dist / "index.html")
+            if path == "api" or path.startswith("api/"):
+                raise HTTPException(404, "API route not found")
+            candidate = (dist / path).resolve()
+            try:
+                candidate.relative_to(dist)
+            except ValueError:
+                raise HTTPException(404, "file not found") from None
+            served = candidate if candidate.is_file() else dist / "index.html"
+            headers = {"Cache-Control": "no-store"} if served.name == "index.html" else None
+            return FileResponse(served, headers=headers)
 
     return app

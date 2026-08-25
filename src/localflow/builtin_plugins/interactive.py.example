@@ -1,0 +1,79 @@
+from __future__ import annotations
+
+from pydantic import BaseModel, ConfigDict
+
+from localflow.models import TaskCreate
+from localflow.plugins import plugin
+from localflow.variables import VariableResolver
+
+
+class InteractiveConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+@plugin("interactive", version="1")
+class Interactive:
+    config_model = InteractiveConfig
+    required_common_fields = {"name", "working_directory", "command"}
+    title = "交互退出"
+    description = "中断后可查询、继续，也可按协议保存退出"
+    instructions = "终端页用于人工发送 Ctrl+C、status、resume 或 quit；停止按钮则自动依次执行配置的 stop.actions。"
+    example = {
+        "plugin": "interactive",
+        "name": "交互退出示例",
+        "working_directory": "${scripts_dir}",
+        "command": ["python3", "-u", "interactive_shutdown.py"],
+        "labels": ["example", "interactive"],
+        "stop": {
+            "actions": [
+                {
+                    "type": "signal",
+                    "signal": "SIGINT",
+                    "output_contains": "请输入 status、resume 或 quit",
+                    "timeout_seconds": 5,
+                    "label": "请求停止",
+                },
+                {
+                    "type": "input",
+                    "data": "quit\n",
+                    "timeout_seconds": 120,
+                    "label": "确认退出",
+                },
+            ]
+        },
+    }
+    run_fields = []
+    statuses = {
+        "waiting": {"label": "等待", "tone": "neutral", "finished": False},
+        "running": {"label": "运行中", "tone": "info", "finished": False},
+        "stopping": {"label": "退出中", "tone": "warning", "finished": False},
+        "completed": {"label": "正常完成", "tone": "success", "finished": True},
+        "error": {"label": "执行错误", "tone": "danger", "finished": True},
+        "stopped": {"label": "已按协议停止", "tone": "warning", "finished": True},
+        "lost": {"label": "状态丢失", "tone": "danger", "finished": True},
+    }
+    lifecycle_statuses = {
+        "queued": "waiting",
+        "starting": "running",
+        "running": "running",
+        "stopping": "stopping",
+        "lost": "lost",
+    }
+    result_statuses = {0: "completed", "default": "error"}
+    interrupt_status = "stopped"
+
+    def expand(self, values, context):
+        resolver = VariableResolver(
+            [("root", {"root": context["root"], "scripts_dir": f"{context['root']}/scripts"})]
+        )
+        values = resolver.resolution(values).value
+        return [
+            TaskCreate(
+                name=values["name"],
+                working_directory=values["working_directory"],
+                command=list(values["command"]),
+                labels=list(values.get("labels", [])),
+                mutex_keys=list(values.get("mutex_keys", [])),
+                custom=dict(values.get("custom", {})),
+            )
+        ]

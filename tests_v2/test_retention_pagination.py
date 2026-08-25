@@ -7,10 +7,17 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from localflow.cli import _endpoint
+from localflow.cli import _admin_url, _endpoint
 from localflow.models import TaskCreate, TaskState
 from localflow.service import TaskService, _elapsed
-from localflow.settings import RetentionSettings, ServerSettings, Settings, validate_deployment
+from localflow.settings import (
+    ExecutionSettings,
+    LoggingSettings,
+    RetentionSettings,
+    ServerSettings,
+    Settings,
+    validate_deployment,
+)
 from localflow.storage import Store
 
 
@@ -25,6 +32,9 @@ def _draft(root: Path, name: str) -> TaskCreate:
 def test_endpoint_formats_ipv4_and_ipv6() -> None:
     assert _endpoint("http", "127.0.0.1", 1234) == "http://127.0.0.1:1234"
     assert _endpoint("https", "::1", 443) == "https://[::1]:443"
+    url = _admin_url("http://127.0.0.1:1234", "code+/=")
+    assert url.startswith("http://127.0.0.1:1234#localflow-admin=")
+    assert "?" not in url
 
 
 def test_retention_removes_expired_terminal_data_but_keeps_newer_history(root: Path) -> None:
@@ -51,21 +61,72 @@ def test_retention_removes_expired_terminal_data_but_keeps_newer_history(root: P
         path = root / "logs" / task_id / "output.log"
         path.parent.mkdir(parents=True)
         path.write_text("log", encoding="utf-8")
+        descriptor = root / "runtime" / "instances" / f"{task_id}.json"
+        descriptor.parent.mkdir(parents=True, exist_ok=True)
+        descriptor.write_text("{}", encoding="utf-8")
     service = TaskService(
         root,
         store,
         NoopExecutor(),  # type: ignore[arg-type]
-        retention=RetentionSettings(task_days=5, log_days=1, event_days=30),
+        retention=RetentionSettings(task_days=5),
     )
     result = service.maintain(now)
-    assert result == {"tasks": 1, "log_directories": 2}
+    assert result == {"tasks": 1, "log_directories": 1}
     with pytest.raises(KeyError):
         store.get_task(old.id)
     assert store.get_task(recent.id).state == TaskState.SUCCEEDED
     assert store.get_task(active.id).state == TaskState.QUEUED
-    assert not (root / "logs" / recent.id).exists()
+    assert (root / "logs" / recent.id / "output.log").exists()
     assert (root / "logs" / active.id / "output.log").exists()
+    assert not (root / "runtime" / "instances" / f"{old.id}.json").exists()
+    assert (root / "runtime" / "instances" / f"{recent.id}.json").exists()
+    assert (root / "runtime" / "instances" / f"{active.id}.json").exists()
     store.close()
+
+
+def test_total_task_log_quota_removes_oldest_terminal_log(root: Path) -> None:
+    store = Store(root / "runtime" / "localflow.db")
+    now = datetime.now(UTC)
+    for index, task_id in enumerate(("older", "newer")):
+        task = store.create_task(task_id, _draft(root, task_id))
+        store.transition(
+            task.id,
+            [TaskState.QUEUED],
+            TaskState.SUCCEEDED,
+            ended_at=(now - timedelta(minutes=2 - index)).isoformat(),
+            exit_code=0,
+            log_size=700000,
+        )
+        output = root / "logs" / task_id / "output.log"
+        output.parent.mkdir(parents=True)
+        output.write_bytes(b"x" * 700000)
+    service = TaskService(
+        root,
+        store,
+        NoopExecutor(),  # type: ignore[arg-type]
+        retention=RetentionSettings(task_days=30),
+        logging_settings=LoggingSettings(task_file_mb=1, task_total_mb=1),
+    )
+    service.maintain(now)
+    assert not (root / "logs" / "older").exists()
+    assert (root / "logs" / "newer" / "output.log").exists()
+    assert store.get_task("older").log_size == 0
+    store.close()
+
+
+def test_total_log_budget_must_cover_all_concurrent_tasks() -> None:
+    with pytest.raises(ValueError, match="task_total_mb"):
+        Settings(
+            execution=ExecutionSettings(max_concurrency=4),
+            logging=LoggingSettings(task_file_mb=100, task_total_mb=399),
+        )
+
+
+def test_retention_defaults_to_three_days_for_task_and_output() -> None:
+    retention = RetentionSettings()
+    assert retention.task_days == 3
+    assert retention.log_days is None
+    assert retention.event_days is None
 
 
 def test_task_api_cursor_is_stable_and_rejects_invalid_cursor(

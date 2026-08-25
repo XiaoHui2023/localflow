@@ -28,7 +28,11 @@ class Resolution:
 
 
 class VariableResolver:
-    def __init__(self, layers: list[tuple[str, dict[str, Any]]]) -> None:
+    def __init__(
+        self,
+        layers: list[tuple[str, dict[str, Any]]],
+        deferred: set[str] | None = None,
+    ) -> None:
         self.values: dict[str, Any] = {}
         self.sources: dict[str, str] = {}
         for layer_name, layer in layers:
@@ -36,10 +40,13 @@ class VariableResolver:
                 self.values[key] = value
                 self.sources[key] = layer_name
         self._cache: dict[str, Any] = {}
+        self.deferred = deferred or set()
 
     def variable(self, name: str, stack: tuple[str, ...] = ()) -> Any:
         if name in self._cache:
             return self._cache[name]
+        if name in self.deferred:
+            return "${" + name + "}"
         if name in stack:
             raise VariableError(f"variable cycle: {' -> '.join((*stack, name))}")
         if name not in self.values:

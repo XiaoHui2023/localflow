@@ -1,0 +1,2 @@
+plugin: verification
+command: [python3, -u, scripts/simulate.py]

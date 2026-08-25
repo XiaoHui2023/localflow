@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import signal
 import socket
@@ -11,6 +12,7 @@ from pathlib import Path
 from typing import Protocol
 
 from .control import control_socket_path
+from .log_files import BoundedLogWriter
 from .models import TaskRecord
 
 
@@ -33,16 +35,21 @@ class Executor(Protocol):
 class SubprocessExecutor:
     """Development executor with process-group signal semantics."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self, task_log_max_bytes: int = 100 * 1024 * 1024, keep_free_bytes: int = 0
+    ) -> None:
         self._processes: dict[str, asyncio.subprocess.Process] = {}
-        self._logs: dict[str, object] = {}
+        self._pumps: dict[str, asyncio.Task[None]] = {}
+        self._writers: dict[str, BoundedLogWriter] = {}
+        self.task_log_max_bytes = task_log_max_bytes
+        self.keep_free_bytes = keep_free_bytes
 
     async def start(self, task: TaskRecord, log_path: Path) -> StartResult:
         workdir = Path(task.working_directory)
         if not workdir.is_dir():
             raise FileNotFoundError(f"working directory does not exist: {workdir}")
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        log = log_path.open("ab", buffering=0)
+        log = BoundedLogWriter(log_path, self.task_log_max_bytes, self.keep_free_bytes)
         kwargs: dict[str, object] = {}
         if os.name == "nt":
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
@@ -52,7 +59,7 @@ class SubprocessExecutor:
             process = await asyncio.create_subprocess_exec(
                 *task.command,
                 cwd=workdir,
-                stdout=log,
+                stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
                 stdin=asyncio.subprocess.PIPE,
                 **kwargs,
@@ -61,17 +68,29 @@ class SubprocessExecutor:
             log.close()
             raise
         self._processes[task.id] = process
-        self._logs[task.id] = log
+        self._writers[task.id] = log
+
+        async def pump() -> None:
+            assert process.stdout is not None
+            while chunk := await process.stdout.read(65536):
+                log.write(chunk)
+
+        self._pumps[task.id] = asyncio.create_task(pump(), name=f"task-log-{task.id}")
         return StartResult(process.pid, f"process:{process.pid}")
 
     async def wait(self, task_id: str) -> int:
         process = self._processes[task_id]
         try:
-            return await process.wait()
+            code = await process.wait()
+            pump = self._pumps.get(task_id)
+            if pump:
+                await pump
+            return code
         finally:
-            log = self._logs.pop(task_id, None)
+            self._pumps.pop(task_id, None)
+            log = self._writers.pop(task_id, None)
             if log:
-                log.close()  # type: ignore[attr-defined]
+                log.close()
             self._processes.pop(task_id, None)
 
     async def interrupt(self, task_id: str, stage: str) -> bool:
@@ -80,7 +99,10 @@ class SubprocessExecutor:
             return False
         if os.name == "nt":
             if stage == "sigint":
-                process.send_signal(signal.CTRL_BREAK_EVENT)
+                if process.stdin is None:
+                    return False
+                process.stdin.write(b"\x03")
+                await process.stdin.drain()
             elif stage == "sigterm":
                 process.terminate()
             else:
@@ -100,12 +122,25 @@ class SubprocessExecutor:
         process = self._processes.get(task_id)
         if process is None or process.returncode is not None or process.stdin is None:
             return False
+        if data == b"\x03":
+            if os.name != "nt":
+                return await self.interrupt(task_id, "sigint")
+            process.stdin.write(data)
+            await process.stdin.drain()
+            return True
+        if data == b"\x04":
+            process.stdin.close()
+            return True
         process.stdin.write(data)
         await process.stdin.drain()
         return True
 
     async def resize(self, task_id: str, rows: int, cols: int) -> bool:
-        return False
+        # The development backend streams pipes rather than a PTY.  Accept a
+        # valid resize as a no-op so browser-local fitting does not pollute the
+        # task's real output with a misleading protocol error.
+        process = self._processes.get(task_id)
+        return process is not None and process.returncode is None
 
     async def completed_code(self, task_id: str) -> int | None:
         process = self._processes.get(task_id)
@@ -115,14 +150,26 @@ class SubprocessExecutor:
 class SystemdExecutor:
     """Ubuntu executor that gives a transient unit durable process ownership."""
 
-    def __init__(self, root: Path) -> None:
+    def __init__(
+        self,
+        root: Path,
+        task_log_max_bytes: int = 100 * 1024 * 1024,
+        keep_free_bytes: int = 0,
+    ) -> None:
         self.root = root
+        self.task_log_max_bytes = task_log_max_bytes
+        self.keep_free_bytes = keep_free_bytes
 
     async def start(self, task: TaskRecord, log_path: Path) -> StartResult:
         unit = f"localflow-task-{task.id}.service"
         descriptor = self.root / "runtime" / "instances" / f"{task.id}.json"
         descriptor.parent.mkdir(parents=True, exist_ok=True)
-        descriptor.write_text(task.model_dump_json(), encoding="utf-8")
+        payload = task.model_dump(mode="json")
+        payload["_localflow"] = {
+            "task_log_max_bytes": self.task_log_max_bytes,
+            "keep_free_bytes": self.keep_free_bytes,
+        }
+        descriptor.write_text(json.dumps(payload), encoding="utf-8")
         os.chmod(descriptor, 0o600)
         command = [
             "systemd-run",
@@ -135,6 +182,8 @@ class SystemdExecutor:
             f"WorkingDirectory={task.working_directory}",
             "--property",
             "KillMode=control-group",
+            "--property",
+            "SendSIGKILL=yes",
             "--property",
             "Type=exec",
             sys.executable,
@@ -156,8 +205,6 @@ class SystemdExecutor:
     async def wait(self, task_id: str) -> int:
         result = self.root / "runtime" / "instances" / f"{task_id}.exit"
         while True:
-            if result.exists():
-                return int(result.read_text(encoding="ascii").strip())
             process = await asyncio.create_subprocess_exec(
                 "systemctl",
                 "--user",
@@ -165,15 +212,19 @@ class SystemdExecutor:
                 "--quiet",
                 f"localflow-task-{task_id}.service",
             )
-            if await process.wait() != 0:
+            inactive = await process.wait() != 0
+            if result.exists() and inactive:
+                return int(result.read_text(encoding="ascii").strip())
+            if inactive:
                 return 137
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.1)
 
     async def interrupt(self, task_id: str, stage: str) -> bool:
         unit = f"localflow-task-{task_id}.service"
         signal_name = {"sigint": "SIGINT", "sigterm": "SIGTERM", "sigkill": "SIGKILL"}[stage]
+        target = "all" if stage == "sigkill" else "main"
         process = await asyncio.create_subprocess_exec(
-            "systemctl", "--user", "kill", "--kill-whom=all", f"--signal={signal_name}", unit
+            "systemctl", "--user", "kill", f"--kill-whom={target}", f"--signal={signal_name}", unit
         )
         return await process.wait() == 0
 

@@ -1,0 +1,36 @@
+{
+  "capability_id": "localflow-rejection-recovery-layout",
+  "owner": "modern-web-interface-design",
+  "problem": "用户否定中止图标、代码复制反馈、终端外围排版与 Case 固定卡片布局，旧视觉门未能拒绝明显失败。",
+  "scope": "任务详情微交互、终端工作区外围、Case 响应式布局、构建新鲜度与用户反馈沉淀；保留 xterm PTY 和后端任务语义。",
+  "baseline": "CircleStop 套有边框、代码换行且悬浮蓝框、停止按钮增加空白行、终端普通表单化、Case 固定 180 到 220 像素。",
+  "benchmarks": ["xterm.js official addons", "VS Code Terminal Basics and Appearance", "Lucide semantic icons", "intrinsic CSS Grid layout"],
+  "advantages": ["xterm.js 与 PTY 已真实运行", "Edge 自动门已有宽窄视口", "Case 交互语义已覆盖"],
+  "disadvantages": ["旧门只证明元素存在和页面不溢出", "外围布局未有密度量测", "源码变化与用户可见构建曾缺少显式关联"],
+  "limitations": ["审美仍需结构化人工复核", "横向代码滚动在短值上不会出现滑块", "移动端没有悬浮滚轮"],
+  "defects": ["嵌套中止轮廓", "复制悬浮蓝框", "代码值换行", "详情底部空白", "终端排版松散", "Case 卡片不能铺满"],
+  "bottlenecks": ["CSS 所有权跨 index/extra/round6", "App.jsx 集中页面", "视觉 Oracle 缺少失败基线"],
+  "metrics": [
+    {"name":"stop_border_width","unit":"px","direction":"decrease","threshold":0,"measurement":"Edge computed style","evidence":"browser receipt"},
+    {"name":"code_white_space","unit":"enum","direction":"equal","threshold":"nowrap","measurement":"Edge computed style","evidence":"browser receipt"},
+    {"name":"page_horizontal_overflow","unit":"px","direction":"decrease","threshold":0,"measurement":"Edge geometry at 1440/760/390","evidence":"browser receipt"},
+    {"name":"copy_layout_shift","unit":"px","direction":"decrease","threshold":0,"measurement":"before/after bounding boxes","evidence":"browser receipt"},
+    {"name":"case_row_height","unit":"px","direction":"decrease","threshold":40,"measurement":"Edge case item geometry","evidence":"browser receipt"}
+  ],
+  "hypotheses": ["保留成熟终端内核并重做外围能直接修复可见问题", "内在网格列可消除固定卡片空白", "局部复制动画比 Toast 更紧凑"],
+  "allowed_variables": ["React composition", "CSS layout and motion", "browser assertions", "project and user-root documentation"],
+  "stages": [
+    {"id":"S1","input":"rejected live UI","output":"frozen baseline and research","checker":"contract validator","rollback":"round 13 sources","allowed_variables":["evidence","skills"]},
+    {"id":"S2","input":"research","output":"UI candidate","checker":"Vite build","rollback":"S1","allowed_variables":["App.jsx","CSS"]},
+    {"id":"S3","input":"built candidate","output":"Edge evidence","checker":"browser quality","rollback":"S2","allowed_variables":["tests","screenshots","receipt"]}
+  ],
+  "hard_gates": ["one unboxed stop glyph", "one-line internally scrollable code values", "neutral hover and local copy confirmation", "no task-detail blank action row", "terminal fills remaining viewport", "Case grid fills available width", "live URL serves current revision"],
+  "failure_fixtures": ["restore CircleStop bordered button", "set code white-space pre-wrap", "restore fixed 220px Case max", "add persistent terminal notice row"],
+  "success_fixtures": ["long command scrolls inside its value", "copy check appears without geometry change", "terminal columns shrink with viewport", "Case rows remain compact at wide and narrow widths"],
+  "fault_injections": ["blue hover border", "page-level code overflow", "stale built asset", "fixed card columns"],
+  "rollback": "Restore the last functional xterm/PT​​Y implementation while keeping the rejected Round 13 visual baseline as evidence.",
+  "iteration_budget": {"max_rounds":4,"max_time":"4h","review_trigger":"one browser hard-gate failure or one user-visible stale build"},
+  "stop_conditions": ["failure fixtures rejected", "current UI passes Edge geometry and interaction gates", "skills and project requirements are updated", "full regression passes"],
+  "promotion_decision": {"destination":"modern-web-interface-design references","reason":"the icon, copy, terminal shell and intrinsic picker rules apply across operator tools","independent_trigger":false,"repeatable_validation":true},
+  "writeback": "Project screenshots and values remain in quality evidence; cross-project rejection recovery and UI rules update user-root skills."
+}

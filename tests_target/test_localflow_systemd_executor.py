@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 from pathlib import Path
 
@@ -8,7 +9,7 @@ import pytest
 
 from localflow.control import control_socket_path
 from localflow.executor import SystemdExecutor
-from localflow.models import TaskCreate
+from localflow.models import StopAction, StopStrategy, TaskCreate
 from localflow.service import TaskService
 from localflow.settings import initialize_root
 from localflow.storage import Store
@@ -69,7 +70,7 @@ async def test_real_systemd_executor_sigint_first(tmp_path: Path) -> None:
             break
     result = store.get_task(task.id)
     assert result.state == "cancelled"
-    assert result.interrupt_stage == "sigint"
+    assert result.interrupt_stage == "stop:0:signal"
     assert b"got-sigint" in service.read_log(task.id)[0]
     await service.stop()
     store.close()
@@ -83,7 +84,7 @@ async def test_real_systemd_executor_sigint_first(tmp_path: Path) -> None:
             "import signal,time; signal.signal(signal.SIGINT, signal.SIG_IGN); "
             "signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(SystemExit(143))); "
             "time.sleep(30)",
-            "sigterm",
+            "stop:1:signal",
         ),
         (
             "import signal,time; signal.signal(signal.SIGINT, signal.SIG_IGN); "
@@ -119,6 +120,62 @@ async def test_real_systemd_interrupt_escalates(
     result = store.get_task(task.id)
     assert result.state == "cancelled"
     assert result.interrupt_stage == expected_stage
+    await service.stop()
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_real_systemd_interactive_stop_and_cgroup_cleanup(tmp_path: Path) -> None:
+    root = tmp_path / "localflow-interactive-cleanup"
+    initialize_root(root)
+    store = Store(root / "runtime" / "localflow.db")
+    service = TaskService(root, store, SystemdExecutor(root), max_concurrency=1)
+    orphan_file = root / "orphan.pid"
+    script = (
+        "import os,signal,subprocess,sys,time\n"
+        f"child=subprocess.Popen(['sleep','30']); open({str(orphan_file)!r},'w').write(str(child.pid))\n"
+        "stopping=False\n"
+        "def stop(*_):\n global stopping; stopping=True; print('type quit',flush=True)\n"
+        "signal.signal(signal.SIGINT,stop)\n"
+        "while True:\n"
+        " if stopping and sys.stdin.readline().strip() == 'quit': raise SystemExit(0)\n"
+        " time.sleep(.05)\n"
+    )
+    task = service.submit(
+        TaskCreate(
+            name="interactive-cleanup",
+            working_directory=str(root),
+            command=[sys.executable, "-u", "-c", script],
+            stop=StopStrategy(
+                actions=[
+                    StopAction(
+                        type="signal",
+                        signal="SIGINT",
+                        output_contains="type quit",
+                        timeout_seconds=2,
+                    ),
+                    StopAction(type="input", data="quit\n", timeout_seconds=2),
+                ]
+            ),
+        )
+    )
+    await service.start()
+    for _ in range(100):
+        await asyncio.sleep(0.05)
+        if orphan_file.exists() and control_socket_path(root, task.id).exists():
+            break
+    orphan_pid = int(orphan_file.read_text(encoding="ascii"))
+    await service.interrupt(task.id)
+    for _ in range(150):
+        await asyncio.sleep(0.05)
+        if store.get_task(task.id).ended_at:
+            break
+    result = store.get_task(task.id)
+    assert result.state == "cancelled"
+    assert result.exit_code == 0
+    assert b"type quit" in service.read_log(task.id)[0]
+    with pytest.raises(ProcessLookupError):
+        os.kill(orphan_pid, 0)
     await service.stop()
     store.close()
 

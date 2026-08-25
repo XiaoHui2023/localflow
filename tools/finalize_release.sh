@@ -30,14 +30,27 @@ chmod 0755 dist/localflow
 VERSION="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
 BUNDLE="localflow-${VERSION}-linux-x86_64"
 rm -rf "dist/$BUNDLE" "dist/$BUNDLE.tar.gz" dist/SHA256SUMS
-mkdir -p "dist/$BUNDLE/deploy" "dist/$BUNDLE/docs"
+mkdir -p "dist/$BUNDLE/deploy" "dist/$BUNDLE/docs" "dist/$BUNDLE/skills" \
+  "dist/$BUNDLE/config/tasks" "dist/$BUNDLE/config/shared" "dist/$BUNDLE/scripts" "dist/$BUNDLE/plugins" \
+  "dist/$BUNDLE/runtime/instances" "dist/$BUNDLE/logs" "dist/$BUNDLE/secrets" \
+  "dist/$BUNDLE/exports"
 install -m 0755 dist/localflow "dist/$BUNDLE/localflow"
 install -m 0644 README.md "dist/$BUNDLE/README.md"
 install -m 0644 deploy/localflow-static.service "dist/$BUNDLE/deploy/localflow.service"
 install -m 0644 deploy/localflow.tmpfiles.conf "dist/$BUNDLE/deploy/localflow.tmpfiles.conf"
 install -m 0755 deploy/localflow-set-time.py "dist/$BUNDLE/deploy/localflow-set-time.py"
 install -m 0644 deploy/localflow.sudoers "dist/$BUNDLE/deploy/localflow.sudoers"
-install -m 0644 docs/operations.md "dist/$BUNDLE/docs/operations.md"
+install -m 0644 docs/api.md docs/configuration.md docs/operations.md docs/plugins.md \
+  docs/security.md docs/stopping.md docs/terminal.md "dist/$BUNDLE/docs/"
+cp -R skills/. "dist/$BUNDLE/skills/"
+install -m 0644 src/localflow/starter_root/config/tasks/*.yaml "dist/$BUNDLE/config/tasks/"
+install -m 0644 src/localflow/starter_root/config/shared/*.yaml "dist/$BUNDLE/config/shared/"
+install -m 0755 src/localflow/starter_root/scripts/*.py "dist/$BUNDLE/scripts/"
+install -m 0644 src/localflow/builtin_plugins/declarative.py.example "dist/$BUNDLE/plugins/declarative.py"
+install -m 0644 src/localflow/builtin_plugins/verification.py.example "dist/$BUNDLE/plugins/verification.py"
+install -m 0644 src/localflow/builtin_plugins/interactive.py.example "dist/$BUNDLE/plugins/interactive.py"
+install -m 0644 src/localflow/builtin_plugins/marker.py.example "dist/$BUNDLE/plugins/marker.py"
+install -m 0644 src/localflow/builtin_plugins/README.md.example "dist/$BUNDLE/plugins/README.md"
 tar -C dist -czf "dist/$BUNDLE.tar.gz" "$BUNDLE"
 rm -rf "dist/$BUNDLE"
 (cd dist && sha256sum localflow "$BUNDLE.tar.gz" > SHA256SUMS)

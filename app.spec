@@ -11,6 +11,7 @@ spec_path = Path(SPECPATH).resolve()
 repo_root = spec_path if (spec_path / "pyproject.toml").is_file() else spec_path.parent
 entry = repo_root / "src" / "localflow" / "__main__.py"
 frontend_dist = repo_root / "frontend" / "dist"
+starter_scripts = repo_root / "src" / "localflow" / "starter_root" / "scripts"
 
 if not entry.is_file():
     raise SystemExit(f"missing entry point: {entry}")
@@ -19,6 +20,7 @@ if not (frontend_dist / "index.html").is_file():
 
 datas = collect_data_files("localflow")
 datas.append((str(frontend_dist), "frontend/dist"))
+datas.append((str(starter_scripts), "localflow/starter_root/scripts"))
 
 a = Analysis(
     [str(entry)], pathex=[str(repo_root / "src")], binaries=[], datas=datas,

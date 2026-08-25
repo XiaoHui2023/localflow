@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "measurement": {
+    "server_warmup_seconds": 3,
+    "idle_window_seconds": 6,
+    "server_sample_interval_seconds": 0.5
+  },
+  "limits": {
+    "server_rss_mib": 192,
+    "server_cpu_one_core_percent": 5,
+    "renderer_js_heap_mib": 96,
+    "renderer_idle_cpu_one_core_percent": 8,
+    "dom_nodes": 3000,
+    "dom_documents": 4,
+    "dom_event_listeners": 1200,
+    "idle_background_requests": 16,
+    "idle_websockets": 0
+  }
+}

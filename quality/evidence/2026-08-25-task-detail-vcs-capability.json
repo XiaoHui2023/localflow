@@ -1,0 +1,186 @@
+{
+  "capability_id": "task-detail-vcs-retention",
+  "owner": "Task projection, plugin result evaluation, retention service, and task-detail UI",
+  "problem": "The accepted quality gate missed excessive detail whitespace, internal variable provenance, ambiguous timestamps, missing VCS/UVM log semantics, and the three-day retention default.",
+  "scope": "Task list expansion, computed-field projection, VCS plugin discovery/evaluation, honest stopping and process-tree confirmation, interactive controls, tag serialization, task metadata and terminal-output retention, long-running resource health, and the 29049 live instance.",
+  "baseline": "The current live page is the failure baseline: expanded task detail contains a large bottom gap, start time behaves like a copyable code value, and variable_sources is visible.",
+  "benchmarks": [
+    "Semantic HTML disclosure whose height is content-owned",
+    "UVM 1.2 report summary severity counts",
+    "VCS compile/run logs with explicit phase ownership"
+  ],
+  "advantages": [
+    "Existing plugin snapshots already support arbitrary statuses",
+    "Existing task custom fields and log files provide stable persistence owners",
+    "Existing Edge gate can measure geometry and visible text"
+  ],
+  "disadvantages": [
+    "Current custom projection does not distinguish internal provenance from plugin output",
+    "Current browser gate checks presence more strongly than content-owned height",
+    "No VCS-specific multi-log evaluator exists"
+  ],
+  "limitations": [
+    "VCS itself is unavailable on this Windows development host",
+    "Log classification must be validated with representative fixtures rather than running a licensed simulator",
+    "Plugin status can only use evidence present in configured log files"
+  ],
+  "defects": [
+    "Expanded detail has unowned blank space",
+    "Start time is unnecessarily copyable",
+    "variable_sources leaks into computed output",
+    "No VCS compile/run/UVM terminal-state contract",
+    "Retention default and paired cleanup are not yet verified as three days"
+  ],
+  "bottlenecks": [
+    "UI geometry Oracle does not reject bottom gaps",
+    "Result evaluation lacks a phase-aware log model",
+    "Retention tests may verify cleanup categories separately instead of task-level atomic intent"
+  ],
+  "metrics": [
+    {
+      "name": "expanded_detail_bottom_gap",
+      "unit": "css_px",
+      "direction": "lower_is_better",
+      "threshold": "<= 16",
+      "measurement": "Rendered detail bounding box bottom minus last visible child bottom",
+      "evidence": "Edge browser receipt and screenshot"
+    },
+    {
+      "name": "internal_projection_leaks",
+      "unit": "visible_fields",
+      "direction": "lower_is_better",
+      "threshold": "0",
+      "measurement": "Visible task-detail fields named variable_sources or undeclared internal keys",
+      "evidence": "Frontend component test and Edge text assertion"
+    },
+    {
+      "name": "vcs_status_fixture_accuracy",
+      "unit": "fixtures_correct_percent",
+      "direction": "higher_is_better",
+      "threshold": "100",
+      "measurement": "Compile-only, PASS, ERROR, FATAL, non-UVM error, missing-path and multiple-log fixtures",
+      "evidence": "Plugin unit tests"
+    },
+    {
+      "name": "retention_pair_integrity",
+      "unit": "scenarios_correct_percent",
+      "direction": "higher_is_better",
+      "threshold": "100",
+      "measurement": "Expired terminal task loses metadata and output together; active and younger tasks retain both",
+      "evidence": "Retention integration tests"
+    },
+    {
+      "name": "false_cancelled_transitions",
+      "unit": "transitions",
+      "direction": "lower_is_better",
+      "threshold": "0",
+      "measurement": "A running task remains stopping until executor wait or explicit process-tree plus exit confirmation completes",
+      "evidence": "Scheduler integration and Ubuntu systemd target tests"
+    },
+    {
+      "name": "idle_resource_budget_failures",
+      "unit": "budgets_exceeded",
+      "direction": "lower_is_better",
+      "threshold": "0",
+      "measurement": "Service RSS/CPU and Edge CPU/heap/DOM/request/WebSocket measurements with zero active tasks",
+      "evidence": "Versioned browser resource receipt"
+    }
+  ],
+  "hypotheses": [
+    "Removing min-height/flex growth from the expanded owner will eliminate the blank gap without hiding content",
+    "A plugin-declared computed list will prevent variable_sources leakage",
+    "Parsing the last UVM report summary before fallback fatal/error patterns will avoid stale earlier messages",
+    "One task retention duration with a three-day default can drive metadata and log cleanup consistently"
+  ],
+  "allowed_variables": [
+    "task-detail DOM ownership and spacing",
+    "plugin computed-field contract",
+    "VCS plugin configuration and evaluator",
+    "retention default and cleanup transaction",
+    "quality metrics and tests"
+  ],
+  "stages": [
+    {
+      "id": "research-contract",
+      "input": "Frozen user-visible failures and UVM/VCS questions",
+      "output": "Source matrix and phase-aware result contract",
+      "checker": "Sources cover official, implementation, engineering, counterexample, and local fixture levels",
+      "rollback": "Keep the goal active and do not implement a guessed parser",
+      "allowed_variables": ["source selection", "parser contract"]
+    },
+    {
+      "id": "backend-plugin-retention",
+      "input": "Approved result and retention contract",
+      "output": "VCS plugin, computed projection, three-day paired cleanup",
+      "checker": "Unit and integration fixtures accept all successes and reject all failures",
+      "rollback": "Revert the failing owner only and retain the old live service",
+      "allowed_variables": ["plugin code", "task projection", "settings", "retention cleanup"]
+    },
+    {
+      "id": "frontend-density",
+      "input": "Task detail projection without internal keys",
+      "output": "Content-owned detail with static timestamps and conditional computed rows",
+      "checker": "Wide and narrow Edge geometry, text, accessibility, and current-build assertions",
+      "rollback": "Restore the prior CSS bundle while keeping backend tests and goal active",
+      "allowed_variables": ["task detail markup", "task detail CSS", "browser assertions"]
+    },
+    {
+      "id": "live-restart",
+      "input": "All local gates passed and no active task",
+      "output": "29049 serves the tested build and preserves history",
+      "checker": "Admin status, build identity, task/log retention, and live browser geometry",
+      "rollback": "Restart the last known working source tree and report the blocker",
+      "allowed_variables": ["service process"]
+    }
+  ],
+  "hard_gates": [
+    "Known blank-gap and internal-field failure fixtures are rejected",
+    "All VCS phase/status fixtures pass",
+    "Three-day default and paired retention behavior pass",
+    "Stopping is observable before cancellation and cancellation follows real executor completion",
+    "Ctrl+D closes the interactive example and tag-derived mutex keys serialize matching simulations",
+    "Idle resource receipt passes without hidden terminal connections",
+    "Current assets are built before Edge runs",
+    "The live 29049 process is restarted only with zero active tasks"
+  ],
+  "failure_fixtures": [
+    "Expanded detail whose bottom gap exceeds 16 px",
+    "Task custom payload containing variable_sources",
+    "Compile logs exist but no run log exists",
+    "Last UVM summary contains nonzero UVM_ERROR or UVM_FATAL",
+    "Expired task metadata deleted while its terminal output remains"
+  ],
+  "success_fixtures": [
+    "Compact task detail with no computed fields",
+    "Multiple compile logs and no run log classified as compilation error",
+    "Run log with final zero-count UVM summary classified PASS",
+    "Run log with non-UVM VCS error classified ERROR",
+    "Terminal task younger than three days retains metadata and output"
+  ],
+  "fault_injections": [
+    "Remove the detail bottom-gap assertion",
+    "Project all custom keys instead of plugin-declared computed keys",
+    "Parse the first rather than last UVM report summary",
+    "Delete only the database record or only the output directory",
+    "Change the retention default from three days"
+  ],
+  "rollback": "Do not replace the live service until the complete candidate passes; if live startup fails, restart the prior tested process command against the unchanged runtime root.",
+  "iteration_budget": {
+    "max_rounds": 4,
+    "max_time": "one working session",
+    "review_trigger": "Any repeated failure changes owner, representation, or Oracle rather than retuning the same threshold"
+  },
+  "stop_conditions": [
+    "Known failures rejected and successes accepted at 100 percent",
+    "Parent quality gate and Edge gate pass on current assets",
+    "Live 29049 instance exposes the tested behavior with no residual process",
+    "Design, goal, worklog, user docs, plugin docs and quality registry agree"
+  ],
+  "promotion_decision": {
+    "destination": "modern-web-interface-design and localflow project skill references",
+    "reason": "Content-owned disclosure geometry is cross-project; VCS/UVM specifics are project-domain knowledge",
+    "independent_trigger": false,
+    "repeatable_validation": true
+  },
+  "writeback": "Project-specific evidence stays in project goals/worklog; generic detail-density Oracle returns to modern-web-interface-design if validated; VCS/UVM contract is documented in LocalFlow plugin docs and project skill."
+}

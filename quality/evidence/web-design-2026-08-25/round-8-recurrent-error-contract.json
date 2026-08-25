@@ -1,0 +1,13 @@
+{
+  "error_id": "workbench-success-feedback-occlusion",
+  "fingerprint": "A success message is positioned over the workbench, remains visible, or is judged safe only because pointer events pass through it.",
+  "owner": "web-ui feedback layer",
+  "earliest_stage": "component CSS and interaction test",
+  "failure_baseline": {"artifact": "quality/evidence/browser/admin-config-explorer-dark.png before round 8", "expected": "fixed green status occupies the upper-right workbench and can obscure content"},
+  "success_baseline": {"artifact": "quality/evidence/browser/admin-config-explorer-dark.png after round 8", "expected": "no floating success status; inline status is static and expires"},
+  "steps": ["classify feedback by owner and severity", "move success to document flow", "expire success while retaining errors", "assert computed position and lifetime", "visually inspect nearby controls"],
+  "hard_gates": ["success status position is static", "success status disappears within five seconds", "actionable failures do not auto-expire", "zero covered controls in screenshot"],
+  "rollback": "Restore the last accepted inline workbench status; do not restore fixed positioning.",
+  "exit_criteria": ["known overlay fixture is rejected", "inline fixture is accepted", "two consecutive comparable browser artifacts show no recurrence"],
+  "known_issue_regressions": ["fixed top-right notice", "absolute notice inside scroll workbench", "pointer-events none overlay", "persistent success banner"]
+}

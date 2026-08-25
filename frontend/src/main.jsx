@@ -10,6 +10,7 @@ import "monaco-editor/esm/vs/language/json/monaco.contribution";
 import App from "./App.jsx";
 import "./index.css";
 import "./extra.css";
+import "./round6.css";
 import "./case-picker.css";
 
 self.MonacoEnvironment = {
@@ -25,8 +26,14 @@ monaco.editor.defineTheme("localflow-dark", {
 });
 loader.config({ monaco });
 
+const fragment = new URLSearchParams(location.hash.slice(1));
+const bootstrapCode = fragment.get("localflow-admin");
+if (bootstrapCode) {
+  history.replaceState(null, "", `${location.pathname}${location.search}`);
+}
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <App />
+    <App bootstrapCode={bootstrapCode} />
   </React.StrictMode>,
 );

@@ -1,0 +1,115 @@
+{
+  "capability_id": "localflow-compact-navigation-time-and-config-diagnostics",
+  "owner": "modern-web-interface-design",
+  "problem": "全高左栏把无功能的空白误表现为组件；时间卡重复标题、说明、图标与时间；配置编辑器无法区分普通公共配置、可运行任务配置和错误配置。",
+  "scope": "只改变导航容器外观、设置页时间信息层级、受限配置导入和诊断投影；保留六个导航目的地、键盘合同、主题、即时校时、插件由配置顶层声明和任务执行合同。",
+  "baseline": "112px 全高侧栏产生约 600px 无归属空白；时间区域有图标、标题、说明、粗体时间和输入五层；配置 GET 只返回 plugin_loaded，外部错误文件可能直接造成解析异常。",
+  "benchmarks": [
+    "Material navigation rail for three to seven top-level destinations",
+    "GitHub Primer NavList short labels and current item semantics",
+    "W3C WCAG 2.2 target size and visible focus",
+    "WAI-ARIA timer with implicit aria-live off",
+    "python-library-configlib raw include and composition loader"
+  ],
+  "advantages": [
+    "六个目的地已有短中文标签、图标和方向键行为",
+    "服务器时间已有单次取样加单调增量，不需要新增轮询",
+    "配置仓库已有路径隔离、版本、原子写和插件注册表"
+  ],
+  "disadvantages": [
+    "导航视觉容器与页面分栏轨道绑定",
+    "每秒时间更新没有 timer 语义",
+    "任务目录用路径规则强制 plugin，无法容纳公共导入片段"
+  ],
+  "limitations": [
+    "导航仍固定左上，页面内容仍为独立滚动区域",
+    "公共片段只诊断已出现的公共字段，不声称可独立运行",
+    "第三方插件若未声明 config_model，只能完成公共字段和插件存在性诊断",
+    "配置导入必须限制在 config 根目录"
+  ],
+  "defects": [
+    "左栏背景和边框贯穿整个视口",
+    "时间卡信息冗余",
+    "普通配置和任务配置没有分类",
+    "插件专属字段没有保存前诊断"
+  ],
+  "bottlenecks": [
+    "CSS inset 同时设置 top 和 bottom",
+    "SettingsPage 单个卡片承担说明与操作两种所有权",
+    "parse_config 只解析字符串，无法安全解析相对 include"
+  ],
+  "metrics": [
+    {"name":"navigation_visible_height","unit":"css_px","direction":"decrease","threshold":300,"measurement":"Edge bounding box at 1440x900","evidence":"round 7 browser screenshot"},
+    {"name":"navigation_target_height","unit":"css_px","direction":"increase","threshold":40,"measurement":"six rendered button bounding boxes","evidence":"Edge DOM measurement"},
+    {"name":"time_primary_components","unit":"count","direction":"decrease","threshold":2,"measurement":"live timer plus labelled calibration control","evidence":"Edge role assertions"},
+    {"name":"config_diagnostic_classification","unit":"percent","direction":"increase","threshold":100,"measurement":"generic fragment valid task invalid task fixtures","evidence":"pytest"},
+    {"name":"include_escape_rejection","unit":"percent","direction":"increase","threshold":100,"measurement":"inside include accepted and traversal include rejected","evidence":"pytest"},
+    {"name":"serious_critical_a11y_violations","unit":"count","direction":"decrease","threshold":0,"measurement":"axe WCAG A/AA","evidence":"browser receipt"}
+  ],
+  "hypotheses": [
+    "让 aside 按内容收缩而让 grid 轨道继续占位可同时消除空带并避免内容横跳",
+    "日期与时分秒合并为 timer、输入自身带唯一标签可删除图标和说明",
+    "公共字段命中分类加插件 config_model 能在不误报普通文件的前提下给出分层诊断",
+    "先限制 include 图再调用 configlib 可复用成熟加载器且不扩大读取边界"
+  ],
+  "allowed_variables": [
+    "navigation CSS",
+    "settings time markup and CSS",
+    "configuration parser and diagnostics",
+    "built-in plugin config schemas",
+    "starter shared configuration",
+    "tests and evidence"
+  ],
+  "stages": [
+    {"id":"S1","input":"baseline and user feedback","output":"contract, sources and baseline screenshot","checker":"capability validator","rollback":"round 6 accepted UI","allowed_variables":["evidence","docs"]},
+    {"id":"S2","input":"diagnostic contract","output":"confined include parser and layered diagnostics","checker":"pytest success/failure/fault fixtures","rollback":"S1","allowed_variables":["Python","plugins","starter configs"]},
+    {"id":"S3","input":"stable diagnostic API","output":"compact navigation, timer and diagnostic UI","checker":"Vite and Edge geometry/a11y","rollback":"S2","allowed_variables":["React","CSS","E2E"]},
+    {"id":"S4","input":"integrated candidate","output":"records, skill writeback and current demo","checker":"full repository gates","rollback":"last accepted round","allowed_variables":["docs","evidence","quality receipt","demo"]}
+  ],
+  "hard_gates": [
+    "visible navigation container is content-height and under 300px at 1440x900",
+    "all six navigation targets remain at least 40px high with visible current and focus states",
+    "narrow viewport has no horizontal overflow",
+    "time section has one non-announcing live timer and one labelled datetime-local calibration control",
+    "zero-common-field object is generic and any-common-field object is diagnosed as a fragment",
+    "plugin remains sourced only from the configuration top level",
+    "loaded plugin schema diagnoses required and unknown plugin fields",
+    "includes outside config are rejected before loading",
+    "axe serious and critical violations remain zero"
+  ],
+  "failure_fixtures": [
+    "restore bottom:0 to navigation container",
+    "reduce navigation target below 24px",
+    "give timer aria-live polite",
+    "plain metadata object is classified as a task",
+    "fragment label is a scalar",
+    "verification plugin omits case_directory",
+    "include traverses outside config"
+  ],
+  "success_fixtures": [
+    "six-item compact navigation at wide and narrow viewport",
+    "server-based clock advances each second",
+    "shared common fragment diagnoses valid but not runnable",
+    "command config diagnoses valid and runnable",
+    "verification config validates plugin-specific fields",
+    "task includes a shared file inside config"
+  ],
+  "fault_injections": [
+    "CSS full-height mutation",
+    "invalid common field type",
+    "unknown plugin",
+    "unknown plugin-specific field",
+    "include traversal",
+    "syntax-invalid externally edited YAML"
+  ],
+  "rollback": "Restore round 6 navigation/settings markup and direct parsers; leave user files and task history untouched.",
+  "iteration_budget": {"max_rounds":3,"max_time":"3h","review_trigger":"one hard gate failure or no geometry reduction"},
+  "stop_conditions": [
+    "success, failure and fault fixtures classify correctly",
+    "navigation and time metrics meet thresholds",
+    "full Python, Edge, quality and Ubuntu gates pass",
+    "accepted demo reloads current assets"
+  ],
+  "promotion_decision": {"destination":"modern-web-interface-design references","reason":"content-height primary navigation and non-announcing live clock rules generalize to compact operator consoles","independent_trigger":false,"repeatable_validation":true},
+  "writeback": "Project screenshots, field names and configlib version remain in project evidence; reusable navigation ownership, timer semantics and classification rules update the local operator console reference."
+}

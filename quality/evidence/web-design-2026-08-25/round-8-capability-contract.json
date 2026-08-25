@@ -1,0 +1,42 @@
+{
+  "capability_id": "localflow-explorer-config-state-decoration",
+  "owner": "modern-web-interface-design",
+  "problem": "Configuration type and validity are repeated as header badges, while the explorer gives no at-a-glance distinction; success feedback also escaped the previous non-occlusion gate.",
+  "scope": "Classify every listed config as generic, fragment, valid task, or invalid; decorate the resource tree without relying on color alone; show detailed errors only after opening an invalid file; keep success feedback inline and expiring.",
+  "baseline": "All tree leaves use the same file icon and muted text; type badges consume editor-header space; list API returns paths only; a fixed success notice can cover controls.",
+  "benchmarks": [
+    "VS Code list.errorForeground and FileDecoration tooltip/color contract",
+    "GitHub Primer TreeView leading/trailing visual accessibility contract",
+    "Material Design state indicators with redundant visual cues",
+    "Community reports that full red filenames can create excessive noise"
+  ],
+  "advantages": ["Layered config diagnosis already has four required outcomes", "Tree nodes already have a stable data-file identity", "Opened invalid files already expose diagnostic errors inline"],
+  "disadvantages": ["The list endpoint does not expose diagnosis", "Header badges duplicate state", "The previous overlay check did not reject fixed non-interactive notices"],
+  "limitations": ["Classification is refreshed when the file list reloads", "Syntax-invalid files can only provide parse errors, not field diagnosis", "Color names are theme tokens rather than user-customizable settings"],
+  "defects": ["No explorer classification", "State is redundantly rendered in the editor header", "Color-only treatment would fail accessibility", "Success feedback can occlude the workbench"],
+  "bottlenecks": ["Per-file diagnosis must remain isolated so one broken file does not break the list", "Selected-row styling must preserve state meaning", "Tree virtualisation requires metadata in node data"],
+  "metrics": [
+    {"name":"explorer_classification_coverage","unit":"percent","direction":"increase","threshold":100,"measurement":"generic, fragment, valid task and invalid fixtures expose a state", "evidence":"pytest and Edge"},
+    {"name":"non_color_state_coverage","unit":"percent","direction":"increase","threshold":100,"measurement":"each file state has an accessible text label and distinct icon shape", "evidence":"Edge DOM and axe"},
+    {"name":"invalid_open_error_visibility","unit":"percent","direction":"increase","threshold":100,"measurement":"opened invalid fixture renders an inline alert with concrete errors", "evidence":"Edge"},
+    {"name":"success_notice_occlusion","unit":"count","direction":"decrease","threshold":0,"measurement":"success notice position is static and disappears within five seconds", "evidence":"Edge"},
+    {"name":"serious_critical_a11y_violations","unit":"count","direction":"decrease","threshold":0,"measurement":"axe WCAG A/AA", "evidence":"browser receipt"}
+  ],
+  "hypotheses": ["A compact icon plus restrained semantic color and accessible state text is faster to scan than header badges", "Returning diagnosis beside paths lets the tree update atomically", "Keeping error detail in the opened workbench avoids turning the tree into an error report", "An inline auto-expiring success status cannot cover controls"],
+  "allowed_variables": ["config list API projection", "resource tree node metadata and icons", "semantic theme tokens", "header badge removal", "tests and evidence", "success notice ownership"],
+  "stages": [
+    {"id":"S1","input":"baseline and benchmark research","output":"contract and source comparison","checker":"capability validator","rollback":"round 7 accepted UI","allowed_variables":["evidence","docs"]},
+    {"id":"S2","input":"diagnostic repository","output":"fault-isolated list diagnosis projection","checker":"pytest success and invalid fixtures","rollback":"S1","allowed_variables":["Python","API"]},
+    {"id":"S3","input":"diagnosed file list","output":"accessible compact tree decorations and inline opened-file errors","checker":"Vite, Edge, axe and screenshots","rollback":"S2","allowed_variables":["React","CSS","E2E"]},
+    {"id":"S4","input":"integrated candidate","output":"quality records, reusable rule writeback and current demo","checker":"full repository gates","rollback":"last accepted round","allowed_variables":["docs","evidence","quality receipt","demo"]}
+  ],
+  "hard_gates": ["all four file classifications appear in the explorer", "a malformed file cannot break explorer listing", "state remains identifiable without color", "selected and dark-theme rows preserve readable state", "invalid details appear only in the opened workbench", "validity/type badges are absent from the editor header", "success notice never uses fixed or absolute positioning and expires", "axe serious and critical violations remain zero"],
+  "failure_fixtures": ["plain object misclassified as invalid", "fragment shown as runnable", "invalid task shown with valid icon", "remove accessible state label", "restore fixed green success popup", "syntax-invalid YAML aborts the complete listing"],
+  "success_fixtures": ["generic server configuration", "shared common fragment", "valid command task", "invalid command task", "opened invalid task with inline errors", "inline expiring success status"],
+  "fault_injections": ["syntax-invalid YAML", "invalid common field type", "unknown plugin", "missing accessible state label", "fixed notification position mutation"],
+  "rollback": "Restore path-only list projection and uniform file icon; preserve user configuration files and task history.",
+  "iteration_budget": {"max_rounds":3,"max_time":"3h","review_trigger":"one hard gate failure or a state not distinguishable without color"},
+  "stop_conditions": ["all success, failure and fault fixtures are classified", "Edge verifies tree semantics and opened error detail", "full Python, Edge, quality and Ubuntu gates pass", "current demo reloads the accepted assets"],
+  "promotion_decision": {"destination":"modern-web-interface-design references","reason":"resource-tree status decoration and non-occluding feedback ownership generalize to operator consoles","independent_trigger":false,"repeatable_validation":true},
+  "writeback": "Project paths, screenshots and exact colors stay in project evidence; reusable tree decoration, non-color semantics and feedback placement rules update the local interface reference."
+}

@@ -1,0 +1,6 @@
+!include ../shared/task-defaults.yaml
+plugin: marker
+name: 警告示例
+working_directory: "${scripts_dir}"
+command: [python3, -u, marker_result.py, --result, warning]
+labels: [example, marker]

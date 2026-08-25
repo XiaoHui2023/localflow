@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 def utc_now() -> datetime:
@@ -15,6 +15,7 @@ class TaskState(StrEnum):
     QUEUED = "queued"
     STARTING = "starting"
     RUNNING = "running"
+    STOPPING = "stopping"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -22,6 +23,98 @@ class TaskState(StrEnum):
 
 
 TERMINAL_STATES = {TaskState.SUCCEEDED, TaskState.FAILED, TaskState.CANCELLED, TaskState.LOST}
+
+
+class TaskStatus(BaseModel):
+    key: str
+    label: str
+    tone: str = "neutral"
+    finished: bool = False
+
+
+class StopAction(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["signal", "input", "exec"]
+    signal: Literal["SIGINT", "SIGTERM"] | None = None
+    data: str | None = Field(default=None, max_length=4096)
+    command: list[str] | None = Field(default=None, min_length=1, max_length=64)
+    timeout_seconds: float = Field(default=10, ge=0, le=86400)
+    output_contains: str | None = Field(default=None, min_length=1, max_length=512)
+    label: str | None = Field(default=None, max_length=80)
+
+    @model_validator(mode="after")
+    def action_matches_type(self) -> StopAction:
+        populated = sum(value is not None for value in (self.signal, self.data, self.command))
+        if populated != 1:
+            raise ValueError("stop action requires exactly one signal, data, or command")
+        if self.type == "signal" and self.signal is None:
+            raise ValueError("signal stop action requires signal")
+        if self.type == "input" and self.data is None:
+            raise ValueError("input stop action requires data")
+        if self.type == "exec" and self.command is None:
+            raise ValueError("exec stop action requires command")
+        if self.data is not None and ("\x00" in self.data or len(self.data.encode()) > 4096):
+            raise ValueError("stop input must be at most 4096 bytes and contain no NUL")
+        if self.command and any(not item or "\x00" in item for item in self.command):
+            raise ValueError("stop command arguments must be non-empty and contain no NUL")
+        return self
+
+
+class StopStrategy(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    actions: list[StopAction] = Field(min_length=1, max_length=8)
+
+
+COMMON_CONFIG_FIELDS = frozenset(
+    {
+        "plugin",
+        "name",
+        "working_directory",
+        "command",
+        "labels",
+        "mutex_keys",
+        "custom",
+        "stop",
+        "variables",
+        "project",
+    }
+)
+
+
+class CommonConfigFields(BaseModel):
+    """Typed fields shared by file, browser and inline API configurations."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    plugin: str | None = Field(default=None, min_length=1)
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    working_directory: str | None = Field(default=None, min_length=1)
+    command: list[str] | None = Field(default=None, min_length=1)
+    labels: list[str] | None = Field(default=None, max_length=64)
+    mutex_keys: list[str] | None = Field(default=None, max_length=32)
+    custom: dict[str, Any] | None = None
+    stop: StopStrategy | None = None
+    variables: dict[str, Any] | None = None
+    project: str | None = Field(default=None, min_length=1)
+
+    @field_validator("command")
+    @classmethod
+    def validate_command(cls, value: list[str] | None) -> list[str] | None:
+        if value is not None and any(not item or "\x00" in item for item in value):
+            raise ValueError("command arguments must be non-empty and contain no NUL")
+        return value
+
+    @field_validator("labels", "mutex_keys")
+    @classmethod
+    def validate_names(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return value
+        normalized = [item.strip() for item in value]
+        if any(not item or len(item) > 128 for item in normalized):
+            raise ValueError("items must be 1..128 characters")
+        if len(set(normalized)) != len(normalized):
+            raise ValueError("items must be unique")
+        return normalized
 
 
 class TaskCreate(BaseModel):
@@ -48,6 +141,7 @@ class TaskCreate(BaseModel):
     custom: dict[str, Any] = Field(default_factory=dict)
     template: str | None = None
     plugin_snapshot: dict[str, Any] = Field(default_factory=dict)
+    stop: StopStrategy | None = None
 
     @field_validator("command")
     @classmethod
@@ -82,6 +176,7 @@ class TaskRecord(TaskCreate):
     log_size: int = 0
     started_monotonic: float | None = None
     elapsed_seconds: float | None = None
+    status: TaskStatus
 
 
 class EventRecord(BaseModel):
@@ -97,3 +192,24 @@ class BatchCreate(BaseModel):
     template: str
     values: dict[str, Any] = Field(default_factory=dict)
     common: dict[str, Any] = Field(default_factory=dict)
+
+
+class RunCreate(BaseModel):
+    """One-request plugin run using the same document contract as config files."""
+
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "configuration": {
+                    "plugin": "verification",
+                    "name": "smoke",
+                    "case_directory": "${root}/cases",
+                    "command": ["python3", "${root}/scripts/simulate.py", "--case", "${case}"],
+                },
+                "inputs": {"cases": ["smoke"], "case_runs": {"smoke": 2}},
+            }
+        },
+    )
+    configuration: dict[str, Any]
+    inputs: dict[str, Any] = Field(default_factory=dict)

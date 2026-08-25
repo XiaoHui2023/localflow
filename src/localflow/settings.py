@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ServerSettings(BaseModel):
@@ -33,22 +33,54 @@ class TimeSettings(BaseModel):
 
 
 class RetentionSettings(BaseModel):
-    task_days: int = Field(default=90, ge=1, le=36500)
-    log_days: int = Field(default=30, ge=1, le=36500)
-    event_days: int = Field(default=30, ge=1, le=36500)
+    task_days: int = Field(default=3, ge=1, le=36500)
+    log_days: int | None = Field(default=None, ge=1, le=36500, exclude=True)
+    event_days: int | None = Field(default=None, ge=1, le=36500, exclude=True)
     cleanup_interval_seconds: int = Field(default=3600, ge=10, le=86400)
+
+    @model_validator(mode="after")
+    def normalize_legacy_durations(self) -> RetentionSettings:
+        legacy = [value for value in (self.log_days, self.event_days) if value is not None]
+        if legacy and any(value != self.task_days for value in legacy):
+            raise ValueError("retention uses one task_days duration for task data and terminal output")
+        return self
+
+
+class LoggingSettings(BaseModel):
+    level: Literal["debug", "info", "warning", "error"] = "info"
+    service_file_mb: int = Field(default=10, ge=1, le=1024)
+    service_files: int = Field(default=5, ge=1, le=100)
+    task_file_mb: int = Field(default=100, ge=1, le=102400)
+    task_total_mb: int = Field(default=4096, ge=1, le=1048576)
+    keep_free_mb: int = Field(default=512, ge=0, le=1048576)
+    database_mb: int = Field(default=512, ge=16, le=1048576)
+    wal_mb: int = Field(default=16, ge=1, le=1024)
 
 
 class Settings(BaseModel):
     server: ServerSettings = Field(default_factory=ServerSettings)
     execution: ExecutionSettings = Field(default_factory=ExecutionSettings)
     retention: RetentionSettings = Field(default_factory=RetentionSettings)
+    logging: LoggingSettings = Field(default_factory=LoggingSettings)
     time: TimeSettings = Field(default_factory=TimeSettings)
+
+    @model_validator(mode="after")
+    def validate_log_budget(self) -> Settings:
+        active_budget = self.execution.max_concurrency * self.logging.task_file_mb
+        if self.logging.task_total_mb < active_budget:
+            raise ValueError(
+                "logging.task_total_mb must cover execution.max_concurrency * "
+                "logging.task_file_mb"
+            )
+        return self
 
 
 def initialize_root(root: Path) -> None:
     for relative, mode in (
         ("config", 0o750),
+        ("config/tasks", 0o750),
+        ("config/shared", 0o750),
+        ("scripts", 0o750),
         ("plugins", 0o750),
         ("runtime/instances", 0o750),
         ("logs", 0o750),
@@ -71,9 +103,16 @@ def initialize_root(root: Path) -> None:
             "  backend: systemd\n"
             "  max_concurrency: 4\n"
             "retention:\n"
-            "  task_days: 90\n"
-            "  log_days: 30\n"
-            "  event_days: 30\n"
+            "  task_days: 3\n"
+            "logging:\n"
+            "  level: info\n"
+            "  service_file_mb: 10\n"
+            "  service_files: 5\n"
+            "  task_file_mb: 100\n"
+            "  task_total_mb: 4096\n"
+            "  keep_free_mb: 512\n"
+            "  database_mb: 512\n"
+            "  wal_mb: 16\n"
             "time:\n"
             "  display_timezone: UTC\n"
             "  privileged_helper:\n"
@@ -85,29 +124,41 @@ def initialize_root(root: Path) -> None:
     variables = root / "config" / "variables.yaml"
     if not variables.exists():
         variables.write_text("global: {}\nprojects: {}\n", encoding="utf-8")
-    templates = root / "config" / "templates"
-    templates.mkdir(exist_ok=True)
-    command_example = templates / "hello.yaml"
-    if not command_example.exists():
-        command_example.write_text(
-            "name: '${task_name}'\n"
-            "working_directory: '${runtime_root}'\n"
-            "command: [bash, -lc, 'printf \\\"%s\\\\n\\\" \\\"${message}\\\"']\n"
-            "labels: [example, '${project}']\n"
-            "mutex_keys: []\n"
-            "custom:\n  project: '${project}'\n"
-            "variables:\n"
-            "  task_name: hello\n"
-            "  project: demo\n",
-            encoding="utf-8",
-        )
-    for name in ("verification.py", "declarative.py"):
+    starter = files("localflow.starter_root")
+    for relative in (
+        "config/shared/task-defaults.yaml",
+        "config/tasks/random-number.yaml",
+        "config/tasks/verification-demo.yaml",
+        "config/tasks/marker-warning.yaml",
+        "config/tasks/interactive-shutdown.yaml",
+        "scripts/random_number.py",
+        "scripts/simulate.py",
+        "scripts/marker_result.py",
+        "scripts/interactive_shutdown.py",
+        "cases/case-a/README.txt",
+        "cases/case-b/README.txt",
+        "cases/smoke.case",
+    ):
+        destination = root / relative
+        if not destination.exists():
+            source = starter.joinpath(relative)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+            if os.name != "nt" and relative.startswith("scripts/"):
+                os.chmod(destination, 0o750)
+    for name in ("verification.py", "declarative.py", "marker.py", "interactive.py"):
         example = root / "plugins" / name
         if not example.exists():
             source = files("localflow.builtin_plugins").joinpath(f"{name}.example")
             example.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
             if os.name != "nt":
                 os.chmod(example, 0o640)
+    plugin_readme = root / "plugins" / "README.md"
+    if not plugin_readme.exists():
+        source = files("localflow.builtin_plugins").joinpath("README.md.example")
+        plugin_readme.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+        if os.name != "nt":
+            os.chmod(plugin_readme, 0o640)
 
 
 def load_settings(root: Path) -> Settings:

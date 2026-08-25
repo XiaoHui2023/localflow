@@ -2,7 +2,7 @@
 
 ## 通用规则
 
-接口前缀为 `/api/v1`，FastAPI 在 `/docs` 和 `/openapi.json` 提供与当前程序同步的接口描述。JSON 时间使用带时区的 RFC 3339 字符串。
+接口前缀为 `/api/v1`。与当前程序同步的接口描述由管理员专用 `/api/v1/openapi` 提供；FastAPI 默认 `/docs`、`/redoc` 和 `/openapi.json` 关闭。JSON 时间使用带时区的 RFC 3339 字符串。
 
 任务和批次提交接受 `Idempotency-Key`。相同身份、路径与键在保存期内返回首次响应。任务列表使用不透明游标；调用方原样传回 `next_cursor`，不要解析其中内容。
 
@@ -20,14 +20,18 @@
 | 方法 | 路径 | 用途 | 最低身份 |
 | --- | --- | --- | --- |
 | `POST` | `/tasks` | 创建单个任务 | signed-client 或 admin |
+| `POST` | `/runs` | 携带一份配置，按其中插件展开并原子创建一个或多个任务 | signed-client 或 admin |
 | `POST` | `/batches` | 从模板展开并原子记录批次 | signed-client 或 admin |
-| `GET` | `/batches/{batch_id}` | 读取批次与有序任务 ID | 按匿名读取设置 |
-| `GET` | `/tasks` | 筛选与游标分页 | 按匿名读取设置 |
-| `GET` | `/tasks/{task_id}` | 读取身份对应的详情投影 | 按匿名读取设置 |
-| `POST` | `/tasks/{task_id}/acknowledgements` | 确认新完成标记 | admin |
-| `POST` | `/tasks/{task_id}/interrupt` | 请求幂等温和中断 | admin |
-| `GET` | `/tasks/{task_id}/logs` | 按字节偏移读取日志 | readonly 或 admin |
-| `GET` | `/events` | 从事件 ID 之后订阅 SSE | 按匿名读取设置 |
+| `GET` | `/batches/{batch_id}` | 读取批次与有序任务 ID | signed-client、admin 或按匿名设置 |
+| `GET` | `/tasks` | 筛选与游标分页；签名客户端获得完整投影 | signed-client、admin 或按匿名设置 |
+| `GET` | `/tasks/{task_id}` | 读取身份对应的详情投影 | signed-client、admin 或按匿名设置 |
+| `POST` | `/tasks/{task_id}/acknowledgements` | 确认新完成标记 | signed-client 或 admin |
+| `POST` | `/tasks/{task_id}/interrupt` | 请求幂等温和中断 | signed-client 或 admin |
+| `GET` | `/tasks/{task_id}/logs` | 按字节偏移读取日志 | signed-client、readonly 或 admin |
+| `POST` | `/tasks/{task_id}/terminal/input` | 写 UTF-8 或 Base64 终端字节 | signed-client 或 admin |
+| `POST` | `/tasks/{task_id}/terminal/controls` | 写 Ctrl+C、Ctrl+D、Enter、Escape 或 Tab | signed-client 或 admin |
+| `POST` | `/tasks/{task_id}/terminal/resize` | 调整 PTY 行列 | signed-client 或 admin |
+| `GET` | `/events` | 从事件 ID 之后订阅 SSE | signed-client、admin 或按匿名设置 |
 | `WS` | `/tasks/{task_id}/terminal` | 终端输出；管理员可输入和调尺寸 | readonly 或 admin |
 
 创建任务示例：
@@ -39,11 +43,35 @@
   "command": ["bash", "run.sh", "--case", "case_a"],
   "labels": ["smoke", "project-a"],
   "mutex_keys": ["license:sim-a"],
-  "custom": {"report_path": "/srv/reports/case_a/index.html"}
+  "custom": {"report_path": "/srv/reports/case_a/index.html"},
+  "stop": {"actions": [
+    {"type": "signal", "signal": "SIGINT", "output_contains": "请输入 quit", "timeout_seconds": 5},
+    {"type": "input", "data": "quit\n", "timeout_seconds": 120}
+  ]}
 }
 ```
 
 成功返回 `202 Accepted`，正文含 `task_id`、`state` 和 `created_at`。
+
+配置式提交是程序调用的首选入口。请求体与 `config/tasks` 文件使用同一合同：`configuration` 顶层必须有 `plugin`，`inputs` 只包含本次运行要改变的插件字段。插件校验、变量解析、任务展开和网页运行表面共用同一实现；一个 Case 多次运行或多个 Case 会在一次请求中返回多个任务 ID。
+
+```json
+{
+  "configuration": {
+    "plugin": "verification",
+    "name": "smoke",
+    "case_directory": "${root}/cases",
+    "command": ["python3", "${root}/scripts/simulate.py", "--case", "${case}"]
+  },
+  "inputs": {
+    "cases": ["case-a", "case-b"],
+    "case_runs": {"case-a": 2, "case-b": 1},
+    "seed": null
+  }
+}
+```
+
+返回 `batch_id`、有序 `task_ids` 和 `count`。带相同 `Idempotency-Key` 重试不会重复创建。缺少插件、未知插件、插件字段错误或展开结果不是有效任务时，整个请求失败且不写入部分任务。
 
 列表参数包括可重复的 `state` 与 `label`、`name`，以及 `created_from/to`、`started_from/to`、`ended_from/to`、`cursor` 和 `limit`。重复标签表示必须全部命中。返回值：
 
@@ -57,15 +85,23 @@
 
 | 方法 | 路径 | 用途 | 最低身份 |
 | --- | --- | --- | --- |
-| `GET` | `/templates` | 模板参数模式和管理员诊断 | readonly 或 admin |
-| `POST` | `/templates/{name}/discover` | 调用插件发现 case | admin |
-| `POST` | `/templates/{name}/runs` | 展开并提交模板（兼容入口） | admin |
-| `POST` | `/variables/resolve` | 四层变量解析预览 | admin |
-| `GET` | `/config/files` | 配置文件清单 | admin |
-| `GET` | `/config/files/{path}` | 内容和版本 | admin |
-| `PUT` | `/config/files/{path}` | `If-Match` 条件保存 | admin |
+| `GET` | `/templates` | 模板参数模式和诊断 | signed-client、readonly 或 admin |
+| `POST` | `/templates/{name}/discover` | 调用插件发现 case | signed-client 或 admin |
+| `POST` | `/templates/{name}/runs` | 展开并提交模板（兼容入口） | signed-client 或 admin |
+| `POST` | `/variables/resolve` | 四层变量解析预览 | signed-client 或 admin |
+| `GET` | `/plugins` | 已加载插件的字段、配置 schema 与可运行 API 示例 | signed-client 或 admin |
+| `GET` | `/config/files` | 配置文件清单 | signed-client 或 admin |
+| `POST` | `/config/files` | 创建配置文件 | signed-client 或 admin |
+| `GET` | `/config/files/{path}` | 内容、合并结果、版本和分层诊断 | signed-client 或 admin |
+| `PUT` | `/config/files/{path}` | `If-Match` 条件保存 | signed-client 或 admin |
+| `POST` | `/config/files/{path}/move` | 按版本移动或重命名配置 | signed-client 或 admin |
+| `DELETE` | `/config/files/{path}` | 按 `If-Match` 删除配置 | signed-client 或 admin |
+| `POST` | `/config/files/{path}/discover` | 用该配置调用插件发现钩子 | signed-client 或 admin |
+| `POST` | `/config/files/{path}/runs` | 运行诊断通过的配置 | signed-client 或 admin |
 
-配置保存先验证语法；`server.yaml` 还会完整执行设置模型语义验证。随后同目录写临时文件、`fsync` 并原子替换。版本不符返回 `412`，无效配置返回 `422`。
+配置读取的 `diagnosis` 返回 `kind`（`generic`、`fragment` 或 `task`）、`valid`、`runnable`、`plugin`、已出现的公共字段、错误和警告。插件名只取自配置顶层 `plugin`。保存先验证语法、受限导入和分层字段；`server.yaml` 还会完整执行设置模型语义验证。随后同目录写临时文件、`fsync` 并原子替换。版本不符返回 `412`，无效配置返回 `422`。外部写入的无效文件仍可由 GET 读取原文和诊断。
+
+这些接口覆盖配置的创建、读取、保存、移动、重命名、删除、诊断、发现与运行。无需保存文件时使用 `/runs`，在单个请求的 `configuration` 中直接携带相同配置；需要长期复用时先用配置文件接口保存，再调用对应 `/runs`。两条路径都以配置顶层 `plugin` 决定字段与任务展开方式。
 
 ## 登录、签名与系统
 
@@ -76,13 +112,87 @@
 | `GET` | `/auth/session` | 页面刷新后用有效 cookie 恢复内存 CSRF 令牌 |
 | `GET` | `/system/status` | 身份、执行后端和时钟状态 |
 | `POST` | `/system/time-adjustments` | 管理员请求手工校时 |
+| `GET` | `/openapi` | 管理员读取网页 API 文档使用的 OpenAPI schema |
 
 程序签名的规范串逐行覆盖：方法、含查询的路径、正文 SHA-256、密钥代次、Unix 秒和随机数。对应请求头为 `X-LocalFlow-Signature`、`X-LocalFlow-Generation`、`X-LocalFlow-Created` 和 `X-LocalFlow-Nonce`。
 
 任务进入终态后，磁盘密钥原子轮换到下一代。轮换前已经签发的随机数可在自身 30 秒有效期内继续使用旧代密钥；新随机数只能使用新代密钥，且任何随机数都只能消费一次。
+
+### 程序调用步骤
+
+1. 精确序列化请求正文，并在每次请求时重新读取运行根目录的 `secrets/api-key`。不要缓存密钥，也不要把它写入网页、URL、日志或环境变量。
+2. `POST /api/v1/auth/challenges`，取得 30 秒有效的 `nonce` 和 `generation`。
+3. 对 `METHOD\nPATH_WITH_QUERY\nBODY_SHA256\nGENERATION\nCREATED\nNONCE` 做 HMAC-SHA256，把十六进制摘要放入签名头。
+4. 提交业务请求。`403` 表示签名、方法、含查询路径、正文、时钟、代次或 nonce 无效；带有任一签名头的失败读取请求也会拒绝，不会静默降级为匿名摘要。丢弃本次材料，从重新读取密钥开始完整重试。`422` 是业务输入错误，不应盲目重试。
+
+最小 Python 示例只使用标准库：
+
+```python
+import hashlib
+import hmac
+import json
+import time
+import urllib.request
+
+base = "http://127.0.0.1:29049/api/v1"  # 以 runtime/port 的实际端口为准
+path = "/runs"
+body = json.dumps(
+    {
+        "configuration": {
+            "plugin": "command",
+            "name": "example",
+            "working_directory": "/srv/project",
+            "command": ["python3", "-u", "run.py"],
+        },
+        "inputs": {},
+    },
+    separators=(",", ":"),
+    ensure_ascii=False,
+).encode()
+
+with open("/path/to/localflow-root/secrets/api-key", "rb") as stream:
+    key = stream.read().strip()
+challenge_request = urllib.request.Request(
+    base + "/auth/challenges", data=b"", method="POST"
+)
+with urllib.request.urlopen(challenge_request) as response:
+    challenge = json.load(response)
+
+created = str(int(time.time()))
+canonical = "\n".join(
+    [
+        "POST",
+        "/api/v1" + path,
+        hashlib.sha256(body).hexdigest(),
+        str(challenge["generation"]),
+        created,
+        challenge["nonce"],
+    ]
+)
+headers = {
+    "Content-Type": "application/json",
+    "X-LocalFlow-Nonce": challenge["nonce"],
+    "X-LocalFlow-Created": created,
+    "X-LocalFlow-Generation": str(challenge["generation"]),
+    "X-LocalFlow-Signature": hmac.new(
+        key, canonical.encode(), hashlib.sha256
+    ).hexdigest(),
+}
+request = urllib.request.Request(
+    base + path, data=body, headers=headers, method="POST"
+)
+with urllib.request.urlopen(request) as response:
+    print(json.load(response))
+```
+
+密钥目录与文件在 Ubuntu 上分别必须为 `0700`、`0600`，且归运行 LocalFlow 的用户所有。程序只需读密钥；不要自行改写或轮换。服务器会在任务终态后完成原子替换。共享密钥的调用程序必须与服务用户处于同一授权边界；跨主机调用应另行建立 TLS 和密钥分发边界。
 
 ## 实时通道
 
 SSE 使用 `after` 查询参数从指定事件 ID 后续传，并在空闲时发送 keepalive。摘要访问者的事件数据同样经过字段投影。
 
 终端 WebSocket 输出消息为 `output`，包含 Base64 数据和下一字节偏移；输入与尺寸消息为 `input`、`resize`，拒绝结果为 `error`。单次块上限 64 KiB，发送端等待 WebSocket 背压，输入也执行大小、Base64 和尺寸范围校验。断线后的完整回放使用日志接口的字节偏移完成。
+
+HTTP 日志响应的 `next_offset` 是下一次读取起点；正文 `data` 为 Base64。输出文件由监督程序以无缓冲二进制追加写入，因此接口不等待任务结束。HTTP 终端接口适合脚本控制，WebSocket/xterm 适合人在环；两者使用同一 PTY，调用方必须避免同时发送相互冲突的输入。
+
+签名客户端可以使用完整任务查询、日志、HTTP 终端控制、配置、变量和插件合同接口；每个请求都必须重新取 challenge、重新读取密钥并按实际方法、含查询字符串的路径和精确正文重签。浏览器 WebSocket、时间校准和受保护 OpenAPI 仍使用管理员会话，不接受程序密钥替代网页登录。
