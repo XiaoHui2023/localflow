@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "verified_at": "2026-08-26T00:08:42+08:00",
+  "source_commit": "fd74c36ee2b713bf493b5bf767bf261cceb222e8",
+  "workflow": {
+    "name": "Rolling static release",
+    "run_id": 32869402949,
+    "url": "https://github.com/XiaoHui2023/localflow/actions/runs/32869402949",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "tag": {
+    "name": "v0.1.0",
+    "remote_commit": "fd74c36ee2b713bf493b5bf767bf261cceb222e8",
+    "matches_source": true
+  },
+  "release": {
+    "id": 375816642,
+    "url": "https://github.com/XiaoHui2023/localflow/releases/tag/v0.1.0",
+    "updated_at": "2026-08-25T16:03:40Z"
+  },
+  "assets": [
+    {
+      "name": "localflow",
+      "size": 37022160,
+      "sha256": "9ead01d87e5b7711d6be933d47a437151a6cd30f663328200e4f795675da3587"
+    },
+    {
+      "name": "localflow-0.1.0-linux-x86_64.tar.gz",
+      "size": 35257150,
+      "sha256": "57512a84523031c8d38e69fd074dc6fd254b920a76e1f06ecf133171d009a1e2"
+    },
+    {
+      "name": "SHA256SUMS",
+      "size": 178,
+      "sha256": "e4e5b4598dfa020f02f462254a7d541ecfedb79fcfe2dc1f30881adadbf4338d"
+    }
+  ],
+  "consumer_verification": {
+    "fresh_download": true,
+    "manifest_matches_assets": true,
+    "github_digests_match_downloads": true,
+    "network_disabled_during_smoke": true,
+    "standalone_binary_smoke": "passed",
+    "extracted_archive_smoke": "passed",
+    "archive_contains_all_agent_skills": true,
+    "archive_example_run": "passed"
+  },
+  "prior_failed_run": {
+    "run_id": 32867398244,
+    "source_commit": "3f4053cc673dffea40afb2a6ba1be3eda49e22f3",
+    "failure": "starter_root/cases/smoke.case was absent from the installed wheel",
+    "regression_gate": "tests_v2/test_quality.py::test_every_starter_resource_is_covered_by_package_data"
+  }
+}
