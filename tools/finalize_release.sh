@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 用当前宿主机的 binutils 将旧 glibc 基线产物封装为 staticx，并生成发布资产。
+# 在 PyInstaller 构建基线内完成 StaticX 封装并生成发布资产。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -8,15 +8,18 @@ cd "$ROOT"
 INPUT="${1:-dist/localflow.pyinstaller}"
 STATICX="${PACK_STATICX:-staticx}"
 test -x "$INPUT" || { echo "PyInstaller input is missing: $INPUT" >&2; exit 1; }
+[[ "$INPUT" != "dist/localflow" ]] || { echo "StaticX input must not overwrite its source path" >&2; exit 1; }
 command -v "$STATICX" >/dev/null || { echo "staticx is required" >&2; exit 1; }
 command -v patchelf >/dev/null || { echo "patchelf is required by staticx" >&2; exit 1; }
 
 OBJCOPY_VERSION="$(objcopy --version | head -n 1)"
 echo "finalizing with $OBJCOPY_VERSION"
-# staticx 官方问题 #205 记录旧 objcopy 会破坏 musl bootloader；2.35.2 及以上通过。
+# StaticX 官方问题 #205：旧 objcopy 不能处理由较新系统预编译的 bootloader。
+# 旧基线发布必须从源码构建 StaticX，使 bootloader 与本机工具链同源；wheel 仍要求新 objcopy。
 OBJCOPY_MINOR="$(objcopy --version | sed -n '1s/.* \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1 \2/p')"
 read -r OBJCOPY_MAJOR OBJCOPY_PATCH <<<"$OBJCOPY_MINOR"
-if (( OBJCOPY_MAJOR < 2 || (OBJCOPY_MAJOR == 2 && OBJCOPY_PATCH < 35) )); then
+if [[ "${PACK_STATICX_SOURCE_BUILD:-0}" != "1" ]] && \
+   (( OBJCOPY_MAJOR < 2 || (OBJCOPY_MAJOR == 2 && OBJCOPY_PATCH < 35) )); then
   echo "binutils 2.35+ is required to avoid corrupting the staticx bootloader" >&2
   exit 1
 fi
@@ -27,7 +30,8 @@ rm -f dist/localflow dist/localflow.staticx
 mv dist/localflow.staticx dist/localflow
 chmod 0755 dist/localflow
 
-VERSION="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+METADATA_PYTHON="${PACK_PYTHON:-python3}"
+VERSION="$("$METADATA_PYTHON" -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
 BUNDLE="localflow-${VERSION}-linux-x86_64"
 rm -rf "dist/$BUNDLE" "dist/$BUNDLE.tar.gz" dist/SHA256SUMS
 mkdir -p "dist/$BUNDLE/deploy" "dist/$BUNDLE/docs" "dist/$BUNDLE/skills" \

@@ -56,6 +56,9 @@
 
 完整命令、环境、目标探针、浏览器截图、故障样本和工具兼容性说明见 `quality/evidence/2026-08-25-final.md`。
 
+发布兼容性是硬门：PyInstaller 与 StaticX 必须在同一个 Ubuntu 16.04 基线内完成，CI 随后用 QEMU 在 `qemu64`、`core2duo`、`Opteron_G1` 三种无 AVX 的早期 x86-64 模型上执行最终制品的 `--help`。新宿主机原生 smoke 不能替代该门；只验证主体而让下游重新捆绑加载器也不能通过。
+本次逃逸、成熟实现对照、失败迭代与声明边界记录在 `quality/evidence/2026-08-26-linux-isa-escape.md`。
+
 ## 本体资源预算
 
 预算唯一来源是 `quality/resource-budgets.json`。服务样本先从 SQLite 证明活跃任务为零，再聚合控制器及其服务子进程；页面样本在完整运行工作台空闲六秒，使用 Edge DevTools 的累计任务时间差、JS 堆和 DOM 计数，同时统计 fetch/XHR 与存活 WebSocket。浏览器共享外壳不归属单个网页，因此不冒充 LocalFlow 页面内存；页面可归属开销由渲染进程指标表达。收据超限、缺字段、契约不一致或活跃任务非零均由 `tools/check_quality.py` 拒绝，测试还把堆值篡改为超限值证明判定器能抓住失败。

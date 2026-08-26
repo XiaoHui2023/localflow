@@ -1,8 +1,8 @@
 {
-  "completed_at": "2026-08-25T15:40:51.626Z",
+  "completed_at": "2026-08-26T03:26:03.113Z",
   "browser": "Microsoft Edge",
   "browser_version": "151.0.4129.107",
-  "base_url": "http://127.0.0.1:2858",
+  "base_url": "http://127.0.0.1:28435",
   "result": "passed",
   "source_files": {
     "frontend/index.html": "71a0ec43d00e456bd05cc4bb0b7ca38e498a721ce80eab1bdcdb29f5fa05cdc5",
@@ -25,11 +25,11 @@
     "admin-config-explorer-dark.png": "9f895d63e58645dd511465acf2dc38c2e73dc10309176c3a2852b0643d50a432",
     "admin-empty-light.png": "d622880537abc00cccdcc71781b995e96a2531c77fa44a9ff280d61781d03772",
     "admin-mobile-390.png": "8f1684c6706ee167f897313109edef7a388c2a19ff29a7ca458a004771471535",
-    "admin-run-verification-dark.png": "0615fbc7cd98516d6ddfc166d56601d3fc54b2c3cc72a3a6f90a55ec1f2f3e4b",
+    "admin-run-verification-dark.png": "20a90837ddc5d096c24739a4975d7a182213dcd34f000bb1799fd335a0a9564b",
     "admin-run-verification-empty-dark.png": "634eec120fae67e177ba1396a7fd4c6b7cf1284195a9c9a9720f7d8f60add3c4",
     "admin-run-verification-scope-dark.png": "86112355b462b67b43f0e698db71a8378a90bc9d866bb37117ac0f45acf1aff9",
-    "admin-settings-compact-light.png": "b72da796d4ada1f52226fabceb4eb8d28370dfba4dbd6144f670f7ed13f4be2d",
-    "admin-task-inline-dark.png": "aca36dfe801756ce097ed90cc8fa2454c422473622daadb0e48f1713cf1f1700",
+    "admin-settings-compact-light.png": "43f93ffbb44c0178b64697901399cf22136efa642f2394bc51975a4c6ba14d42",
+    "admin-task-inline-dark.png": "a60d2b0f62e93108d3fdc82916af7e962712b083c84df906dc272cd1ff7509d7",
     "admin-terminal-dark.png": "34749fed6229d616d4f038697e8d0012071a8b818781f3b4143ab06e155271b4"
   },
   "resource_contract": {
@@ -54,14 +54,14 @@
   "resource_metrics": {
     "task_process_count": 0,
     "service_process_count": 2,
-    "idle_window_seconds": 6.013,
-    "server_rss_mib": 61.598,
-    "server_cpu_one_core_percent": 0.252,
-    "renderer_js_heap_mib": 15.104,
-    "renderer_idle_cpu_one_core_percent": 0.536,
-    "dom_nodes": 1571,
+    "idle_window_seconds": 6.014,
+    "server_rss_mib": 61.281,
+    "server_cpu_one_core_percent": 0.755,
+    "renderer_js_heap_mib": 19.594,
+    "renderer_idle_cpu_one_core_percent": 0.399,
+    "dom_nodes": 2918,
     "dom_documents": 4,
-    "dom_event_listeners": 338,
+    "dom_event_listeners": 375,
     "idle_background_requests": 7,
     "idle_websockets": 0
   },

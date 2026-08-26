@@ -50,6 +50,28 @@ def test_release_workflow_tracks_the_current_starter_examples() -> None:
     )
 
 
+def test_release_keeps_staticx_inside_the_compatibility_baseline() -> None:
+    root = Path(__file__).parents[1]
+    workflow = (root / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    builder = (root / "tools" / "ci_pack_ubuntu16.sh").read_text(
+        encoding="utf-8"
+    )
+    packer = (root / "tools" / "pack.sh").read_text(encoding="utf-8")
+    compatibility = (root / "tools" / "check_linux_compatibility.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "PACK_DEFER_STATICX" not in workflow + builder + packer
+    assert "PACK_STATICX_SOURCE_BUILD=1" in builder
+    assert "--no-binary=staticx" in packer
+    assert "mv dist/localflow dist/localflow.pyinstaller" in packer
+    assert "finalize_release.sh dist/localflow.pyinstaller" in packer
+    assert "tools/check_linux_compatibility.sh dist/localflow" in workflow
+    for cpu in ("qemu64", "core2duo", "Opteron_G1"):
+        assert cpu in compatibility
+
+
 def test_operator_documentation_has_one_current_contract() -> None:
     root = Path(__file__).parents[1]
     assert not (root / "docs" / "configuration-plugin-contract.md").exists()
