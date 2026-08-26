@@ -1,39 +1,39 @@
 {
   "schema": 1,
-  "verified_at": "2026-08-26T00:08:42+08:00",
-  "source_commit": "fd74c36ee2b713bf493b5bf767bf261cceb222e8",
+  "verified_at": "2026-08-26T11:52:36+08:00",
+  "source_commit": "a6aa840dfd2469bf99625ff4bb3207ec8e39ec31",
   "workflow": {
     "name": "Rolling static release",
-    "run_id": 32869402949,
-    "url": "https://github.com/XiaoHui2023/localflow/actions/runs/32869402949",
+    "run_id": 32927197555,
+    "url": "https://github.com/XiaoHui2023/localflow/actions/runs/32927197555",
     "status": "completed",
     "conclusion": "success"
   },
   "tag": {
     "name": "v0.1.0",
-    "remote_commit": "fd74c36ee2b713bf493b5bf767bf261cceb222e8",
+    "remote_commit": "a6aa840dfd2469bf99625ff4bb3207ec8e39ec31",
     "matches_source": true
   },
   "release": {
     "id": 375816642,
     "url": "https://github.com/XiaoHui2023/localflow/releases/tag/v0.1.0",
-    "updated_at": "2026-08-25T16:03:40Z"
+    "updated_at": "2026-08-26T03:41:19Z"
   },
   "assets": [
     {
       "name": "localflow",
-      "size": 37022160,
-      "sha256": "9ead01d87e5b7711d6be933d47a437151a6cd30f663328200e4f795675da3587"
+      "size": 38906472,
+      "sha256": "682f11356b07c9d9381b3d8baf6258e1e8a8764acdc58b9de359ec1f483d866a"
     },
     {
       "name": "localflow-0.1.0-linux-x86_64.tar.gz",
-      "size": 35257150,
-      "sha256": "57512a84523031c8d38e69fd074dc6fd254b920a76e1f06ecf133171d009a1e2"
+      "size": 36275782,
+      "sha256": "06301449da9dd5f8965e667258de45fddb05a110a94fe54fc9b582ac49a3c929"
     },
     {
       "name": "SHA256SUMS",
       "size": 178,
-      "sha256": "e4e5b4598dfa020f02f462254a7d541ecfedb79fcfe2dc1f30881adadbf4338d"
+      "sha256": "934d011e7467253da89721e1cd7b007bc640f88a7d893879f28e9af2325c3c26"
     }
   ],
   "consumer_verification": {
@@ -42,14 +42,15 @@
     "github_digests_match_downloads": true,
     "network_disabled_during_smoke": true,
     "standalone_binary_smoke": "passed",
+    "standalone_legacy_cpu_models": ["qemu64", "core2duo", "Opteron_G1"],
     "extracted_archive_smoke": "passed",
+    "extracted_archive_legacy_cpu_models": ["qemu64", "core2duo", "Opteron_G1"],
     "archive_contains_all_agent_skills": true,
     "archive_example_run": "passed"
   },
-  "prior_failed_run": {
-    "run_id": 32867398244,
-    "source_commit": "3f4053cc673dffea40afb2a6ba1be3eda49e22f3",
-    "failure": "starter_root/cases/smoke.case was absent from the installed wheel",
-    "regression_gate": "tests_v2/test_quality.py::test_every_starter_resource_is_covered_by_package_data"
+  "prior_failed_release": {
+    "source_commit": "4b473e02d44e4fc6250301c56410044a0148ecee",
+    "failure": "user target reported Illegal instruction; the workflow built PyInstaller on Ubuntu 16.04 but finalized StaticX on Ubuntu 24.04",
+    "regression_gate": "tests_v2/test_quality.py::test_release_keeps_staticx_inside_the_compatibility_baseline and tools/check_linux_compatibility.sh"
   }
 }
