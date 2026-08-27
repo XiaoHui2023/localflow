@@ -72,6 +72,14 @@ def test_release_keeps_staticx_inside_the_compatibility_baseline() -> None:
         assert cpu in compatibility
 
 
+def test_release_bundle_preserves_secure_runtime_directory_modes() -> None:
+    root = Path(__file__).parents[1]
+    packer = (root / "tools" / "finalize_release.sh").read_text(encoding="utf-8")
+    assert 'install -d -m 0700 "dist/$BUNDLE/secrets"' in packer
+    assert 'install -d -m 0750 "dist/$BUNDLE/deploy"' in packer
+    assert 'mkdir -p "dist/$BUNDLE/deploy"' not in packer
+
+
 def test_operator_documentation_has_one_current_contract() -> None:
     root = Path(__file__).parents[1]
     assert not (root / "docs" / "configuration-plugin-contract.md").exists()

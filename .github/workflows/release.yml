@@ -70,6 +70,8 @@ jobs:
           test -f "$bundle/skills/localflow-configuration/SKILL.md"
           test -f "$bundle/skills/localflow-plugin-development/SKILL.md"
           test -f "$bundle/skills/localflow-operations/SKILL.md"
+          test "$(stat -c '%a' "$bundle/secrets")" = 700
+          test "$(stat -c '%a' "$bundle/runtime")" = 750
           test -x "$bundle/scripts/random_number.py"
           test -x "$bundle/scripts/simulate.py"
           test -x "$bundle/scripts/marker_result.py"
