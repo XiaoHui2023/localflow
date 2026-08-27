@@ -20,3 +20,5 @@
 首次 Release 的源码门和 Ubuntu 16.04/StaticX 构建通过，但三种旧 CPU 启动步骤失败并阻止 publish。StaticX 官方运行时合同明确提供 `STATICX_PROG_PATH` 作为被执行程序的绝对路径；内层 `sys.executable` 属于临时解包路径。根目录解析和 systemd 监督器重入都改为优先使用前者，并增加“外层路径与内层路径不同”的故障样本。
 
 第二次 Release 已通过旧 CPU 启动和静态单文件任务冒烟，在解压包冒烟被权限检查阻断。本机 Ubuntu 16.04 同源构建与全新容器复现显示，打包脚本用普通 `mkdir` 预建了 0755 的 `secrets/`；初始化不会擅自修复一个已存在的宽权限密钥目录，服务因此正确失败关闭。打包器改用 `install -d`，密钥目录固定 0700，其余运行目录固定 0750，并增加脚本文本反例门。
+
+第三次 Release 进一步暴露了 `install -d` 只为末级目录应用指定权限的细节：直接创建 `runtime/instances` 会让隐式父目录 `runtime` 保持 0755。打包器现先显式创建发布根目录和每个顶层目录，再创建子目录；质量门同时断言 `config`、`runtime` 与 `runtime/instances` 都被显式列出，归档冒烟继续以实际 `stat` 结果作为最终判据。

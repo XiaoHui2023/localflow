@@ -76,8 +76,19 @@ def test_release_bundle_preserves_secure_runtime_directory_modes() -> None:
     root = Path(__file__).parents[1]
     packer = (root / "tools" / "finalize_release.sh").read_text(encoding="utf-8")
     assert 'install -d -m 0700 "dist/$BUNDLE/secrets"' in packer
+    assert 'install -d -m 0750 "dist/$BUNDLE"' in packer
     assert 'install -d -m 0750 "dist/$BUNDLE/deploy"' in packer
+    assert '"dist/$BUNDLE/config"' in packer
+    assert '"dist/$BUNDLE/runtime"' in packer
+    assert '"dist/$BUNDLE/runtime/instances"' in packer
     assert 'mkdir -p "dist/$BUNDLE/deploy"' not in packer
+
+    workflow = (root / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    assert 'stat -c \'%a\' "$bundle/config"' in workflow
+    assert 'stat -c \'%a\' "$bundle/runtime"' in workflow
+    assert 'stat -c \'%a\' "$bundle/runtime/instances"' in workflow
 
 
 def test_operator_documentation_has_one_current_contract() -> None:

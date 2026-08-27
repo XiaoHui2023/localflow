@@ -34,10 +34,12 @@ METADATA_PYTHON="${PACK_PYTHON:-python3}"
 VERSION="$("$METADATA_PYTHON" -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
 BUNDLE="localflow-${VERSION}-linux-x86_64"
 rm -rf "dist/$BUNDLE" "dist/$BUNDLE.tar.gz" dist/SHA256SUMS
+install -d -m 0750 "dist/$BUNDLE"
 install -d -m 0750 "dist/$BUNDLE/deploy" "dist/$BUNDLE/docs" "dist/$BUNDLE/skills" \
-  "dist/$BUNDLE/config/tasks" "dist/$BUNDLE/config/shared" "dist/$BUNDLE/scripts" "dist/$BUNDLE/plugins" \
-  "dist/$BUNDLE/runtime/instances" "dist/$BUNDLE/logs" \
-  "dist/$BUNDLE/exports"
+  "dist/$BUNDLE/config" "dist/$BUNDLE/scripts" "dist/$BUNDLE/plugins" \
+  "dist/$BUNDLE/runtime" "dist/$BUNDLE/logs" "dist/$BUNDLE/exports"
+install -d -m 0750 "dist/$BUNDLE/config/tasks" "dist/$BUNDLE/config/shared" \
+  "dist/$BUNDLE/runtime/instances"
 install -d -m 0700 "dist/$BUNDLE/secrets"
 install -m 0755 dist/localflow "dist/$BUNDLE/localflow"
 install -m 0644 README.md "dist/$BUNDLE/README.md"
