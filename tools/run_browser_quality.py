@@ -232,7 +232,15 @@ class GenericPicker:
                 env=qa_environment,
                 check=False,
             )
-            return result.returncode
+            if result.returncode:
+                return result.returncode
+            compatibility = subprocess.run(
+                [npm, "run", "test:compat"],
+                cwd=frontend,
+                env=qa_environment,
+                check=False,
+            )
+            return compatibility.returncode
         finally:
             if os.name == "nt" and process.poll() is None:
                 subprocess.run(

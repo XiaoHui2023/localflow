@@ -72,6 +72,25 @@ def test_release_keeps_staticx_inside_the_compatibility_baseline() -> None:
         assert cpu in compatibility
 
 
+def test_release_runs_final_binary_in_ubuntu_chrome_and_firefox() -> None:
+    root = Path(__file__).parents[1]
+    workflow = (root / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    runner = (root / "tools" / "run_linux_browser_quality.py").read_text(
+        encoding="utf-8"
+    )
+    spec = (root / "frontend" / "e2e" / "compatibility.spec.js").read_text(
+        encoding="utf-8"
+    )
+    assert "playwright install --with-deps chrome firefox" in workflow
+    assert "run_linux_browser_quality.py --binary dist/localflow" in workflow
+    assert "test:linux-compat" in runner
+    assert "console_errors" in spec
+    assert "failed_requests" in spec
+    assert "terminal-compat-ready" in spec
+
+
 def test_release_bundle_preserves_secure_runtime_directory_modes() -> None:
     root = Path(__file__).parents[1]
     packer = (root / "tools" / "finalize_release.sh").read_text(encoding="utf-8")

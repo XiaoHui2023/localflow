@@ -29,7 +29,7 @@ jobs:
       - name: Run source quality gates
         run: |
           python3 -m pip install '.[dev]'
-          ruff check src/localflow tests_v2 tests_target tools/check_quality.py tools/run_browser_quality.py tools/run_frozen_smoke.py
+          ruff check src/localflow tests_v2 tests_target tools/check_quality.py tools/run_browser_quality.py tools/run_linux_browser_quality.py tools/run_frozen_smoke.py
           pytest
           python tools/check_quality.py
           npm --prefix frontend audit
@@ -81,6 +81,15 @@ jobs:
           test -x "$bundle/scripts/interactive_shutdown.py"
           (cd "$bundle" && python3 scripts/random_number.py)
           python3 tools/run_frozen_smoke.py --binary "$bundle/localflow" --bundle-root "$bundle"
+      - name: Install Ubuntu Chrome and Firefox for release UI gate
+        run: npm --prefix frontend exec -- playwright install --with-deps chrome firefox
+      - name: Run Chrome and Firefox against final release executable
+        run: python3 tools/run_linux_browser_quality.py --binary dist/localflow
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ubuntu-browser-evidence
+          path: quality/evidence/browser-linux
+          if-no-files-found: error
       - uses: actions/upload-artifact@v7
         with:
           name: release-assets

@@ -180,6 +180,7 @@ def main() -> int:
                 "frontend/src/round6.css",
                 "frontend/src/case-picker.css",
                 "frontend/e2e/localflow.spec.js",
+                "frontend/e2e/compatibility.spec.js",
                 "frontend/playwright.config.js",
                 "frontend/package-lock.json",
                 "quality/resource-budgets.json",

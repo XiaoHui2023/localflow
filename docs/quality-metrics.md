@@ -32,6 +32,7 @@
 | QM-024 | Agent 技能包与隐私 | passed | 五个标准技能通过结构校验、隐私扫描并进入解压包清单 |
 | QM-025 | 零参数发布入口 | passed | 源码入口根目录单测、旧参数拒绝、冻结包直接启动与真实任务闭环 |
 | QM-026 | 局域网启动入口 | passed | 默认 wildcard 监听、私有 IPv4 展示、真实 Edge 局域网访问与可选 TLS 校验 |
+| QM-027 | Ubuntu 浏览器兼容性 | passed | 最终 StaticX 二进制在 Ubuntu Chrome 与 Firefox 中完成真实局域网旅程，控制台和资源失败为零 |
 
 ## 交互质量预算
 

@@ -148,3 +148,4 @@ LocalFlow 是运行在 Ubuntu 离线服务器上的单机任务调度与执行�
 - RQ-131：自测试阶段结束起，每次项目修改只有在完整质量门通过、`main` 推送触发静态 Linux 制品构建、滚动 GitHub Release 成功、版本 tag 指向该次源提交，并从 Release 重新下载校验和与压缩包完成摘要及解压 smoke 后才算交付；不得以本地测试或工作流已触发代替发布闭环。
 - RQ-132：Linux 发布物的 PyInstaller 主体、StaticX bootloader 与所捆绑加载器必须在同一个 Ubuntu 16.04/glibc 2.23 兼容基线内完成；不得在较新宿主机二次封装。最终二进制除原生 smoke 外，必须在 QEMU 的 `qemu64`、`core2duo` 与 `Opteron_G1` CPU 模型下完成零参数真实启动探针，任一 `SIGILL`、超时或非零退出都阻断发布。
 - RQ-133：公开可执行入口 `localflow` 不接受任何参数或子命令。冻结产物始终以自身所在目录为完整运行根，源码安装入口以当前工作目录为运行根；首次直接运行必须无覆盖地初始化缺失内容并启动服务。旧 `init`、`serve`、`status`、`open`、`login-code` 和 `--root` 调用必须被拒绝，最终压缩包必须以 `./localflow` 完成真实任务闭环。
+- RQ-134：每次 Release 必须在 Ubuntu 上直接启动本次最终静态二进制，并分别使用当前稳定 Google Chrome 与 Playwright 对应的 Firefox 完成局域网 HTTP 页面渲染、秘钥登录、Monaco 配置打开、任务提交与详情复制、xterm WebSocket 终端和设置页旅程。两种浏览器均不得出现未预期控制台异常或资源失败；仅允许页面卸载时已取得 200 响应的 SSE 连接产生明确 ABORT。

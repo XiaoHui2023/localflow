@@ -10,10 +10,15 @@ export default defineConfig({
   outputDir: "../quality/evidence/browser/test-results",
   use: {
     baseURL: process.env.LOCALFLOW_QA_URL,
-    channel: "msedge",
     headless: true,
     viewport: { width: 1440, height: 960 },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
+  projects: [
+    { name: "edge-full", testMatch: "**/localflow.spec.js", use: { channel: "msedge" } },
+    { name: "chromium-compat", testMatch: "**/compatibility.spec.js", use: { browserName: "chromium" } },
+    { name: "chrome-compat", testMatch: "**/compatibility.spec.js", use: { browserName: "chromium", channel: "chrome" } },
+    { name: "firefox-compat", testMatch: "**/compatibility.spec.js", use: { browserName: "firefox" } },
+  ],
 });

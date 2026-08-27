@@ -39,7 +39,7 @@ localflow
 
 ## Ubuntu 安装要点
 
-GitHub Release 提供 `localflow` 静态单文件、完整目录压缩包和 `SHA256SUMS`。压缩包根目录已包含 `config/tasks`、`scripts`、`plugins` 及运行目录骨架；解压后只需在该目录执行 `./localflow`，首次运行生成本机密钥和缺失设置，不覆盖示例或用户文件。`main` 每次 push 只有在解压目录示例与静态包真实任务冒烟通过后才更新滚动 Release；目标 Ubuntu 无需为 LocalFlow 本身安装 Python，示例脚本需要系统 `python3`。
+GitHub Release 提供 `localflow` 静态单文件、完整目录压缩包和 `SHA256SUMS`。压缩包根目录已包含 `config/tasks`、`scripts`、`plugins` 及运行目录骨架；解压后只需在该目录执行 `./localflow`，首次运行生成本机密钥和缺失设置，不覆盖示例或用户文件。`main` 每次 push 只有在解压目录示例、静态包真实任务冒烟，以及最终 StaticX 二进制在 Ubuntu Google Chrome 与 Firefox 中完成登录、配置、任务、复制和交互终端旅程后才更新滚动 Release；目标 Ubuntu 无需为 LocalFlow 本身安装 Python，示例脚本需要系统 `python3`。
 
 ```bash
 sudo useradd --system --create-home --home-dir /var/lib/localflow localflow
@@ -61,11 +61,13 @@ sudo systemctl enable --now localflow
 ## 质量检查
 
 ```bash
-ruff check src/localflow tests_v2 tests_target tools/check_quality.py tools/run_browser_quality.py
+ruff check src/localflow tests_v2 tests_target tools/check_quality.py tools/run_browser_quality.py tools/run_linux_browser_quality.py
 pytest
 python tools/check_quality.py
 npm --prefix frontend audit
 python tools/run_browser_quality.py
+# 仅在 Ubuntu 且已有最终 dist/localflow 时运行：
+python tools/run_linux_browser_quality.py --binary dist/localflow
 ```
 
 设计与使用资料：
