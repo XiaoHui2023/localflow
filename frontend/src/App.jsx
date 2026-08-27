@@ -65,11 +65,15 @@ function TaskTerminal({ task, interactive, theme }) {
   return <div className="terminal-shell"><div className="terminal-tools">{searching && <input autoFocus aria-label="终端搜索" placeholder="查找" value={query} onChange={(event) => { setQuery(event.target.value); finder.current?.findNext(event.target.value); }} onKeyDown={(event) => { if (event.key === "Enter") finder.current?.findNext(query); if (event.key === "Escape") setSearching(false); }}/>}<button className="icon" aria-label="在终端中查找" aria-pressed={searching} onClick={() => setSearching((old) => !old)}><Search/></button></div><div className="terminal" ref={host}/></div>;
 }
 
+async function writeClipboard(text) {
+  if (navigator.clipboard?.writeText) { try { await navigator.clipboard.writeText(text); return; } catch { /* compatible fallback */ } }
+  const input = document.createElement("textarea"); input.value = text; input.setAttribute("readonly", ""); input.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0"; document.body.appendChild(input); input.select(); const copied = document.execCommand("copy"); input.remove(); if (!copied) throw new Error("copy unavailable");
+}
 function CopyValue({ label, value }) {
   const [copied, setCopied] = useState(false); const timer = useRef();
   useEffect(() => () => clearTimeout(timer.current), []);
   const text = typeof value === "object" ? JSON.stringify(value) : String(value ?? "—");
-  const copy = async () => { await navigator.clipboard.writeText(text); setCopied(true); clearTimeout(timer.current); timer.current = setTimeout(() => setCopied(false), 1200); };
+  const copy = async () => { await writeClipboard(text); setCopied(true); clearTimeout(timer.current); timer.current = setTimeout(() => setCopied(false), 1200); };
   return <div className="copy-field">{label && <span className="copy-label">{label}</span>}<span className="copy-shell" data-copied={copied}><button className="copy-value" type="button" onClick={copy} aria-label={`${label ? `${label}，` : ""}${copied ? "已复制" : "点击复制"}`} title={copied ? "已复制" : "点击复制"}><code>{text}</code></button><i className="copy-confirm" aria-hidden="true"><Check/></i><span className="copy-status" role="status">{copied ? "已复制" : ""}</span></span></div>;
 }
 

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import ipaddress
 import logging
 import os
+import socket
 import sys
+from contextlib import suppress
 from pathlib import Path
 
 import uvicorn
@@ -22,6 +25,34 @@ _STARTUP_PROBE = "LOCALFLOW_STARTUP_PROBE"
 def _endpoint(scheme: str, host: str, port: int) -> str:
     rendered_host = f"[{host}]" if ":" in host and not host.startswith("[") else host
     return f"{scheme}://{rendered_host}:{port}"
+
+
+def _preferred_lan_ipv4() -> str:
+    candidates: list[str] = []
+    with suppress(OSError), socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+        probe.connect(("192.0.2.1", 9))
+        candidates.append(probe.getsockname()[0])
+    with suppress(OSError):
+        candidates.extend(
+            item[4][0]
+            for item in socket.getaddrinfo(
+                socket.gethostname(), None, socket.AF_INET, socket.SOCK_STREAM
+            )
+        )
+    usable = []
+    for candidate in dict.fromkeys(candidates):
+        try:
+            address = ipaddress.ip_address(candidate)
+        except ValueError:
+            continue
+        if not address.is_loopback and not address.is_unspecified and not address.is_link_local:
+            usable.append(address)
+    preferred = next((address for address in usable if address.is_private), None)
+    return str(preferred or (usable[0] if usable else ipaddress.ip_address("127.0.0.1")))
+
+
+def _display_host(bind: str) -> str:
+    return _preferred_lan_ipv4() if bind == "0.0.0.0" else bind
 
 
 def application_root() -> Path:
@@ -85,7 +116,8 @@ def _serve(root: Path) -> None:
             port_file = root / "runtime" / "port"
             scheme = "https" if settings.server.tls_certfile else "http"
             port_file.write_text(
-                _endpoint(scheme, settings.server.bind, port) + "\n", encoding="ascii"
+                _endpoint(scheme, _display_host(settings.server.bind), port) + "\n",
+                encoding="ascii",
             )
             if os.name != "nt":
                 os.chmod(port_file, 0o600)

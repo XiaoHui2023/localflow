@@ -6,14 +6,17 @@ from __future__ import annotations
 import argparse
 import base64
 import http.cookiejar
+import ipaddress
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -71,6 +74,33 @@ def main() -> None:
             for key, value in os.environ.items()
             if key not in {"PYTHONPATH", "PYTHONHOME", "LOCALFLOW_WEB_DIST"}
         }
+        probe = subprocess.run(
+            [binary],
+            cwd=isolated,
+            env={**clean_env, "LOCALFLOW_STARTUP_PROBE": "1"},
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        endpoints = re.findall(r"https?://[^\s]+", probe.stdout)
+        if probe.returncode != 0 or not endpoints:
+            raise RuntimeError(
+                "frozen executable did not print its startup endpoint:\n"
+                f"{probe.stdout}{probe.stderr}"
+            )
+        startup_host = urllib.parse.urlsplit(endpoints[-1]).hostname
+        try:
+            startup_address = ipaddress.ip_address(startup_host or "")
+        except ValueError as exc:
+            raise RuntimeError(f"invalid startup endpoint: {endpoints[-1]}") from exc
+        if (
+            startup_address.is_loopback
+            or startup_address.is_unspecified
+            or not startup_address.is_private
+        ):
+            raise RuntimeError(
+                f"startup endpoint is not a copyable private LAN address: {endpoints[-1]}"
+            )
         config = root / "config" / "server.yaml"
         config.parent.mkdir(parents=True, exist_ok=True)
         config.write_text(

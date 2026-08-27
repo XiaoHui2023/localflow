@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from localflow.cli import _endpoint
+from localflow.cli import _display_host, _endpoint
 from localflow.models import TaskCreate, TaskState
 from localflow.service import TaskService, _elapsed
 from localflow.settings import (
@@ -32,6 +32,12 @@ def _draft(root: Path, name: str) -> TaskCreate:
 def test_endpoint_formats_ipv4_and_ipv6() -> None:
     assert _endpoint("http", "127.0.0.1", 1234) == "http://127.0.0.1:1234"
     assert _endpoint("https", "::1", 443) == "https://[::1]:443"
+
+
+def test_wildcard_listener_displays_preferred_lan_address(monkeypatch) -> None:
+    monkeypatch.setattr("localflow.cli._preferred_lan_ipv4", lambda: "192.168.20.31")
+    assert _display_host("0.0.0.0") == "192.168.20.31"
+    assert _display_host("127.0.0.1") == "127.0.0.1"
 
 
 def test_retention_removes_expired_terminal_data_but_keeps_newer_history(root: Path) -> None:
@@ -150,9 +156,11 @@ def test_task_api_cursor_is_stable_and_rejects_invalid_cursor(
     assert admin.get("/api/v1/tasks?cursor=not-base64").status_code == 422
 
 
-def test_non_loopback_requires_tls_files_and_trusted_proxy(tmp_path: Path) -> None:
+def test_lan_binding_allows_direct_http_and_validates_optional_tls(tmp_path: Path) -> None:
     settings = Settings(server=ServerSettings(bind="0.0.0.0"))
-    with pytest.raises(ValueError, match="TLS files"):
+    validate_deployment(settings)
+    settings.server.tls_certfile = str(tmp_path / "missing-cert.pem")
+    with pytest.raises(ValueError, match="configured TLS"):
         validate_deployment(settings)
     cert = tmp_path / "cert.pem"
     key = tmp_path / "key.pem"

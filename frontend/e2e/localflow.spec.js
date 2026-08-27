@@ -83,8 +83,15 @@ test("plugin configuration console remains concise and operable in Edge", async 
   let openWebSockets = 0;
   page.on("websocket", (socket) => { openWebSockets += 1; socket.on("close", () => { openWebSockets -= 1; }); });
   page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); }); page.on("pageerror", (error) => consoleErrors.push(error.message));
-  await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(process.env.LOCALFLOW_QA_URL).origin });
+  await page.addInitScript(() => {
+    const original = Document.prototype.execCommand;
+    Document.prototype.execCommand = function execCommand(command, ...args) {
+      if (command === "copy") { window.__localflowCopiedText = document.activeElement?.value || window.getSelection()?.toString(); return true; }
+      return original.call(this, command, ...args);
+    };
+  });
   await page.goto("/");
+  expect(await page.evaluate(() => window.isSecureContext)).toBeFalsy();
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(page.getByRole("tab")).toHaveText(["任务", "设置"]);
@@ -135,7 +142,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(doneRow.locator("time")).toBeVisible(); await expect(page.locator(".task-item.open .detail-time")).toContainText("开始时间"); await expect(page.locator(".task-item.open .detail-time time")).toBeVisible(); await expect(page.locator(".task-item.open .detail-time button")).toHaveCount(0); await expect(page.getByText(done.task_id, { exact: true })).toHaveCount(0); await expect(page.getByRole("tab", { name: "详情" })).toHaveCount(0); await expect(page.locator(".task-item.open").getByRole("tab", { name: "终端" })).toHaveCount(0); await expect(page.getByText("退出码", { exact: true })).toHaveCount(0); await expect(page.getByText("source", { exact: true })).toHaveCount(0); await expect(page.getByText("variable_sources", { exact: true })).toHaveCount(0);
   const assertCompactDetail = async () => { const detail = page.locator(".task-item.open .detail"); const details = detail.locator(".details"); const article = detail.locator(".."); const currentRow = article.locator(".task-row"); const [detailGeometry, detailsGeometry, articleGeometry, currentRowGeometry] = await Promise.all([detail.boundingBox(), details.boundingBox(), article.boundingBox(), currentRow.boundingBox()]); expect(detailGeometry.y + detailGeometry.height - (detailsGeometry.y + detailsGeometry.height)).toBeLessThanOrEqual(12); expect(articleGeometry.height - currentRowGeometry.height - detailGeometry.height).toBeLessThanOrEqual(1); };
   await assertCompactDetail(); await page.setViewportSize({ width: 760, height: 800 }); await assertCompactDetail(); await page.setViewportSize({ width: 390, height: 844 }); await assertCompactDetail(); await page.setViewportSize({ width: 1440, height: 960 });
-  const reportValue = page.locator(".task-item.open .copy-value").filter({ hasText: "qa://finished" }); const reportShell = reportValue.locator(".."); const beforeCopy = await reportValue.boundingBox(); await reportValue.hover(); const hoverBorder = await reportValue.evaluate((node) => getComputedStyle(node).borderColor); const accent = await page.locator("html").evaluate((node) => getComputedStyle(node).getPropertyValue("--accent").trim()); expect(hoverBorder).not.toBe(accent); await reportValue.click(); await expect(reportShell).toHaveAttribute("data-copied", "true"); await expect(reportShell.locator(".copy-confirm")).toBeVisible(); const afterCopy = await reportValue.boundingBox(); expect(afterCopy).toEqual(beforeCopy); expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("qa://finished");
+  const reportValue = page.locator(".task-item.open .copy-value").filter({ hasText: "qa://finished" }); const reportShell = reportValue.locator(".."); const beforeCopy = await reportValue.boundingBox(); await reportValue.hover(); const hoverBorder = await reportValue.evaluate((node) => getComputedStyle(node).borderColor); const accent = await page.locator("html").evaluate((node) => getComputedStyle(node).getPropertyValue("--accent").trim()); expect(hoverBorder).not.toBe(accent); await reportValue.click(); await expect(reportShell).toHaveAttribute("data-copied", "true"); await expect(reportShell.locator(".copy-confirm")).toBeVisible(); const afterCopy = await reportValue.boundingBox(); expect(afterCopy).toEqual(beforeCopy); expect(await page.evaluate(() => window.__localflowCopiedText)).toBe("qa://finished");
   const codeStyles = await page.locator(".task-item.open .copy-value code").evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).whiteSpace)); expect(new Set(codeStyles)).toEqual(new Set(["nowrap"]));
   await doneRow.click(); await expect(page.getByText("qa://finished", { exact: true })).toHaveCount(0);
 

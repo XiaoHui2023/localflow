@@ -25,7 +25,7 @@ config/
 
 ```yaml
 server:
-  bind: 127.0.0.1
+  bind: 0.0.0.0
   port: 0
   anonymous_access: summary
   tls_certfile: null
@@ -59,7 +59,9 @@ time:
     - /usr/libexec/localflow-set-time.py
 ```
 
-`port: 0` 表示每次启动由内核选择端口，实际地址写入 `runtime/port`。`anonymous_access` 可为 `disabled`、`summary` 或 `readonly`。非回环 `bind` 必须同时配置存在的 TLS 证书、私钥和明确的受信任反向代理 CIDR；缺一项服务都会拒绝启动。
+`port: 0` 表示每次启动由内核选择端口。默认 `bind: 0.0.0.0` 允许同一局域网的浏览器连接；程序从默认路由和网卡中选择首选局域网 IPv4，把可直接复制的地址打印到终端并写入 `runtime/port`，不会显示不可访问的 `0.0.0.0`。设为 `127.0.0.1` 可恢复仅本机监听。`anonymous_access` 可为 `disabled`、`summary` 或 `readonly`。
+
+受信任的离线局域网可直接使用 HTTP；此时秘钥和会话不具备传输层保密性。网络中存在抓包或中间人风险时必须配置成对的绝对路径 `tls_certfile`/`tls_keyfile`。仅在经过反向代理时填写 `trusted_proxies`；其中每项必须是合法 CIDR。
 
 任务信息、任务事件和终端输出共用 `retention.task_days`，默认保留三天并成对清理。总日志容量与预留空闲空间仍是防止磁盘耗尽的硬安全阀。
 

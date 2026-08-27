@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class ServerSettings(BaseModel):
-    bind: str = "127.0.0.1"
+    bind: str = "0.0.0.0"
     port: int = Field(default=0, ge=0, le=65535)
     anonymous_access: Literal["disabled", "summary", "readonly"] = "summary"
     tls_certfile: str | None = None
@@ -96,7 +96,7 @@ def initialize_root(root: Path) -> None:
     if not config.exists():
         config.write_text(
             "server:\n"
-            "  bind: 127.0.0.1\n"
+            "  bind: 0.0.0.0\n"
             "  port: 0\n"
             "  anonymous_access: summary\n"
             "execution:\n"
@@ -169,22 +169,16 @@ def load_settings(root: Path) -> Settings:
 
 
 def validate_deployment(settings: Settings) -> None:
-    try:
-        loopback = ipaddress.ip_address(settings.server.bind).is_loopback
-    except ValueError:
-        loopback = settings.server.bind == "localhost"
-    if loopback:
-        return
     missing = []
-    for value, label in (
+    tls_values = (
         (settings.server.tls_certfile, "tls_certfile"),
         (settings.server.tls_keyfile, "tls_keyfile"),
-    ):
-        if not value or not Path(value).is_absolute() or not Path(value).is_file():
-            missing.append(label)
-    if not settings.server.trusted_proxies:
-        missing.append("trusted_proxies")
-    else:
+    )
+    if any(value for value, _label in tls_values):
+        for value, label in tls_values:
+            if not value or not Path(value).is_absolute() or not Path(value).is_file():
+                missing.append(label)
+    if settings.server.trusted_proxies:
         try:
             for network in settings.server.trusted_proxies:
                 ipaddress.ip_network(network, strict=False)
@@ -192,7 +186,7 @@ def validate_deployment(settings: Settings) -> None:
             raise ValueError(f"invalid trusted proxy network: {exc}") from None
     if missing:
         raise ValueError(
-            "non-loopback binding requires existing absolute TLS files and trusted proxy ranges: "
+            "configured TLS requires existing absolute certificate and key files: "
             + ", ".join(missing)
         )
 
