@@ -10,10 +10,33 @@ command -v qemu-x86_64 >/dev/null || { echo "qemu-user is required" >&2; exit 1;
 file "$BINARY" | grep -q 'ELF 64-bit.*x86-64'
 LDD_OUTPUT="$(ldd "$BINARY" 2>&1 || true)"
 grep -q 'not a dynamic executable' <<<"$LDD_OUTPUT"
-timeout 60 "$BINARY" --help >/dev/null
+
+startup_probe() {
+  local cpu="$1"
+  local probe_root
+  probe_root="$(mktemp -d)"
+  cp "$BINARY" "$probe_root/localflow"
+  chmod 0755 "$probe_root/localflow"
+  local status=0
+  if [[ -n "$cpu" ]]; then
+    (cd "$probe_root" && LOCALFLOW_STARTUP_PROBE=1 timeout 90 qemu-x86_64 -cpu "$cpu" ./localflow >probe.log 2>&1) || status=$?
+  else
+    (cd "$probe_root" && LOCALFLOW_STARTUP_PROBE=1 timeout 60 ./localflow >probe.log 2>&1) || status=$?
+  fi
+  if [[ "$status" -ne 0 ]]; then
+    cat "$probe_root/probe.log" >&2
+    rm -rf "$probe_root"
+    return "$status"
+  fi
+  test -f "$probe_root/config/server.yaml"
+  test -f "$probe_root/runtime/localflow.db"
+  rm -rf "$probe_root"
+}
+
+startup_probe ""
 
 # qemu64、Core 2、第一代 Opteron 覆盖不含 AVX 的早期 x86-64 CPU。
 for cpu in qemu64 core2duo Opteron_G1; do
   echo "compatibility smoke: $cpu"
-  timeout 90 qemu-x86_64 -cpu "$cpu" "$BINARY" --help >/dev/null
+  startup_probe "$cpu"
 done

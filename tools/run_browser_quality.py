@@ -203,8 +203,8 @@ class GenericPicker:
         environment = os.environ.copy()
         environment["LOCALFLOW_WEB_DIST"] = str(frontend / "dist")
         process = subprocess.Popen(
-            [sys.executable, "-m", "localflow.cli", "serve", "--root", str(root)],
-            cwd=REPOSITORY,
+            [sys.executable, "-m", "localflow.cli"],
+            cwd=root,
             env=environment,
             text=True,
         )

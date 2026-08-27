@@ -7,7 +7,8 @@ Type=simple
 User=localflow
 Group=localflow
 Environment=LOCALFLOW_WEB_DIST=/opt/localflow/frontend/dist
-ExecStart=/opt/localflow/venv/bin/localflow serve --root /var/lib/localflow
+WorkingDirectory=/var/lib/localflow
+ExecStart=/opt/localflow/venv/bin/localflow
 Restart=on-failure
 RestartSec=3
 NoNewPrivileges=yes

@@ -30,6 +30,7 @@ async function waitForState(page, taskId, states) {
 async function measureWebResources(page, activeWebSockets) {
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Performance.enable", { timeDomain: "threadTicks" });
+  await cdp.send("HeapProfiler.collectGarbage");
   const toMap = ({ metrics }) => Object.fromEntries(metrics.map(({ name, value }) => [name, value]));
   const before = toMap(await cdp.send("Performance.getMetrics"));
   let backgroundRequests = 0;
@@ -39,6 +40,7 @@ async function measureWebResources(page, activeWebSockets) {
   await page.waitForTimeout(resourceContract.measurement.idle_window_seconds * 1000);
   const elapsed = (Date.now() - started) / 1000;
   page.off("request", countRequest);
+  await cdp.send("HeapProfiler.collectGarbage");
   const after = toMap(await cdp.send("Performance.getMetrics"));
   const dom = await cdp.send("Memory.getDOMCounters");
   await cdp.detach();

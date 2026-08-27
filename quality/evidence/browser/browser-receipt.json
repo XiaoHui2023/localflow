@@ -1,8 +1,8 @@
 {
-  "completed_at": "2026-08-26T03:26:03.113Z",
+  "completed_at": "2026-08-27T03:21:50.536Z",
   "browser": "Microsoft Edge",
   "browser_version": "151.0.4129.107",
-  "base_url": "http://127.0.0.1:28435",
+  "base_url": "http://127.0.0.1:30612",
   "result": "passed",
   "source_files": {
     "frontend/index.html": "71a0ec43d00e456bd05cc4bb0b7ca38e498a721ce80eab1bdcdb29f5fa05cdc5",
@@ -14,22 +14,22 @@
     "frontend/src/extra.css": "03375a24d13a028a2debab7d5c02ad0c6653374290f651de0f6c52abfb21e403",
     "frontend/src/round6.css": "c9dc68db148411b43cfc9c82158463adc223bdb6d15041d0405bede97e9e1a83",
     "frontend/src/case-picker.css": "7a84073fd3401e0a86d951878c56a1eb223e92d650c2c2e1675ebe81469ed3da",
-    "frontend/e2e/localflow.spec.js": "8d86b80717c88eee83f47c67c7ddf0d4dea4f5373727a2c4c2007f7fede91a6b",
+    "frontend/e2e/localflow.spec.js": "5cdfc77f02513e1b7b4a95b61eaa1e18ec4df283fd56419ead676214e9a65f90",
     "frontend/playwright.config.js": "b758469bb6e18918763a7399a819c536ec0a557f7c82f0c2dfbc7544b50d33e3",
     "frontend/package-lock.json": "00d5f0070e07343042fb40ea01f6019f73ee1037c74cff822358ff705cca7d0e",
     "quality/resource-budgets.json": "e977f5235033ffa135ec466e80b3e1ff65cd709386d79d1e8b6404aa6960553c",
     "tools/check_quality.py": "c74c289e93ee0e3eb65711ae36f0e5df264db152426f3ccfddf6d9825dd5a2c8",
-    "tools/run_browser_quality.py": "d07261c27fe1b00847cf992272768154f850fae14f8222df8e88cb99656cb961"
+    "tools/run_browser_quality.py": "b4eccbd103fa5c4c4afd23f44bb65836c1212af3c4841ab0d45507d514d15238"
   },
   "screenshots": {
     "admin-config-explorer-dark.png": "9f895d63e58645dd511465acf2dc38c2e73dc10309176c3a2852b0643d50a432",
     "admin-empty-light.png": "d622880537abc00cccdcc71781b995e96a2531c77fa44a9ff280d61781d03772",
     "admin-mobile-390.png": "8f1684c6706ee167f897313109edef7a388c2a19ff29a7ca458a004771471535",
-    "admin-run-verification-dark.png": "20a90837ddc5d096c24739a4975d7a182213dcd34f000bb1799fd335a0a9564b",
+    "admin-run-verification-dark.png": "1bb7aeb805ed6746edd2b09eae58a19b36559609f4a3bfa62d51061d68aa4b6f",
     "admin-run-verification-empty-dark.png": "634eec120fae67e177ba1396a7fd4c6b7cf1284195a9c9a9720f7d8f60add3c4",
     "admin-run-verification-scope-dark.png": "86112355b462b67b43f0e698db71a8378a90bc9d866bb37117ac0f45acf1aff9",
-    "admin-settings-compact-light.png": "43f93ffbb44c0178b64697901399cf22136efa642f2394bc51975a4c6ba14d42",
-    "admin-task-inline-dark.png": "a60d2b0f62e93108d3fdc82916af7e962712b083c84df906dc272cd1ff7509d7",
+    "admin-settings-compact-light.png": "05b7492a38fa2ec42006eabe5f3820c095c476b6c590b951357e58030bfa31dc",
+    "admin-task-inline-dark.png": "3ba8eb22d8d27ee79af36b0d2ac0e21c13ce51c2ecbe4cf6cfbcaa853126ecf9",
     "admin-terminal-dark.png": "34749fed6229d616d4f038697e8d0012071a8b818781f3b4143ab06e155271b4"
   },
   "resource_contract": {
@@ -54,14 +54,14 @@
   "resource_metrics": {
     "task_process_count": 0,
     "service_process_count": 2,
-    "idle_window_seconds": 6.014,
-    "server_rss_mib": 61.281,
-    "server_cpu_one_core_percent": 0.755,
-    "renderer_js_heap_mib": 19.594,
-    "renderer_idle_cpu_one_core_percent": 0.399,
-    "dom_nodes": 2918,
+    "idle_window_seconds": 6.02,
+    "server_rss_mib": 61.066,
+    "server_cpu_one_core_percent": 0,
+    "renderer_js_heap_mib": 12.317,
+    "renderer_idle_cpu_one_core_percent": 0.695,
+    "dom_nodes": 1571,
     "dom_documents": 4,
-    "dom_event_listeners": 375,
+    "dom_event_listeners": 338,
     "idle_background_requests": 7,
     "idle_websockets": 0
   },

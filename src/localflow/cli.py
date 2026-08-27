@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import argparse
 import logging
 import os
-import webbrowser
+import sys
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -15,6 +14,11 @@ from .settings import initialize_root, load_settings, validate_deployment
 
 logger = logging.getLogger(__name__)
 
+_INTERNAL_MODE = "LOCALFLOW_INTERNAL_MODE"
+_INTERNAL_ROOT = "LOCALFLOW_INTERNAL_ROOT"
+_INTERNAL_TASK = "LOCALFLOW_INTERNAL_TASK"
+_STARTUP_PROBE = "LOCALFLOW_STARTUP_PROBE"
+
 
 def _endpoint(scheme: str, host: str, port: int) -> str:
     rendered_host = f"[{host}]" if ":" in host and not host.startswith("[") else host
@@ -25,35 +29,31 @@ def _admin_url(endpoint: str, code: str) -> str:
     return f"{endpoint}#{urlencode({'localflow-admin': code})}"
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="LocalFlow Ubuntu offline task platform")
-    sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("init", "serve", "status", "login-code", "open"):
-        item = sub.add_parser(name)
-        item.add_argument("--root", type=Path, required=True)
-    args = parser.parse_args()
-    root = args.root.expanduser().resolve()
-    if args.command == "init":
-        initialize_root(root)
-        print(root)
-        return
-    if args.command == "login-code":
-        print((root / "secrets" / "admin-bootstrap").read_text(encoding="ascii").strip())
-        return
-    if args.command == "status":
-        port_file = root / "runtime" / "port"
-        print(port_file.read_text(encoding="ascii").strip() if port_file.exists() else "stopped")
-        return
-    if args.command == "open":
-        port_file = root / "runtime" / "port"
-        if not port_file.is_file():
-            raise SystemExit("LocalFlow is not running")
-        endpoint = port_file.read_text(encoding="ascii").strip()
-        code = (root / "secrets" / "admin-bootstrap").read_text(encoding="ascii").strip()
-        if not webbrowser.open(_admin_url(endpoint, code)):
-            raise SystemExit("no graphical browser is available")
-        print(endpoint)
-        return
+def application_root() -> Path:
+    """Return the directory that owns this LocalFlow installation."""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path.cwd().resolve()
+
+
+def _run_internal_mode() -> bool:
+    mode = os.environ.get(_INTERNAL_MODE)
+    if mode is None:
+        return False
+    if mode != "supervisor":
+        raise SystemExit("invalid LocalFlow internal mode")
+    root_text = os.environ.pop(_INTERNAL_ROOT, None)
+    task_id = os.environ.pop(_INTERNAL_TASK, None)
+    os.environ.pop(_INTERNAL_MODE, None)
+    if not root_text or not task_id:
+        raise SystemExit("incomplete LocalFlow supervisor environment")
+    from .supervisor import supervise
+
+    raise SystemExit(supervise(Path(root_text).resolve(), task_id))
+
+
+def _serve(root: Path) -> None:
+    initialize_root(root)
     settings = load_settings(root)
     try:
         validate_deployment(settings)
@@ -93,6 +93,9 @@ def main() -> None:
             )
             if os.name != "nt":
                 os.chmod(port_file, 0o600)
+            print(port_file.read_text(encoding="ascii").strip(), flush=True)
+            if os.environ.get(_STARTUP_PROBE) == "1":
+                server.should_exit = True
 
     server.startup = startup_with_port
     try:
@@ -104,6 +107,14 @@ def main() -> None:
         port_file = root / "runtime" / "port"
         if port_file.is_file():
             port_file.unlink()
+
+
+def main() -> None:
+    if sys.argv[1:]:
+        raise SystemExit("localflow does not accept arguments; run it directly")
+    if _run_internal_mode():
+        return
+    _serve(application_root())
 
 
 if __name__ == "__main__":

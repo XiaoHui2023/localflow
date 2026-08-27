@@ -30,6 +30,7 @@
 | QM-022 | 通用插件配置与 Case 字段映射 | passed | 完整合成 schema、公共字段冲突隔离、异名 Case 插件在 Edge 中实际展开两个任务 |
 | QM-023 | 插件运行输入边界 | passed | 未声明输入 422、网页只提交插件字段、发现与运行正反例 |
 | QM-024 | Agent 技能包与隐私 | passed | 五个标准技能通过结构校验、隐私扫描并进入解压包清单 |
+| QM-025 | 零参数发布入口 | passed | 源码入口根目录单测、旧参数拒绝、冻结包直接启动与真实任务闭环 |
 
 ## 交互质量预算
 
@@ -56,7 +57,7 @@
 
 完整命令、环境、目标探针、浏览器截图、故障样本和工具兼容性说明见 `quality/evidence/2026-08-25-final.md`。
 
-发布兼容性是硬门：PyInstaller 与 StaticX 必须在同一个 Ubuntu 16.04 基线内完成，CI 随后用 QEMU 在 `qemu64`、`core2duo`、`Opteron_G1` 三种无 AVX 的早期 x86-64 模型上执行最终制品的 `--help`。新宿主机原生 smoke 不能替代该门；只验证主体而让下游重新捆绑加载器也不能通过。
+发布兼容性是硬门：PyInstaller 与 StaticX 必须在同一个 Ubuntu 16.04 基线内完成，CI 随后用 QEMU 在 `qemu64`、`core2duo`、`Opteron_G1` 三种无 AVX 的早期 x86-64 模型上执行最终制品的零参数启动探针。新宿主机原生 smoke 不能替代该门；只验证主体而让下游重新捆绑加载器也不能通过。
 本次逃逸、成熟实现对照、失败迭代与声明边界记录在 `quality/evidence/2026-08-26-linux-isa-escape.md`。
 
 ## 本体资源预算

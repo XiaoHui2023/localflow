@@ -146,4 +146,5 @@ LocalFlow 是运行在 Ubuntu 离线服务器上的单机任务调度与执行�
 - RQ-129：项目根目录提供可独立发现的 `skills/`，至少覆盖项目结构、API、配置、插件开发和 Ubuntu 运维。每个技能使用标准 `SKILL.md` frontmatter，按需路由到项目文档，不包含用户名、本机盘符、当前端口、真实密钥或会话材料；Linux 发布压缩包必须保留完整技能目录并由解压后门禁逐项确认。
 - RQ-130：验证插件必须提供适合 AI Agent 组合配置的单一机器合同：完整配置 JSON Schema、仅本次运行字段、可直接提交的配置与输入示例、`${case}`/`${seed}`/`${run}` 延迟变量以及严格的未知字段拒绝。稳定命令、目录、标签、互斥和日志模板写入配置，本次 case、每 case 次数与可选 seed 写入 inputs；同一合同同时驱动 YAML、配置 API、内联运行 API 和网页。错误结果对外只显示固定 `ERROR`，不得拼接括号、错误数量或其它计数。
 - RQ-131：自测试阶段结束起，每次项目修改只有在完整质量门通过、`main` 推送触发静态 Linux 制品构建、滚动 GitHub Release 成功、版本 tag 指向该次源提交，并从 Release 重新下载校验和与压缩包完成摘要及解压 smoke 后才算交付；不得以本地测试或工作流已触发代替发布闭环。
-- RQ-132：Linux 发布物的 PyInstaller 主体、StaticX bootloader 与所捆绑加载器必须在同一个 Ubuntu 16.04/glibc 2.23 兼容基线内完成；不得在较新宿主机二次封装。最终二进制除原生 smoke 外，必须在 QEMU 的 `qemu64`、`core2duo` 与 `Opteron_G1` CPU 模型下启动 `--help`，任一 `SIGILL`、超时或非零退出都阻断发布。
+- RQ-132：Linux 发布物的 PyInstaller 主体、StaticX bootloader 与所捆绑加载器必须在同一个 Ubuntu 16.04/glibc 2.23 兼容基线内完成；不得在较新宿主机二次封装。最终二进制除原生 smoke 外，必须在 QEMU 的 `qemu64`、`core2duo` 与 `Opteron_G1` CPU 模型下完成零参数真实启动探针，任一 `SIGILL`、超时或非零退出都阻断发布。
+- RQ-133：公开可执行入口 `localflow` 不接受任何参数或子命令。冻结产物始终以自身所在目录为完整运行根，源码安装入口以当前工作目录为运行根；首次直接运行必须无覆盖地初始化缺失内容并启动服务。旧 `init`、`serve`、`status`、`open`、`login-code` 和 `--root` 调用必须被拒绝，最终压缩包必须以 `./localflow` 完成真实任务闭环。

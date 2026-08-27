@@ -8,6 +8,7 @@ import base64
 import http.cookiejar
 import json
 import os
+import shutil
 import signal
 import subprocess
 import tempfile
@@ -46,6 +47,7 @@ def wait_for(predicate, timeout: float, message: str):
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--binary", type=Path, required=True)
+    parser.add_argument("--bundle-root", type=Path)
     args = parser.parse_args()
     binary = args.binary.resolve()
     if not binary.is_file():
@@ -53,21 +55,44 @@ def main() -> None:
 
     with tempfile.TemporaryDirectory(prefix="localflow-frozen-") as folder:
         isolated = Path(folder)
-        root = isolated / "runtime-root"
+        if args.bundle_root is None:
+            root = isolated / "bundle"
+            root.mkdir()
+            copied_binary = root / binary.name
+            shutil.copy2(binary, copied_binary)
+            copied_binary.chmod(0o755)
+            binary = copied_binary
+        else:
+            root = args.bundle_root.resolve()
+            if binary.parent != root:
+                raise SystemExit("--binary must be directly inside --bundle-root")
         clean_env = {
             key: value
             for key, value in os.environ.items()
             if key not in {"PYTHONPATH", "PYTHONHOME", "LOCALFLOW_WEB_DIST"}
         }
-        subprocess.run([binary, "init", "--root", root], cwd=isolated, env=clean_env, check=True)
         config = root / "config" / "server.yaml"
-        text = config.read_text(encoding="utf-8").replace("backend: systemd", "backend: subprocess")
-        config.write_text(text, encoding="utf-8")
+        config.parent.mkdir(parents=True, exist_ok=True)
+        config.write_text(
+            "server:\n  bind: 127.0.0.1\n  port: 0\n"
+            "execution:\n  backend: subprocess\n  max_concurrency: 2\n",
+            encoding="utf-8",
+        )
+
+        rejected = subprocess.run(
+            [binary, "--help"],
+            cwd=isolated,
+            env=clean_env,
+            capture_output=True,
+            text=True,
+        )
+        if rejected.returncode == 0 or "does not accept arguments" not in rejected.stderr:
+            raise RuntimeError("frozen executable still exposes command-line arguments")
 
         log_path = isolated / "server.log"
         with log_path.open("wb") as log:
             process = subprocess.Popen(
-                [binary, "serve", "--root", root],
+                [binary],
                 cwd=isolated,
                 env=clean_env,
                 stdout=log,
@@ -89,11 +114,8 @@ def main() -> None:
             if status != 200 or b'<div id="root">' not in page:
                 raise RuntimeError("embedded frontend was not served")
 
-            code = subprocess.check_output(
-                [binary, "login-code", "--root", root],
-                cwd=isolated,
-                env=clean_env,
-                text=True,
+            code = (root / "secrets" / "admin-bootstrap").read_text(
+                encoding="ascii"
             ).strip()
             _, login_body = request(
                 opener, endpoint + "/api/v1/auth/local-sessions", "POST", {"code": code}

@@ -74,8 +74,8 @@ jobs:
           test -x "$bundle/scripts/simulate.py"
           test -x "$bundle/scripts/marker_result.py"
           test -x "$bundle/scripts/interactive_shutdown.py"
-          (cd "$bundle" && ./localflow init --root . && python3 scripts/random_number.py)
-          python3 tools/run_frozen_smoke.py --binary "$bundle/localflow"
+          (cd "$bundle" && python3 scripts/random_number.py)
+          python3 tools/run_frozen_smoke.py --binary "$bundle/localflow" --bundle-root "$bundle"
       - uses: actions/upload-artifact@v7
         with:
           name: release-assets

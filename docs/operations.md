@@ -6,16 +6,17 @@
 
 ## 启动方式
 
-主服务由固定 systemd 服务管理。启动参数只指定运行根目录；监听地址、端口和保存期来自配置文件。默认端口为 `0`，服务启动后可通过以下命令读取地址：
+主服务由固定 systemd 服务管理。`localflow` 没有参数或子命令，直接运行；冻结可执行文件所在目录就是运行根目录。监听地址、端口和保存期来自 `config/server.yaml`。默认端口为 `0`，服务启动时把地址打印到终端，并在运行期间写入：
 
 ```bash
-sudo -u localflow localflow status --root /var/lib/localflow
+cat /var/lib/localflow/runtime/port
 ```
 
-管理员登录使用：
+首次部署与手动运行使用同一个入口：
 
 ```bash
-sudo -u localflow localflow login-code --root /var/lib/localflow
+cd /var/lib/localflow
+sudo -u localflow ./localflow
 ```
 
 程序客户端从管理员分配的只读密钥文件读取当前代次。不要把密钥复制到 shell 历史、命令参数或网页地址。

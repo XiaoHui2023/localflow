@@ -186,14 +186,28 @@ class SystemdExecutor:
             "SendSIGKILL=yes",
             "--property",
             "Type=exec",
-            sys.executable,
-            "-m",
-            "localflow.supervisor",
-            "--root",
-            str(self.root),
-            "--task",
-            task.id,
         ]
+        if getattr(sys, "frozen", False):
+            command.extend(
+                [
+                    "--setenv=LOCALFLOW_INTERNAL_MODE=supervisor",
+                    f"--setenv=LOCALFLOW_INTERNAL_ROOT={self.root}",
+                    f"--setenv=LOCALFLOW_INTERNAL_TASK={task.id}",
+                    sys.executable,
+                ]
+            )
+        else:
+            command.extend(
+                [
+                    sys.executable,
+                    "-m",
+                    "localflow.supervisor",
+                    "--root",
+                    str(self.root),
+                    "--task",
+                    task.id,
+                ]
+            )
         process = await asyncio.create_subprocess_exec(
             *command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
