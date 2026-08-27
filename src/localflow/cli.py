@@ -32,7 +32,8 @@ def _admin_url(endpoint: str, code: str) -> str:
 def application_root() -> Path:
     """Return the directory that owns this LocalFlow installation."""
     if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent
+        executable = os.environ.get("STATICX_PROG_PATH", sys.executable)
+        return Path(executable).resolve().parent
     return Path.cwd().resolve()
 
 

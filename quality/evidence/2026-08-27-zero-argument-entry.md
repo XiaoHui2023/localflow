@@ -3,7 +3,7 @@
 ## 缺陷指纹
 
 - 可见症状：解压后的 `localflow` 仍要求子命令和 `--root`，直接运行失败。
-- 根因类别：需求已记录为“完整目录”，但发布冒烟仍以旧 CLI 驱动，属于 memory escape 与 oracle escape。
+- 根因类别：需求已记录为“完整目录”，但发布冒烟仍以旧 CLI 驱动，且冻结路径只考虑 PyInstaller、未消费 StaticX 的原始程序路径，属于 memory escape 与 oracle escape。
 - 最早可发现阶段：CLI 单测和冻结产物冒烟。
 - 所有者：公开入口、冻结发布门禁与 systemd 启动单元。
 
@@ -14,3 +14,7 @@
 - 旧 CPU 兼容门执行真实零参数启动探针，不再用 `--help` 代替服务初始化。
 - 冻结冒烟从干净目录直接运行最终二进制，完成前端、登录、任务、日志和退出闭环。
 - systemd 主服务不传 CLI 参数；冻结任务监督器只使用内部环境契约，不重新暴露公开子命令。
+
+## CI 反证与修正
+
+首次 Release 的源码门和 Ubuntu 16.04/StaticX 构建通过，但三种旧 CPU 启动步骤失败并阻止 publish。StaticX 官方运行时合同明确提供 `STATICX_PROG_PATH` 作为被执行程序的绝对路径；内层 `sys.executable` 属于临时解包路径。根目录解析和 systemd 监督器重入都改为优先使用前者，并增加“外层路径与内层路径不同”的故障样本。

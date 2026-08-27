@@ -188,12 +188,13 @@ class SystemdExecutor:
             "Type=exec",
         ]
         if getattr(sys, "frozen", False):
+            executable = os.environ.get("STATICX_PROG_PATH", sys.executable)
             command.extend(
                 [
                     "--setenv=LOCALFLOW_INTERNAL_MODE=supervisor",
                     f"--setenv=LOCALFLOW_INTERNAL_ROOT={self.root}",
                     f"--setenv=LOCALFLOW_INTERNAL_TASK={task.id}",
-                    sys.executable,
+                    executable,
                 ]
             )
         else:

@@ -4,6 +4,11 @@ from types import ModuleType
 import pytest
 
 from localflow import cli
+from localflow import executor as executor_module
+from localflow.executor import SystemdExecutor
+from localflow.models import TaskCreate
+from localflow.settings import initialize_root
+from localflow.storage import Store
 
 
 def test_source_entry_uses_current_directory(monkeypatch, tmp_path: Path) -> None:
@@ -19,6 +24,16 @@ def test_frozen_entry_uses_executable_directory(monkeypatch, tmp_path: Path) -> 
     monkeypatch.setattr(cli.sys, "executable", str(binary))
     monkeypatch.chdir(tmp_path)
     assert cli.application_root() == binary.parent.resolve()
+
+
+def test_staticx_entry_uses_outer_executable_directory(monkeypatch, tmp_path: Path) -> None:
+    outer = tmp_path / "release" / "localflow"
+    inner = tmp_path / "staticx-temporary" / "localflow"
+    monkeypatch.setattr(cli.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(cli.sys, "executable", str(inner))
+    monkeypatch.setenv("STATICX_PROG_PATH", str(outer))
+    monkeypatch.chdir(tmp_path)
+    assert cli.application_root() == outer.parent.resolve()
 
 
 def test_public_entry_starts_directly_without_arguments(monkeypatch, tmp_path: Path) -> None:
@@ -60,3 +75,35 @@ def test_frozen_supervisor_environment_is_not_inherited(monkeypatch, tmp_path: P
     assert "LOCALFLOW_INTERNAL_MODE" not in cli.os.environ
     assert "LOCALFLOW_INTERNAL_ROOT" not in cli.os.environ
     assert "LOCALFLOW_INTERNAL_TASK" not in cli.os.environ
+
+
+@pytest.mark.asyncio
+async def test_staticx_systemd_supervisor_reenters_outer_executable(
+    monkeypatch, tmp_path: Path
+) -> None:
+    initialize_root(tmp_path)
+    task = Store(tmp_path / "runtime" / "localflow.db").create_task(
+        "b" * 32,
+        TaskCreate(name="probe", working_directory=str(tmp_path), command=["true"]),
+    )
+    outer = tmp_path / "localflow"
+    inner = tmp_path / "staticx-temporary" / "localflow"
+    captured = []
+
+    class Completed:
+        returncode = 0
+
+        async def communicate(self):
+            return b"", b""
+
+    async def create_subprocess(*command, **_kwargs):
+        captured.extend(command)
+        return Completed()
+
+    monkeypatch.setattr(executor_module.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(executor_module.sys, "executable", str(inner))
+    monkeypatch.setenv("STATICX_PROG_PATH", str(outer))
+    monkeypatch.setattr(executor_module.asyncio, "create_subprocess_exec", create_subprocess)
+    await SystemdExecutor(tmp_path).start(task, tmp_path / "logs" / "output.log")
+    assert captured[-1] == str(outer)
+    assert str(inner) not in captured
