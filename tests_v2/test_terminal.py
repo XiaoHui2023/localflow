@@ -58,7 +58,8 @@ def test_terminal_http_api_controls_and_fresh_offset_log(root: Path) -> None:
     with TestClient(
         app, base_url="http://127.0.0.1", client=("127.0.0.1", 50000)
     ) as client:
-        session = client.get("/api/v1/auth/session").json()
+        key = (root / "secrets" / "web-admin-key").read_text(encoding="ascii").strip()
+        session = client.post("/api/v1/auth/local-sessions", json={"key": key}).json()
         client.headers.update(
             {"Origin": "http://127.0.0.1", "X-CSRF-Token": session["csrf_token"]}
         )

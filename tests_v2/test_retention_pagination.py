@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from localflow.cli import _admin_url, _endpoint
+from localflow.cli import _endpoint
 from localflow.models import TaskCreate, TaskState
 from localflow.service import TaskService, _elapsed
 from localflow.settings import (
@@ -32,9 +32,6 @@ def _draft(root: Path, name: str) -> TaskCreate:
 def test_endpoint_formats_ipv4_and_ipv6() -> None:
     assert _endpoint("http", "127.0.0.1", 1234) == "http://127.0.0.1:1234"
     assert _endpoint("https", "::1", 443) == "https://[::1]:443"
-    url = _admin_url("http://127.0.0.1:1234", "code+/=")
-    assert url.startswith("http://127.0.0.1:1234#localflow-admin=")
-    assert "?" not in url
 
 
 def test_retention_removes_expired_terminal_data_but_keeps_newer_history(root: Path) -> None:

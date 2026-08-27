@@ -5,16 +5,9 @@ import hmac
 import os
 import secrets
 import time
-from dataclasses import dataclass
 from pathlib import Path
 
 from fastapi import HTTPException, Request, WebSocket, status
-
-
-@dataclass(frozen=True)
-class AdminSession:
-    expires_at: float
-    csrf_token: str
 
 
 class AuthManager:
@@ -24,12 +17,14 @@ class AuthManager:
         self.directory.mkdir(parents=True, exist_ok=True)
         if directory_created and os.name != "nt":
             os.chmod(self.directory, 0o700)
-        self.admin_path = self.directory / "admin-bootstrap"
+        self.admin_path = self.directory / "web-admin-key"
+        legacy_admin_path = self.directory / "admin-bootstrap"
         self.api_path = self.directory / "api-key"
-        self.sessions: dict[str, AdminSession] = {}
         self.nonces: dict[str, tuple[float, int]] = {}
         self.generation = 1
         self.previous_keys: dict[int, tuple[bytes, float]] = {}
+        if not self.admin_path.exists() and legacy_admin_path.exists():
+            os.replace(legacy_admin_path, self.admin_path)
         for path in (self.admin_path, self.api_path):
             if not path.exists():
                 self._atomic_secret(path, secrets.token_urlsafe(48))
@@ -66,31 +61,40 @@ class AuthManager:
             ):
                 raise PermissionError(f"secret must be a regular owner-only file: {path}")
 
-    def exchange_admin(self, code: str) -> tuple[str, str]:
+    def exchange_admin(self, key: str) -> tuple[str, str]:
         expected = self.admin_path.read_text(encoding="ascii").strip()
-        if not hmac.compare_digest(code, expected):
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid local login code")
-        self._atomic_secret(self.admin_path, secrets.token_urlsafe(48))
+        if not hmac.compare_digest(key, expected):
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid administrator key")
         return self.create_admin_session()
 
     def create_admin_session(self) -> tuple[str, str]:
-        token = secrets.token_urlsafe(32)
-        csrf_token = secrets.token_urlsafe(32)
-        self.sessions[hashlib.sha256(token.encode()).hexdigest()] = AdminSession(
-            expires_at=time.time() + 3600,
-            csrf_token=csrf_token,
-        )
-        return token, csrf_token
+        nonce = secrets.token_urlsafe(32)
+        signature = self._admin_signature("session", nonce)
+        token = f"v1.{nonce}.{signature}"
+        return token, self._csrf_token(token)
 
-    def _session(self, token: str) -> AdminSession | None:
-        if not token:
-            return None
-        key = hashlib.sha256(token.encode()).hexdigest()
-        session = self.sessions.get(key)
-        if session is None or session.expires_at <= time.time():
-            self.sessions.pop(key, None)
-            return None
-        return session
+    def _admin_signature(self, purpose: str, value: str) -> str:
+        key = self.admin_path.read_text(encoding="ascii").strip().encode()
+        return hmac.new(
+            key,
+            f"localflow-web-{purpose}\0{value}".encode(),
+            hashlib.sha256,
+        ).hexdigest()
+
+    def _csrf_token(self, token: str) -> str:
+        return self._admin_signature("csrf", token)
+
+    def _session(self, token: str) -> bool:
+        try:
+            version, nonce, supplied = token.split(".", 2)
+        except ValueError:
+            return False
+        if version != "v1" or not nonce or not supplied:
+            return False
+        return hmac.compare_digest(
+            supplied,
+            self._admin_signature("session", nonce),
+        )
 
     def is_admin(self, request: Request) -> bool:
         bearer = request.headers.get("authorization", "")
@@ -99,11 +103,15 @@ class AuthManager:
             if bearer.startswith("Bearer ")
             else request.cookies.get("localflow_session", "")
         )
-        return self._session(token) is not None
+        return self._session(token)
 
     def csrf_for(self, request: Request) -> str | None:
-        session = self._session(request.cookies.get("localflow_session", ""))
-        return session.csrf_token if session else None
+        token = request.cookies.get("localflow_session", "")
+        return self._csrf_token(token) if self._session(token) else None
+
+    def cookie_token(self, request: Request) -> str | None:
+        token = request.cookies.get("localflow_session", "")
+        return token if self._session(token) else None
 
     @staticmethod
     def _http_origin(request: Request) -> str:
@@ -111,21 +119,21 @@ class AuthManager:
 
     def is_admin_mutation(self, request: Request) -> bool:
         token = request.cookies.get("localflow_session", "")
-        session = self._session(token)
+        authenticated = self._session(token)
         supplied = request.headers.get("x-csrf-token", "")
         origin = request.headers.get("origin", "")
         return bool(
-            session
+            authenticated
             and origin == self._http_origin(request)
             and supplied
-            and hmac.compare_digest(supplied, session.csrf_token)
+            and hmac.compare_digest(supplied, self._csrf_token(token))
         )
 
     def is_websocket_admin(self, websocket: WebSocket) -> bool:
-        session = self._session(websocket.cookies.get("localflow_session", ""))
+        authenticated = self._session(websocket.cookies.get("localflow_session", ""))
         scheme = "https" if websocket.url.scheme == "wss" else "http"
         expected_origin = f"{scheme}://{websocket.headers.get('host', '')}"
-        return bool(session and websocket.headers.get("origin", "") == expected_origin)
+        return bool(authenticated and websocket.headers.get("origin", "") == expected_origin)
 
     def issue_nonce(self) -> dict[str, object]:
         nonce = secrets.token_urlsafe(24)

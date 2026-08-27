@@ -31,6 +31,8 @@ async function measureWebResources(page, activeWebSockets) {
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Performance.enable", { timeDomain: "threadTicks" });
   await cdp.send("HeapProfiler.collectGarbage");
+  await page.waitForTimeout(250);
+  await cdp.send("HeapProfiler.collectGarbage");
   const toMap = ({ metrics }) => Object.fromEntries(metrics.map(({ name, value }) => [name, value]));
   const before = toMap(await cdp.send("Performance.getMetrics"));
   let backgroundRequests = 0;
@@ -40,6 +42,8 @@ async function measureWebResources(page, activeWebSockets) {
   await page.waitForTimeout(resourceContract.measurement.idle_window_seconds * 1000);
   const elapsed = (Date.now() - started) / 1000;
   page.off("request", countRequest);
+  await cdp.send("HeapProfiler.collectGarbage");
+  await page.waitForTimeout(250);
   await cdp.send("HeapProfiler.collectGarbage");
   const after = toMap(await cdp.send("Performance.getMetrics"));
   const dom = await cdp.send("Memory.getDOMCounters");
@@ -83,11 +87,30 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await page.goto("/");
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.getByRole("tab")).toHaveText(["任务", "设置"]);
+  await expect(page.getByRole("tab", { name: "运行" })).toHaveCount(0);
+  await page.getByRole("tab", { name: "设置" }).click();
+  await expect(page.getByLabel("管理员秘钥")).toBeVisible();
+  await expect(page.getByText("时间校准", { exact: true })).toHaveCount(0);
+  await page.screenshot({ path: path.join(evidence, "anonymous-settings-login-light.png"), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  await page.screenshot({ path: path.join(evidence, "anonymous-settings-login-mobile.png"), fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await page.getByLabel("管理员秘钥").fill("wrong-key");
+  await page.getByRole("button", { name: "登录", exact: true }).click();
+  await expect(page.getByRole("alert")).toHaveText("秘钥不正确");
+  expect(consoleErrors).toEqual(["Failed to load resource: the server responded with a status of 401 (Unauthorized)"]);
+  consoleErrors.length = 0;
+  await page.getByLabel("管理员秘钥").fill(process.env.LOCALFLOW_QA_ADMIN_KEY);
+  await page.getByRole("button", { name: "登录", exact: true }).click();
+  await expect(page.getByLabel("管理员秘钥")).toHaveCount(0);
   await expect(page.getByRole("tab")).toHaveText(["任务", "运行", "终端", "设置"]);
   const navBox = await page.locator(".top").boundingBox(); expect(navBox.height).toBeLessThanOrEqual(300);
   for (const button of await page.locator(".top nav button").all()) { const box = await button.boundingBox(); expect(box.height).toBeGreaterThanOrEqual(40); }
   await expect(page.getByText("LocalFlow", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "刷新" })).toHaveCount(0);
+  await page.getByRole("tab", { name: "任务" }).click();
   await expect(page.getByText("暂无任务", { exact: true })).toBeVisible();
   await page.screenshot({ path: path.join(evidence, "admin-empty-light.png"), fullPage: true });
 
@@ -101,6 +124,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await page.getByRole("button", { name: "深色" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.reload(); await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("tab", { name: "设置" }).click(); await expect(page.getByLabel("管理员秘钥")).toHaveCount(0); await expect(page.getByLabel("时间校准", { exact: true })).toBeVisible();
 
   const done = await browserApi(page, "/tasks", { method: "POST", body: { name: "qa-finished", working_directory: qaRoot, command: [qaPython, "-c", "print('qa-finished-output', flush=True)"], labels: ["browser"], custom: { report: "qa://finished", variable_sources: { report: "internal" } } } });
   await waitForState(page, done.task_id, ["succeeded"]); await page.getByRole("tab", { name: "任务" }).click();
@@ -172,6 +196,6 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await page.screenshot({ path: path.join(evidence, "admin-mobile-390.png"), fullPage: true }); expect(consoleErrors, consoleErrors.join("\n")).toEqual([]);
 
   const repository = path.resolve(".."); const boundFiles = ["frontend/index.html", "frontend/public/theme-boot.js", "frontend/src/App.jsx", "frontend/src/api.js", "frontend/src/main.jsx", "frontend/src/index.css", "frontend/src/extra.css", "frontend/src/round6.css", "frontend/src/case-picker.css", "frontend/e2e/localflow.spec.js", "frontend/playwright.config.js", "frontend/package-lock.json", "quality/resource-budgets.json", "tools/check_quality.py", "tools/run_browser_quality.py"];
-  const sourceFiles = Object.fromEntries(boundFiles.map((relative) => [relative, sha256(path.join(repository, relative), true)])); const screenshots = Object.fromEntries(fs.readdirSync(evidence).filter((name) => name.endsWith(".png") && name.startsWith("admin-")).sort().map((name) => [name, sha256(path.join(evidence, name))]));
-  fs.writeFileSync(path.join(evidence, "browser-receipt.json"), JSON.stringify({ completed_at: new Date().toISOString(), browser: "Microsoft Edge", browser_version: browser.version(), base_url: process.env.LOCALFLOW_QA_URL, result: "passed", source_files: sourceFiles, screenshots, resource_contract: resourceContract, resource_metrics: resourceMetrics, assertions: ["testing-ui-revision-auto-reload", "loopback-direct-admin", "nav-order", "removed-plugin-api-destinations", "compact-content-height-nav", "nav-target-size", "theme-memory", "run-context-memory", "aligned-settings-rows", "live-time-calibration-control", "single-time-calibration", "inline-toggle-detail", "dedicated-terminal", "xterm-fit-search", "explorer-create-rename-delete", "explorer-icon-only-state", "shared-fragment-semantic-icon", "neutral-config-filenames", "hidden-config-extensions", "opened-invalid-inline-diagnosis", "config-opens-in-use-mode", "plugin-config-discovery", "run-fields-only", "plugin-case-field-mapping", "case-empty-default", "case-hover-wheel", "case-click-increment", "case-count-progressive-editor", "case-marquee-scope-only", "case-group-relative-edit", "case-group-fixed-edit", "case-scope-dismissal", "case-intrinsic-compact-grid", "blank-seed", "verification-seed-task-detail", "required-run-field-gate", "icon-only-run", "uniform-control-geometry", "nonblocking-expiring-status", "config-use", "plugin-arbitrary-status", "idle-web-resource-budget", "compact-copyable-task-detail", "neutral-scroll-copy-feedback", "unboxed-stop-action", "direct-config-file-actions", "terminal-responsive-fit", "terminal-fill-layout", "wcag-a-aa", "mobile-no-overflow"] }, null, 2));
+  const sourceFiles = Object.fromEntries(boundFiles.map((relative) => [relative, sha256(path.join(repository, relative), true)])); const screenshots = Object.fromEntries(fs.readdirSync(evidence).filter((name) => name.endsWith(".png") && (name.startsWith("admin-") || name.startsWith("anonymous-"))).sort().map((name) => [name, sha256(path.join(evidence, name))]));
+  fs.writeFileSync(path.join(evidence, "browser-receipt.json"), JSON.stringify({ completed_at: new Date().toISOString(), browser: "Microsoft Edge", browser_version: browser.version(), base_url: process.env.LOCALFLOW_QA_URL, result: "passed", source_files: sourceFiles, screenshots, resource_contract: resourceContract, resource_metrics: resourceMetrics, assertions: ["testing-ui-revision-auto-reload", "secret-login-required", "secret-login-error", "login-control-disappears", "persistent-browser-session", "nav-order", "removed-plugin-api-destinations", "compact-content-height-nav", "nav-target-size", "theme-memory", "run-context-memory", "aligned-settings-rows", "live-time-calibration-control", "single-time-calibration", "inline-toggle-detail", "dedicated-terminal", "xterm-fit-search", "explorer-create-rename-delete", "explorer-icon-only-state", "shared-fragment-semantic-icon", "neutral-config-filenames", "hidden-config-extensions", "opened-invalid-inline-diagnosis", "config-opens-in-use-mode", "plugin-config-discovery", "run-fields-only", "plugin-case-field-mapping", "case-empty-default", "case-hover-wheel", "case-click-increment", "case-count-progressive-editor", "case-marquee-scope-only", "case-group-relative-edit", "case-group-fixed-edit", "case-scope-dismissal", "case-intrinsic-compact-grid", "blank-seed", "verification-seed-task-detail", "required-run-field-gate", "icon-only-run", "uniform-control-geometry", "nonblocking-expiring-status", "config-use", "plugin-arbitrary-status", "idle-web-resource-budget", "compact-copyable-task-detail", "neutral-scroll-copy-feedback", "unboxed-stop-action", "direct-config-file-actions", "terminal-responsive-fit", "terminal-fill-layout", "wcag-a-aa", "mobile-no-overflow"] }, null, 2));
 });

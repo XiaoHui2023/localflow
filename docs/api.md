@@ -10,7 +10,7 @@
 
 - `summary`：名称、标签、状态和时间的去敏摘要。
 - `readonly`：管理员显式启用的完整只读投影，仍不能执行任何操作。
-- `admin`：一次性本地码交换得到的短时浏览器会话。
+- `admin`：用 `secrets/web-admin-key` 登录后得到的持久浏览器会话。
 - `signed-client`：使用磁盘 API 密钥签名的程序调用方。
 
 管理员登录响应包含 CSRF 令牌；会话本体仅在 `HttpOnly; SameSite=Strict` cookie 中。网页只在内存保存 CSRF 令牌。所有 cookie 写请求必须同时携带精确同源 `Origin` 和 `X-CSRF-Token`，WebSocket 管理权限也要求同源握手。
@@ -108,8 +108,8 @@
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
 | `POST` | `/auth/challenges` | 获取 30 秒、一次性、绑定密钥代次的随机数 |
-| `POST` | `/auth/local-sessions` | 用一次性本地码换浏览器会话和 CSRF 令牌 |
-| `GET` | `/auth/session` | 页面刷新后用有效 cookie 恢复内存 CSRF 令牌 |
+| `POST` | `/auth/local-sessions` | 用网页管理员秘钥建立持久浏览器会话并取得 CSRF 令牌 |
+| `GET` | `/auth/session` | 用有效 cookie 恢复 CSRF 令牌并续期会话 |
 | `GET` | `/system/status` | 身份、执行后端和时钟状态 |
 | `POST` | `/system/time-adjustments` | 管理员请求手工校时 |
 | `GET` | `/openapi` | 管理员读取网页 API 文档使用的 OpenAPI schema |

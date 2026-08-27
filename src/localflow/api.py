@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import binascii
-import ipaddress
 import json
 import os
 import sys
@@ -43,8 +42,8 @@ from .variables import VariableError, VariableResolver
 from .watcher import DirectoryWatcher
 
 
-class LocalLogin(BaseModel):
-    code: str
+class WebAdminLogin(BaseModel):
+    key: str
 
 
 class ConfigWrite(BaseModel):
@@ -204,14 +203,6 @@ def create_app(
     app.state.watcher = watcher
     app.state.time_service = time_service
 
-    def is_loopback(request: Request) -> bool:
-        if request.client is None:
-            return False
-        try:
-            return ipaddress.ip_address(request.client.host).is_loopback
-        except ValueError:
-            return False
-
     def set_admin_cookie(request: Request, response: Response, token: str) -> None:
         response.set_cookie(
             "localflow_session",
@@ -219,23 +210,21 @@ def create_app(
             httponly=True,
             samesite="strict",
             secure=request.url.scheme == "https",
-            max_age=3600,
+            max_age=34_560_000,
             path="/",
         )
 
     async def require_admin(request: Request) -> str:
-        authenticated = (
-            auth.is_admin(request) or (request.method in {"GET", "HEAD", "OPTIONS"} and is_loopback(request))
-            if request.method in {"GET", "HEAD", "OPTIONS"}
-            else auth.is_admin_mutation(request)
-        )
+        authenticated = auth.is_admin(request) if request.method in {
+            "GET", "HEAD", "OPTIONS"
+        } else auth.is_admin_mutation(request)
         if authenticated:
             return "admin"
         raise HTTPException(status.HTTP_403_FORBIDDEN, "administrator session required")
 
     async def require_submitter(request: Request) -> str:
         if request.method in {"GET", "HEAD", "OPTIONS"}:
-            if auth.is_admin(request) or is_loopback(request):
+            if auth.is_admin(request):
                 return "admin"
         elif auth.is_admin_mutation(request):
             return "admin"
@@ -244,7 +233,7 @@ def create_app(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "signed client or administrator required")
 
     async def can_read(request: Request) -> str:
-        if auth.is_admin(request) or is_loopback(request):
+        if auth.is_admin(request):
             return "admin"
         signed_attempt = any(
             request.headers.get(name)
@@ -281,20 +270,20 @@ def create_app(
         return auth.issue_nonce()
 
     @app.post("/api/v1/auth/local-sessions")
-    async def local_session(payload: LocalLogin, request: Request, response: Response):
-        token, csrf_token = auth.exchange_admin(payload.code)
+    async def local_session(payload: WebAdminLogin, request: Request, response: Response):
+        token, csrf_token = auth.exchange_admin(payload.key)
         set_admin_cookie(request, response, token)
-        return {"role": "admin", "expires_in": 3600, "csrf_token": csrf_token}
+        return {"role": "admin", "persistent": True, "csrf_token": csrf_token}
 
     @app.get("/api/v1/auth/session")
     async def current_session(request: Request, response: Response):
         csrf_token = auth.csrf_for(request)
-        if not csrf_token and is_loopback(request):
-            token, csrf_token = auth.create_admin_session()
-            set_admin_cookie(request, response, token)
         if not csrf_token:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "administrator session required")
-        return {"role": "admin", "csrf_token": csrf_token}
+        token = auth.cookie_token(request)
+        if token:
+            set_admin_cookie(request, response, token)
+        return {"role": "admin", "persistent": True, "csrf_token": csrf_token}
 
     @app.get("/api/v1/openapi", include_in_schema=False)
     async def protected_openapi(_actor: str = Depends(require_admin)):

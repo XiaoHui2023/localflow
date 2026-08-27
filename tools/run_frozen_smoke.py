@@ -114,11 +114,11 @@ def main() -> None:
             if status != 200 or b'<div id="root">' not in page:
                 raise RuntimeError("embedded frontend was not served")
 
-            code = (root / "secrets" / "admin-bootstrap").read_text(
+            key = (root / "secrets" / "web-admin-key").read_text(
                 encoding="ascii"
             ).strip()
             _, login_body = request(
-                opener, endpoint + "/api/v1/auth/local-sessions", "POST", {"code": code}
+                opener, endpoint + "/api/v1/auth/local-sessions", "POST", {"key": key}
             )
             csrf = json.loads(login_body)["csrf_token"]
             headers = {"Origin": endpoint, "X-CSRF-Token": csrf}

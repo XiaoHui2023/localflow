@@ -19,7 +19,10 @@ FIELDS = {
 }
 STATUSES = {"passed", "partial", "blocked"}
 BROWSER_ASSERTIONS = {
-    "loopback-direct-admin",
+    "secret-login-required",
+    "secret-login-error",
+    "login-control-disappears",
+    "persistent-browser-session",
     "nav-order",
     "theme-memory",
     "run-context-memory",
@@ -67,6 +70,8 @@ BROWSER_ASSERTIONS = {
     "terminal-fill-layout",
 }
 REQUIRED_SCREENSHOTS = {
+    "anonymous-settings-login-light.png",
+    "anonymous-settings-login-mobile.png",
     "admin-config-explorer-dark.png",
     "admin-empty-light.png",
     "admin-mobile-390.png",

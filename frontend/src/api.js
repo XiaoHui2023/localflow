@@ -10,7 +10,7 @@ export async function request(path, options = {}) {
 export const api = {
   status: async () => { const result = await request("/system/status"); if (result.role === "admin" && !csrfToken) { const session = await request("/auth/session"); csrfToken = session.csrf_token; } return result; }, tasks: (query = "") => request(`/tasks?limit=200${query ? `&${query}` : ""}`),
   interrupt: (id) => request(`/tasks/${id}/interrupt`, { method: "POST" }), acknowledge: (id) => request(`/tasks/${id}/acknowledgements`, { method: "POST" }),
-  login: async (code) => { const result = await request("/auth/local-sessions", { method: "POST", body: JSON.stringify({ code }) }); csrfToken = result.csrf_token; return result; }, templates: () => request("/templates"), plugins: () => request("/plugins"),
+  login: async (key) => { const result = await request("/auth/local-sessions", { method: "POST", body: JSON.stringify({ key }) }); csrfToken = result.csrf_token; return result; }, templates: () => request("/templates"), plugins: () => request("/plugins"),
   runTemplate: (name, values) => request("/batches", { method: "POST", body: JSON.stringify({ template: name, values }) }), files: () => request("/config/files"), file: (path) => request(`/config/files/${configPath(path)}`),
   discoverTemplate: (name, values) => request(`/templates/${name}/discover`, { method: "POST", body: JSON.stringify(values) }),
   discoverConfig: (path, inputs) => request(`/config/files/${configPath(path)}/discover`, { method: "POST", body: JSON.stringify({ inputs }) }),

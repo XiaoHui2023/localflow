@@ -26,14 +26,8 @@ monaco.editor.defineTheme("localflow-dark", {
 });
 loader.config({ monaco });
 
-const fragment = new URLSearchParams(location.hash.slice(1));
-const bootstrapCode = fragment.get("localflow-admin");
-if (bootstrapCode) {
-  history.replaceState(null, "", `${location.pathname}${location.search}`);
-}
-
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <App bootstrapCode={bootstrapCode} />
+    <App />
   </React.StrictMode>,
 );

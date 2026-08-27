@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 import time
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from localflow.api import create_app
+from localflow.auth import AuthManager
 from localflow.settings import ExecutionSettings, ServerSettings, Settings
 
 
@@ -46,7 +48,7 @@ def _signed_headers(
     }
 
 
-def test_direct_loopback_gets_admin_session(root: Path) -> None:
+def test_loopback_is_not_administrator_identity(root: Path) -> None:
     settings = Settings(
         server=ServerSettings(anonymous_access="summary"),
         execution=ExecutionSettings(backend="subprocess"),
@@ -57,18 +59,14 @@ def test_direct_loopback_gets_admin_session(root: Path) -> None:
         base_url="http://127.0.0.1",
         client=("127.0.0.1", 50000),
     ) as loopback:
-        assert loopback.get("/api/v1/system/status").json()["role"] == "admin"
-        session = loopback.get("/api/v1/auth/session")
-        assert session.status_code == 200
-        loopback.headers.update(
-            {"Origin": "http://127.0.0.1", "X-CSRF-Token": session.json()["csrf_token"]}
-        )
-        assert loopback.get("/api/v1/plugins").status_code == 200
+        assert loopback.get("/api/v1/system/status").json()["role"] == "summary"
+        assert loopback.get("/api/v1/auth/session").status_code == 401
+        assert loopback.get("/api/v1/plugins").status_code == 403
         created = loopback.post(
             "/api/v1/config/files",
             json={"path": "tasks/direct.yaml", "plugin": "marker"},
         )
-        assert created.status_code == 201
+        assert created.status_code == 403
 
 
 def test_spa_fallback_never_masks_unknown_api_or_escapes_dist(
@@ -107,8 +105,8 @@ def test_hmac_signature_nonce_replay_and_terminal_rotation(client: TestClient, r
     assert client.post("/api/v1/tasks", content=body, headers=headers).status_code == 403
 
     old_key = (root / "secrets" / "api-key").read_bytes()
-    code = (root / "secrets" / "admin-bootstrap").read_text(encoding="ascii").strip()
-    login = client.post("/api/v1/auth/local-sessions", json={"code": code})
+    key = (root / "secrets" / "web-admin-key").read_text(encoding="ascii").strip()
+    login = client.post("/api/v1/auth/local-sessions", json={"key": key})
     assert login.status_code == 200
     client.headers.update(
         {
@@ -229,8 +227,8 @@ def test_signed_client_can_manage_config_and_use_plugin_run_contract(
 def test_cookie_admin_writes_require_same_origin_and_csrf(
     client: TestClient, root: Path
 ) -> None:
-    code = (root / "secrets" / "admin-bootstrap").read_text(encoding="ascii").strip()
-    login = client.post("/api/v1/auth/local-sessions", json={"code": code})
+    key = (root / "secrets" / "web-admin-key").read_text(encoding="ascii").strip()
+    login = client.post("/api/v1/auth/local-sessions", json={"key": key})
     csrf = login.json()["csrf_token"]
     payload = {
         "name": "browser-admin",
@@ -260,6 +258,55 @@ def test_cookie_admin_writes_require_same_origin_and_csrf(
     assert recovered.json()["csrf_token"] == csrf
 
 
+def test_web_key_session_survives_service_restart_until_key_changes(root: Path) -> None:
+    settings = Settings(
+        server=ServerSettings(anonymous_access="summary"),
+        execution=ExecutionSettings(backend="subprocess"),
+    )
+    first_app = create_app(root, settings=settings, start_scheduler=False)
+    with TestClient(first_app) as first:
+        key_path = root / "secrets" / "web-admin-key"
+        key = key_path.read_text(encoding="ascii").strip()
+        assert first.post(
+            "/api/v1/auth/local-sessions", json={"key": "wrong"}
+        ).status_code == 401
+        login = first.post("/api/v1/auth/local-sessions", json={"key": key})
+        assert login.status_code == 200
+        assert login.json()["persistent"] is True
+        assert "Max-Age=34560000" in login.headers["set-cookie"]
+        assert key_path.read_text(encoding="ascii").strip() == key
+        cookie = first.cookies.get("localflow_session")
+
+    restarted_app = create_app(root, settings=settings, start_scheduler=False)
+    with TestClient(restarted_app) as restarted:
+        restarted.cookies.set("localflow_session", cookie)
+        assert restarted.get("/api/v1/system/status").json()["role"] == "admin"
+        session = restarted.get("/api/v1/auth/session")
+        assert session.status_code == 200
+        assert session.json()["persistent"] is True
+        assert "Max-Age=34560000" in session.headers["set-cookie"]
+
+        key_path.write_text("replacement-key", encoding="ascii")
+        assert restarted.get("/api/v1/system/status").json()["role"] == "summary"
+        assert restarted.get("/api/v1/auth/session").status_code == 401
+
+
+def test_legacy_admin_secret_is_migrated_without_changing_its_value(root: Path) -> None:
+    directory = root / "secrets"
+    directory.mkdir(parents=True)
+    legacy = directory / "admin-bootstrap"
+    legacy.write_text("existing-owner-secret", encoding="ascii")
+    if os.name != "nt":
+        os.chmod(directory, 0o700)
+        os.chmod(legacy, 0o600)
+
+    manager = AuthManager(root)
+
+    assert manager.admin_path.name == "web-admin-key"
+    assert manager.admin_path.read_text(encoding="ascii") == "existing-owner-secret"
+    assert not legacy.exists()
+
+
 def test_challenge_survives_one_bounded_key_rotation(client: TestClient, root: Path) -> None:
     payload = {
         "name": "rotation-race",
@@ -283,8 +330,8 @@ def test_summary_and_cross_origin_cookie_cannot_open_terminal(
     ):
         pass
     assert anonymous.value.code == 4403
-    code = (root / "secrets" / "admin-bootstrap").read_text(encoding="ascii").strip()
-    client.post("/api/v1/auth/local-sessions", json={"code": code})
+    key = (root / "secrets" / "web-admin-key").read_text(encoding="ascii").strip()
+    client.post("/api/v1/auth/local-sessions", json={"key": key})
     with pytest.raises(WebSocketDisconnect) as cross_origin, client.websocket_connect(
         "/api/v1/tasks/missing/terminal",
         headers={"Origin": "https://attacker.invalid"},
@@ -299,8 +346,8 @@ def test_openapi_schema_is_only_available_to_administrator(
     for path in ("/docs", "/redoc", "/openapi.json"):
         assert client.get(path).status_code == 404
     assert client.get("/api/v1/openapi").status_code == 403
-    code = (root / "secrets" / "admin-bootstrap").read_text(encoding="ascii").strip()
-    assert client.post("/api/v1/auth/local-sessions", json={"code": code}).status_code == 200
+    key = (root / "secrets" / "web-admin-key").read_text(encoding="ascii").strip()
+    assert client.post("/api/v1/auth/local-sessions", json={"key": key}).status_code == 200
     response = client.get("/api/v1/openapi")
     assert response.status_code == 200
     schema = response.json()

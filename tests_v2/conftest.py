@@ -32,8 +32,8 @@ def client(root: Path):
 
 @pytest.fixture
 def admin(client: TestClient, root: Path) -> TestClient:
-    code = (root / "secrets" / "admin-bootstrap").read_text(encoding="ascii").strip()
-    response = client.post("/api/v1/auth/local-sessions", json={"code": code})
+    key = (root / "secrets" / "web-admin-key").read_text(encoding="ascii").strip()
+    response = client.post("/api/v1/auth/local-sessions", json={"key": key})
     assert response.status_code == 200
     client.headers.update(
         {

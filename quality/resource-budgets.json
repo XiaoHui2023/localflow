@@ -11,7 +11,7 @@
     "renderer_js_heap_mib": 96,
     "renderer_idle_cpu_one_core_percent": 8,
     "dom_nodes": 3000,
-    "dom_documents": 4,
+    "dom_documents": 5,
     "dom_event_listeners": 1200,
     "idle_background_requests": 16,
     "idle_websockets": 0

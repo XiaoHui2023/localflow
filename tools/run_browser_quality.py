@@ -92,6 +92,8 @@ def main() -> int:
     evidence = REPOSITORY / "quality" / "evidence" / "browser"
     evidence.mkdir(parents=True, exist_ok=True)
     for name in (
+        "anonymous-settings-login-light.png",
+        "anonymous-settings-login-mobile.png",
         "admin-empty-light.png",
         "admin-task-detail-dark.png",
         "admin-api-light.png",
@@ -211,7 +213,7 @@ class GenericPicker:
         try:
             url = wait_for_server(root, process)
             server_resources = measure_idle_server(process, root)
-            login_code = (root / "secrets" / "admin-bootstrap").read_text(
+            admin_key = (root / "secrets" / "web-admin-key").read_text(
                 encoding="ascii"
             ).strip()
             qa_environment = environment.copy()
@@ -220,7 +222,7 @@ class GenericPicker:
                     "LOCALFLOW_QA_URL": url,
                     "LOCALFLOW_QA_ROOT": str(root),
                     "LOCALFLOW_QA_PYTHON": sys.executable,
-                    "LOCALFLOW_QA_LOGIN_CODE": login_code,
+                    "LOCALFLOW_QA_ADMIN_KEY": admin_key,
                     "LOCALFLOW_QA_SERVER_RESOURCES": json.dumps(server_resources),
                 }
             )

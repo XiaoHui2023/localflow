@@ -23,7 +23,7 @@
 
   <rect x="48" y="115" width="220" height="112" class="box"/>
   <text x="70" y="148" class="head">访问者</text>
-  <text x="70" y="177" class="body">管理员：短时会话、全部操作</text>
+  <text x="70" y="177" class="body">管理员：秘钥登录、全部操作</text>
   <text x="70" y="201" class="body">匿名：默认仅去敏摘要</text>
 
   <rect x="342" y="102" width="316" height="150" class="box"/>

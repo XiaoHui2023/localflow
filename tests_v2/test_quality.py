@@ -98,9 +98,11 @@ def test_operator_documentation_has_one_current_contract() -> None:
     architecture = (root / "docs" / "architecture.md").read_text(encoding="utf-8")
     security = (root / "docs" / "security.md").read_text(encoding="utf-8")
     assert "网页“配置”页" not in readme
-    assert "普通打开地址、同机其他用户和远端只读访问者都不会" not in architecture
-    assert "直接来自回环地址的网页" in architecture
-    assert "直接访问回环地址的网页" in security
+    assert "直接来自回环地址的网页" not in architecture
+    assert "直接访问回环地址的网页会自动" not in security
+    assert "任何来源地址都不代表用户身份" in architecture
+    assert "127.0.0.1` 也不会自动成为管理员" in security
+    assert "secrets/web-admin-key" in readme
 
 
 def test_agent_skills_are_release_safe_and_packaged() -> None:

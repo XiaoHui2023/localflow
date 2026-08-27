@@ -4,7 +4,6 @@ import logging
 import os
 import sys
 from pathlib import Path
-from urllib.parse import urlencode
 
 import uvicorn
 
@@ -23,10 +22,6 @@ _STARTUP_PROBE = "LOCALFLOW_STARTUP_PROBE"
 def _endpoint(scheme: str, host: str, port: int) -> str:
     rendered_host = f"[{host}]" if ":" in host and not host.startswith("[") else host
     return f"{scheme}://{rendered_host}:{port}"
-
-
-def _admin_url(endpoint: str, code: str) -> str:
-    return f"{endpoint}#{urlencode({'localflow-admin': code})}"
 
 
 def application_root() -> Path:

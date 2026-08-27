@@ -225,6 +225,11 @@ html[data-theme="dark"] .method.delete { background: #4c1f24; color: #ff7b72; }
 .time-control { display: flex; align-items: center; gap: 8px; }
 .time-control input { width: 230px; font-variant-numeric: tabular-nums; }
 .time-control small { max-width: 205px; color: var(--muted); font-weight: 400; }
+.login-control { min-width: 0; display: grid; justify-items: end; gap: 5px; }
+.secret-entry { width: 310px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.secret-entry input { min-width: 0; }
+.secret-entry .primary { min-width: 62px; padding-inline: 12px; }
+.login-control small { color: var(--danger); font-weight: 400; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
 
@@ -261,4 +266,6 @@ html[data-theme="dark"] .method.delete { background: #4c1f24; color: #ff7b72; }
   .theme-choice button { flex: 1; justify-content: center; padding-inline: 8px; }
   .time-control { align-items: center; }
   .time-control input { width: 100%; }
+  .login-control { width: 100%; }
+  .secret-entry { width: 100%; }
 }

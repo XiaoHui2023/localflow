@@ -14,7 +14,7 @@ def test_secret_files_are_owner_only_and_broad_mode_is_rejected(tmp_path: Path) 
     initialize_root(root)
     manager = AuthManager(root)
     assert (root / "secrets").stat().st_mode & 0o077 == 0
-    for name in ("api-key", "admin-bootstrap"):
+    for name in ("api-key", "web-admin-key"):
         assert (root / "secrets" / name).stat().st_mode & 0o077 == 0
     key = root / "secrets" / "api-key"
     os.chmod(key, 0o644)

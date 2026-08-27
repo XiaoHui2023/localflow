@@ -150,7 +150,7 @@ logs/                    0750
 logs/service/            0750
 secrets/                 0700
 secrets/api-key          0600
-secrets/admin-bootstrap  0600
+secrets/web-admin-key    0600
 runtime/port             0600
 ```
 

@@ -26,7 +26,7 @@ FastAPI 提供 OpenAPI、依赖式身份检查、SSE 与 WebSocket 支持。后�
 
 ## 请求认证
 
-HTTP Message Signatures 的组件覆盖、随机数和创建时间模型用于设计程序 HMAC 请求。LocalFlow 使用共享密钥 HMAC，不声称完整实现公钥签名协议。浏览器使用独立短时会话，避免长期密钥进入网页。
+HTTP Message Signatures 的组件覆盖、随机数和创建时间模型用于设计程序 HMAC 请求。LocalFlow 使用共享密钥 HMAC，不声称完整实现公钥签名协议。浏览器使用独立、可撤销的签名会话；网页管理员秘钥只在登录请求中短暂出现，不进入浏览器持久存储。
 
 参考资料：
 

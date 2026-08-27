@@ -61,8 +61,8 @@ def request(
 
 def login(base: str) -> urllib.request.OpenerDirector:
     browser = opener()
-    code = (ROOT / "secrets" / "admin-bootstrap").read_text(encoding="ascii").strip()
-    result = request(browser, base, "/api/v1/auth/local-sessions", {"code": code})
+    key = (ROOT / "secrets" / "web-admin-key").read_text(encoding="ascii").strip()
+    result = request(browser, base, "/api/v1/auth/local-sessions", {"key": key})
     assert result["role"] == "admin"
     browser.addheaders = [
         ("Origin", base),
