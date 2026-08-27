@@ -171,6 +171,7 @@ def main() -> int:
                     errors.append(f"browser receipt hash mismatch: {relative}")
             expected_sources = {
                 "frontend/index.html",
+                "frontend/public/compat-boot.js",
                 "frontend/public/theme-boot.js",
                 "frontend/src/App.jsx",
                 "frontend/src/api.js",
@@ -181,11 +182,14 @@ def main() -> int:
                 "frontend/src/case-picker.css",
                 "frontend/e2e/localflow.spec.js",
                 "frontend/e2e/compatibility.spec.js",
+                "frontend/e2e/legacy-browser.mjs",
                 "frontend/playwright.config.js",
+                "frontend/vite.config.js",
                 "frontend/package-lock.json",
                 "quality/resource-budgets.json",
                 "tools/check_quality.py",
                 "tools/run_browser_quality.py",
+                "tools/run_linux_browser_quality.py",
             }
             if set(receipt.get("source_files", {})) != expected_sources:
                 errors.append("browser receipt source scope mismatch")

@@ -1,0 +1,12 @@
+{
+  "result": "passed",
+  "project": "firefox-78",
+  "browser_name": "firefox",
+  "browser_version": "78.0.2",
+  "operating_system": "ubuntu-container",
+  "base_url": "http://192.168.1.118:50828",
+  "source_commit": null,
+  "boot_errors": [],
+  "console_errors": [],
+  "console_log_supported": false
+}

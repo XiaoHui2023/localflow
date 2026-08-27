@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test:e2e": "playwright test --project=edge-full",
     "test:compat": "playwright test --project=chromium-compat --project=firefox-compat",
-    "test:linux-compat": "playwright test --project=chrome-compat --project=firefox-compat"
+    "test:linux-compat": "playwright test --project=chrome-compat --project=firefox-compat",
+    "test:legacy-compat": "node e2e/legacy-browser.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -26,7 +27,9 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.62.1",
+    "@vitejs/plugin-legacy": "^8.2.3",
     "@vitejs/plugin-react": "^6.1.0",
+    "selenium-webdriver": "^4.47.0",
     "vite": "^8.2.2"
   }
 }

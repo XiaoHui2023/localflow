@@ -14,6 +14,7 @@ from pathlib import Path
 import psutil
 import yaml
 from configlib import load_config_raw
+from run_linux_browser_quality import LEGACY_BROWSERS, run_legacy_browser
 
 from localflow.settings import initialize_root
 
@@ -88,6 +89,9 @@ def main() -> int:
     npm = shutil.which("npm")
     if not npm:
         raise RuntimeError("npm is required for the browser quality gate")
+    docker = shutil.which("docker")
+    if not docker:
+        raise RuntimeError("docker is required for fixed-version browser testing")
     frontend = REPOSITORY / "frontend"
     evidence = REPOSITORY / "quality" / "evidence" / "browser"
     evidence.mkdir(parents=True, exist_ok=True)
@@ -240,7 +244,26 @@ class GenericPicker:
                 env=qa_environment,
                 check=False,
             )
-            return compatibility.returncode
+            if compatibility.returncode:
+                return compatibility.returncode
+            legacy_environment = {
+                **qa_environment,
+                "LOCALFLOW_COMPAT_EVIDENCE": str(
+                    REPOSITORY / "quality" / "evidence" / "browser-fixed"
+                ),
+            }
+            for project, image, browser in LEGACY_BROWSERS:
+                result = run_legacy_browser(
+                    docker=docker,
+                    npm=npm,
+                    image=image,
+                    browser=browser,
+                    project=project,
+                    environment=legacy_environment,
+                )
+                if result:
+                    return result
+            return 0
         finally:
             if os.name == "nt" and process.poll() is None:
                 subprocess.run(

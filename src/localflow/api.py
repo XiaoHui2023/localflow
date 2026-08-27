@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 import base64
 import binascii
+import hashlib
 import json
 import os
+import re
 import sys
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -131,6 +133,41 @@ def _encode_cursor(task: TaskRecord) -> str:
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
 
+def _inline_script_csp_hashes(index: Path) -> tuple[str, ...]:
+    """Return CSP hashes for inline scripts emitted into the final SPA entry."""
+    if not index.is_file():
+        return ()
+    html = index.read_bytes().decode("utf-8")
+    script_elements = re.findall(
+        r"<script\b([^>]*)>(.*?)</script\s*>",
+        html,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    scripts = (
+        body
+        for attributes, body in script_elements
+        if not re.search(r"(?:^|\s)src\s*=", attributes, flags=re.IGNORECASE)
+    )
+    return tuple(
+        "'sha256-"
+        + base64.b64encode(hashlib.sha256(script.encode("utf-8")).digest()).decode()
+        + "'"
+        for script in scripts
+        if script
+    )
+
+
+def _initial_event_cursor(store: Store, after: int | None, last_event_id: str | None) -> int:
+    if after is not None:
+        return after
+    if last_event_id:
+        try:
+            return max(0, int(last_event_id))
+        except ValueError:
+            pass
+    return store.latest_event_id()
+
+
 def create_app(
     root: Path, *, settings: Settings | None = None, start_scheduler: bool = True
 ) -> FastAPI:
@@ -191,6 +228,7 @@ def create_app(
         redoc_url=None,
         openapi_url=None,
     )
+    inline_script_hashes: tuple[str, ...] = ()
 
     @app.middleware("http")
     async def prevent_stale_operator_pages(request: Request, call_next):
@@ -258,8 +296,11 @@ def create_app(
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
+        script_policy = "script-src 'self'"
+        if inline_script_hashes:
+            script_policy += " " + " ".join(inline_script_hashes)
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; connect-src 'self' ws: wss:; "
+            "default-src 'self'; " + script_policy + "; connect-src 'self' ws: wss:; "
             "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
             "worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
         )
@@ -493,11 +534,15 @@ def create_app(
         return {"accepted": True, "rows": payload.rows, "cols": payload.cols}
 
     @app.get("/api/v1/events")
-    async def events(request: Request, after: int = 0):
+    async def events(
+        request: Request,
+        after: Annotated[int | None, Query(ge=0)] = None,
+        last_event_id: Annotated[str | None, Header(alias="Last-Event-ID")] = None,
+    ):
         await can_read(request)
 
         async def stream():
-            cursor = after
+            cursor = _initial_event_cursor(store, after, last_event_id)
             while True:
                 if await request.is_disconnected():
                     return
@@ -866,6 +911,7 @@ def create_app(
     )
     dist = next((candidate.resolve() for candidate in dist_candidates if candidate.is_dir()), None)
     if dist is not None:
+        inline_script_hashes = _inline_script_csp_hashes(dist / "index.html")
         app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
 
         @app.get("/api/v1/system/ui-revision", include_in_schema=False)

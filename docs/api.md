@@ -34,6 +34,8 @@
 | `GET` | `/events` | 从事件 ID 之后订阅 SSE | signed-client、admin 或按匿名设置 |
 | `WS` | `/tasks/{task_id}/terminal` | 终端输出；管理员可输入和调尺寸 | readonly 或 admin |
 
+`GET /events` 默认从建立连接时的最新事件开始，只推送随后发生的事件，避免新页面重放全部历史。需要补读时显式传 `after=<event_id>`；浏览器断线重连可使用标准 `Last-Event-ID`。显式 `after` 的优先级最高。
+
 创建任务示例：
 
 ```json

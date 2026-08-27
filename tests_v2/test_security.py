@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import json
@@ -11,7 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from localflow.api import create_app
+from localflow.api import _initial_event_cursor, _inline_script_csp_hashes, create_app
 from localflow.auth import AuthManager
 from localflow.settings import ExecutionSettings, ServerSettings, Settings
 
@@ -90,6 +91,51 @@ def test_spa_fallback_never_masks_unknown_api_or_escapes_dist(
         assert unknown_api.status_code == 404
         assert unknown_api.headers["content-type"].startswith("application/json")
         assert browser.get("/%2e%2e/private.txt").status_code == 404
+
+
+def test_final_spa_inline_loader_is_allowed_by_exact_csp_hash(
+    root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dist = tmp_path / "frontend"
+    dist.mkdir()
+    (dist / "assets").mkdir()
+    loader = "System.import('./assets/index-legacy.js')"
+    index = dist / "index.html"
+    index.write_bytes(
+        (
+            "<script src='./compat-boot.js'></script><main>app</main>"
+            "<script id='vite-legacy-entry' data-src='./assets/index-legacy.js'>"
+            + loader
+            + "</script>"
+        ).encode("utf-8")
+    )
+    expected = "'sha256-" + base64.b64encode(
+        hashlib.sha256(loader.encode("utf-8")).digest()
+    ).decode() + "'"
+    assert _inline_script_csp_hashes(index) == (expected,)
+
+    monkeypatch.setenv("LOCALFLOW_WEB_DIST", str(dist))
+    settings = Settings(
+        server=ServerSettings(anonymous_access="summary"),
+        execution=ExecutionSettings(backend="subprocess"),
+    )
+    app = create_app(root, settings=settings, start_scheduler=False)
+    with TestClient(app) as browser:
+        policy = browser.get("/").headers["content-security-policy"]
+        assert "script-src 'self' " + expected in policy
+
+
+def test_event_stream_starts_live_but_honours_explicit_resume_cursor(root: Path) -> None:
+    settings = Settings(execution=ExecutionSettings(backend="subprocess"))
+    app = create_app(root, settings=settings, start_scheduler=False)
+    store = app.state.store
+    first = store.append_event(None, "config.changed", {"path": "first.yaml"})
+    latest = store.append_event(None, "config.changed", {"path": "latest.yaml"})
+
+    assert _initial_event_cursor(store, None, None) == latest
+    assert _initial_event_cursor(store, 0, None) == 0
+    assert _initial_event_cursor(store, None, str(first)) == first
+    assert _initial_event_cursor(store, None, "invalid") == latest
 
 
 def test_hmac_signature_nonce_replay_and_terminal_rotation(client: TestClient, root: Path) -> None:

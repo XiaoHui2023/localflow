@@ -55,6 +55,7 @@ test("Ubuntu browser can operate the released web console", async ({ page, brows
 
   await page.goto("/", { waitUntil: "networkidle" });
   expect(await page.evaluate(() => window.isSecureContext)).toBeFalsy();
+  expect(await page.evaluate(() => window.__localflowBootErrors || [])).toEqual([]);
   await expect(page.locator("#root")).not.toBeEmpty();
   await expect(page.getByRole("tab")).toHaveText(["任务", "设置"]);
   await page.getByRole("tab", { name: "设置" }).click();
@@ -104,6 +105,7 @@ test("Ubuntu browser can operate the released web console", async ({ page, brows
   await page.getByRole("tab", { name: "设置" }).click();
   await expect(page.getByLabel("时间校准", { exact: true })).toBeVisible();
   expect(eventResponses).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.__localflowBootErrors || [])).toEqual([]);
   const evidence = process.env.LOCALFLOW_COMPAT_EVIDENCE;
   if (evidence) {
     fs.mkdirSync(evidence, { recursive: true });

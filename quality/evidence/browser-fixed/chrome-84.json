@@ -1,0 +1,12 @@
+{
+  "result": "passed",
+  "project": "chrome-84",
+  "browser_name": "chrome",
+  "browser_version": "84.0.4147.105",
+  "operating_system": "ubuntu-container",
+  "base_url": "http://192.168.1.118:50828",
+  "source_commit": null,
+  "boot_errors": [],
+  "console_errors": [],
+  "console_log_supported": true
+}

@@ -89,6 +89,25 @@ def test_release_runs_final_binary_in_ubuntu_chrome_and_firefox() -> None:
     assert "console_errors" in spec
     assert "failed_requests" in spec
     assert "terminal-compat-ready" in spec
+    vite = (root / "frontend" / "vite.config.js").read_text(encoding="utf-8")
+    legacy = (root / "frontend" / "e2e" / "legacy-browser.mjs").read_text(
+        encoding="utf-8"
+    )
+    compatibility_boot = (root / "frontend" / "public" / "compat-boot.js").read_text(
+        encoding="utf-8"
+    )
+    assert '@vitejs/plugin-legacy' in vite
+    assert '"Chrome >= 79"' in vite
+    assert '"Firefox >= 78"' in vite
+    assert "renderModernChunks: false" in vite
+    assert "localflow-monaco-legacy-regexp-indices" in vite
+    assert "match.index + match[0].length - match[1].length" in vite
+    assert 'typeof window.WeakRef !== "function"' in compatibility_boot
+    assert "prototype.deref" in compatibility_boot
+    assert "selenium/standalone-chrome:84.0" in runner
+    assert "selenium/standalone-firefox:78.0" in runner
+    assert "__localflowBootErrors" in legacy
+    assert ".monaco-editor" in legacy
 
 
 def test_release_bundle_preserves_secure_runtime_directory_modes() -> None:

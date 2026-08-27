@@ -392,6 +392,10 @@ class Store:
             for row in rows
         ]
 
+    def latest_event_id(self) -> int:
+        row = self._db.execute("SELECT COALESCE(MAX(id), 0) FROM events").fetchone()
+        return int(row[0])
+
     def latest_event(self, kind: str) -> EventRecord | None:
         row = self._db.execute(
             "SELECT * FROM events WHERE kind=? ORDER BY id DESC LIMIT 1", (kind,)
