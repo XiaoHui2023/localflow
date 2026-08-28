@@ -40,13 +40,18 @@ jobs:
           cleanup() { docker rm -f "$container" >/dev/null 2>&1 || true; }
           trap cleanup EXIT
           docker build -f tests_target/Dockerfile.systemd -t "$image" .
-          docker run --privileged --name "$container" -d \
+          docker run --privileged --cgroupns=host --name "$container" -d \
             --tmpfs /run --tmpfs /run/lock \
             -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
             -v "$PWD:/work" "$image"
           for attempt in $(seq 1 60); do
-            docker exec "$container" systemctl is-system-running --wait >/dev/null 2>&1 && break
-            test "$attempt" -lt 60 || { docker logs "$container"; exit 1; }
+            state="$(docker exec "$container" systemctl is-system-running 2>/dev/null || true)"
+            case "$state" in running|degraded) break ;; esac
+            test "$attempt" -lt 60 || {
+              docker logs "$container"
+              docker exec "$container" systemctl --failed --no-pager || true
+              exit 1
+            }
             sleep 1
           done
           docker exec "$container" bash -lc '

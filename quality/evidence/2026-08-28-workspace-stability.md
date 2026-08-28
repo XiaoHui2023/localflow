@@ -17,6 +17,8 @@
 
 The release workflow repeats these checks on Ubuntu, runs the systemd/PTY target suite, executes the final static binary on legacy CPU models, and opens that same binary with current Chrome/Firefox plus fixed Chrome 84/Firefox 78 before publishing.
 
+The first hosted run stopped at the systemd container readiness gate. A new local container proved all 106 tests still passed, isolating the difference to the hosted runner's cgroup namespace/readiness state. The workflow now shares the host cgroup namespace explicitly, accepts both systemd `running` and `degraded` as readiness states, prints failed units on timeout, and still requires the functional PTY/cgroup tests to pass before packaging.
+
 ## Final local and target results
 
 - Windows source suite: 94 passed, 4 skipped; Ruff, dependency audit and `git diff --check` passed.
