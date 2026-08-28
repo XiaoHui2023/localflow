@@ -31,3 +31,5 @@
 ## Release gate correction
 
 The first pushed revision was correctly rejected by the Release source-quality step because Ruff found two import-order violations. Local pytest and browser gates did not cover that workflow command. The imports were fixed, the full Ruff target list passed, and the project skill now requires mirroring every Release source-quality command before a release commit. This failure did not reach the publish job and did not replace the existing Release assets.
+
+The next clean-Linux reproduction exposed an oracle escape in the pre-existing terminal test: it searched the entire log for the substring `ready`, but the new queue record intentionally contains the complete command, including that source-code literal. The test now waits for an exact `ready` output line before sending Ctrl+C. This distinguishes process output from lifecycle metadata and prevents a premature signal from masquerading as a terminal-control regression.

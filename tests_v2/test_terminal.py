@@ -85,7 +85,7 @@ def test_terminal_http_api_controls_and_fresh_offset_log(root: Path) -> None:
         first = None
         while time.monotonic() < deadline:
             first = client.get(f"/api/v1/tasks/{task_id}/logs?offset=0&limit=1024").json()
-            if b"ready" in base64.b64decode(first["data"]):
+            if b"ready" in base64.b64decode(first["data"]).splitlines():
                 break
             time.sleep(0.02)
         assert first is not None
