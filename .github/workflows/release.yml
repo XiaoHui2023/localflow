@@ -52,15 +52,11 @@ jobs:
           extract_dir="$(mktemp -d)"
           tar -xzf "dist/localflow-${version}-linux-x86_64.tar.gz" -C "$extract_dir"
           bundle="$extract_dir/localflow-${version}-linux-x86_64"
-          test -f "$bundle/config/tasks/random-number.yaml"
-          test -f "$bundle/config/tasks/verification-demo.yaml"
-          test -f "$bundle/config/tasks/marker-warning.yaml"
-          test -f "$bundle/config/tasks/interactive-shutdown.yaml"
-          test -f "$bundle/config/shared/task-defaults.yaml"
-          test -f "$bundle/plugins/declarative.py"
+          test -f "$bundle/localflow.yaml"
+          test -f "$bundle/config/command/hello-world.yaml"
+          test -f "$bundle/config/verification/demo.yaml"
+          test -f "$bundle/plugins/command.py"
           test -f "$bundle/plugins/verification.py"
-          test -f "$bundle/plugins/marker.py"
-          test -f "$bundle/plugins/interactive.py"
           test -f "$bundle/plugins/README.md"
           test -f "$bundle/docs/api.md"
           test -f "$bundle/docs/configuration.md"
@@ -75,11 +71,14 @@ jobs:
           test "$(stat -c '%a' "$bundle/secrets")" = 700
           test "$(stat -c '%a' "$bundle/runtime")" = 750
           test "$(stat -c '%a' "$bundle/runtime/instances")" = 750
-          test -x "$bundle/scripts/random_number.py"
           test -x "$bundle/scripts/simulate.py"
-          test -x "$bundle/scripts/marker_result.py"
-          test -x "$bundle/scripts/interactive_shutdown.py"
-          (cd "$bundle" && python3 scripts/random_number.py)
+          test ! -e "$bundle/plugins/marker.py"
+          test ! -e "$bundle/plugins/interactive.py"
+          test ! -e "$bundle/plugins/declarative.py"
+          test ! -e "$bundle/scripts/marker_result.py"
+          test ! -e "$bundle/scripts/interactive_shutdown.py"
+          (cd "$bundle" && /bin/sh -c "printf 'hello world\\n' > hello-world.txt")
+          test "$(cat "$bundle/hello-world.txt")" = "hello world"
           python3 tools/run_frozen_smoke.py --binary "$bundle/localflow" --bundle-root "$bundle"
       - name: Install Ubuntu Chrome and Firefox for release UI gate
         run: npm --prefix frontend exec -- playwright install --with-deps chrome firefox

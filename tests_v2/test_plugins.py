@@ -192,39 +192,28 @@ def test_plugin_schema_rejects_common_field_collision(root: Path) -> None:
     assert "overlap common fields" in next(iter(registry.diagnostics.values()))
 
 
-def test_declarative_task_resolves_config_and_run_inputs(root: Path) -> None:
+def test_command_task_resolves_config_variables(root: Path) -> None:
     initialize_root(root)
-    template = root / "config" / "tasks" / "job.json"
-    template.write_text(
-        """{
-          "name": "${name}",
-          "working_directory": "${runtime_root}",
-          "command": ["echo", "${message}"],
-          "labels": ["${label}"],
-          "mutex_keys": ["license:${label}"],
-          "custom": {"report": "${message}.txt"},
-          "project": "demo",
-          "variables": {"name": "configured-job"}
-        }""",
-        encoding="utf-8",
-    )
-    (root / "config" / "variables.yaml").write_text(
-        "global: {}\nprojects:\n  demo:\n    label: nightly\n", encoding="utf-8"
-    )
     registry = PluginRegistry(root / "plugins")
     registry.load()
-    assert "job.json" in registry.plugins["declarative"].instance.discover({})
-    task = registry.expand(
-        "declarative",
-        {"task": "job.json", "inputs": {"message": "hello"}},
+    task = registry.expand_config(
+        {
+            "plugin": "command",
+            "name": "${name}",
+            "working_directory": ".",
+            "command": ["echo", "${message}"],
+            "labels": ["${label}"],
+            "mutex_keys": ["license:${label}"],
+            "variables": {"name": "configured-job", "message": "hello", "label": "nightly"},
+        },
+        {},
         {"root": str(root)},
     )[0]
     assert task.name == "configured-job"
     assert task.command == ["echo", "hello"]
     assert task.labels == ["nightly"]
     assert task.mutex_keys == ["license:nightly"]
-    assert task.custom["report"] == "hello.txt"
-    assert task.plugin_snapshot["name"] == "declarative"
+    assert task.plugin_snapshot["name"] == "command"
 
 
 def test_plugin_descriptions_have_user_facing_names(root: Path) -> None:
@@ -234,7 +223,7 @@ def test_plugin_descriptions_have_user_facing_names(root: Path) -> None:
     descriptions = {item["name"]: item for item in registry.describe()}
     assert descriptions["command"]["title"] == "命令"
     assert descriptions["verification"]["title"] == "验证仿真"
-    assert descriptions["marker"]["statuses"]["warning"]["label"] == "需要关注"
+    assert set(descriptions) == {"command", "verification"}
 
 
 def test_every_builtin_plugin_publishes_a_runnable_api_example(root: Path) -> None:

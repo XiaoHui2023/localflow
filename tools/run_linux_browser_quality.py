@@ -117,8 +117,7 @@ def main() -> int:
         binary = root / "localflow"
         shutil.copy2(source, binary)
         binary.chmod(0o755)
-        config = root / "config" / "server.yaml"
-        config.parent.mkdir(parents=True)
+        config = root / "localflow.yaml"
         config.write_text(
             "server:\n  bind: 0.0.0.0\n  port: 0\n  anonymous_access: summary\n"
             "execution:\n  backend: subprocess\n  max_concurrency: 1\n"

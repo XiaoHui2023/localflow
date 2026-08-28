@@ -1,7 +1,0 @@
-labels: [example]
-mutex_keys: []
-custom:
-  source: starter
-variables:
-  scripts_dir: "${root}/scripts"
-  cases_dir: "${root}/cases"

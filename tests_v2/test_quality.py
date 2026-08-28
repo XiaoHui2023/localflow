@@ -32,17 +32,10 @@ def test_release_workflow_tracks_the_current_starter_examples() -> None:
     workflow = (root / ".github" / "workflows" / "release.yml").read_text(
         encoding="utf-8"
     )
-    for required in (
-        "random-number.yaml",
-        "verification-demo.yaml",
-        "marker-warning.yaml",
-        "interactive-shutdown.yaml",
-        "random_number.py",
-        "simulate.py",
-        "marker_result.py",
-        "interactive_shutdown.py",
-    ):
+    for required in ("hello-world.yaml", "demo.yaml", "simulate.py", "command.py"):
         assert required in workflow
+    for forbidden in ("marker.py", "interactive.py", "marker_result.py", "interactive_shutdown.py"):
+        assert forbidden in workflow and "test ! -e" in workflow
     assert "heartbeat.yaml" not in workflow
     assert "heartbeat.py" not in workflow
     assert "heartbeat.yaml" not in (root / "docs" / "configuration.md").read_text(
@@ -169,13 +162,11 @@ def test_agent_skills_are_release_safe_and_packaged() -> None:
         assert f"skills/{name}/SKILL.md" in workflow
 
 
-def test_repository_verification_plugin_keeps_runtime_seed_contract() -> None:
+def test_packaged_verification_plugin_keeps_runtime_seed_contract() -> None:
     root = Path(__file__).parents[1]
-    source = (root / "plugins" / "verification.py").read_text(encoding="utf-8")
-    packaged_source = (
+    source = (
         root / "src" / "localflow" / "builtin_plugins" / "verification.py.example"
     ).read_text(encoding="utf-8")
-    assert source == packaged_source
     assert "import secrets" not in source
     assert 'seed = "${seed}" if automatic_seed' in source
     assert '"_runtime_seed": "unix"' in source

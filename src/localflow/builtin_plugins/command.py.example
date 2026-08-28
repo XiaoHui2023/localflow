@@ -1,0 +1,62 @@
+from __future__ import annotations
+
+from pydantic import BaseModel, ConfigDict
+
+from localflow.models import TaskCreate
+from localflow.plugins import plugin
+
+
+class CommandConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+@plugin("command", version="1")
+class Command:
+    """Run one configured command without exposing extra run-time controls."""
+
+    config_model = CommandConfig
+    required_common_fields = {"name", "working_directory", "command"}
+    title = "命令"
+    description = "在指定目录执行一条命令"
+    instructions = "配置名称、工作目录和参数数组命令，然后直接运行。"
+    example = {
+        "plugin": "command",
+        "name": "hello-world",
+        "working_directory": ".",
+        "command": ["sh", "-c", "printf 'hello world\\n' > hello-world.txt"],
+    }
+    statuses = {
+        "waiting": {"label": "等待", "tone": "neutral", "finished": False},
+        "starting": {"label": "启动中", "tone": "info", "finished": False},
+        "running": {"label": "运行中", "tone": "info", "finished": False},
+        "stopping": {"label": "退出中", "tone": "warning", "finished": False},
+        "completed": {"label": "已完成", "tone": "success", "finished": True},
+        "error": {"label": "执行错误", "tone": "danger", "finished": True},
+        "stopped": {"label": "已停止", "tone": "warning", "finished": True},
+        "lost": {"label": "状态丢失", "tone": "danger", "finished": True},
+    }
+    lifecycle_statuses = {
+        "queued": "waiting",
+        "starting": "starting",
+        "running": "running",
+        "stopping": "stopping",
+        "lost": "lost",
+    }
+    result_statuses = {0: "completed", "default": "error"}
+    interrupt_status = "stopped"
+    run_fields = []
+
+    def expand(self, values, _context):
+        fields = {
+            key: values[key]
+            for key in (
+                "name",
+                "working_directory",
+                "command",
+                "labels",
+                "mutex_keys",
+                "custom",
+            )
+            if key in values
+        }
+        return [TaskCreate.model_validate(fields)]

@@ -31,4 +31,4 @@ Fit 监听实际终端容器，不监听窗口猜测宽度。1440px、760px 和 
 
 默认协议为 SIGINT、SIGTERM、SIGKILL。生产执行器以 systemd transient unit 持有完整 cgroup；主程序退出且 cgroup 为空后任务才进入终态。所有柔和动作耗尽仍存活时，核心清理整个 cgroup，避免后台子进程残留。开发执行器只用于 Windows 与普通 Linux 测试，不能替代 Ubuntu systemd 验收。
 
-初始化后的 `interactive-shutdown.yaml` 是完整练习：脚本持续打印，`echo <内容>` 会回显，Ctrl+C 后可输入 `status`、`resume` 或 `quit`，Ctrl+D 关闭标准输入并直接退出；停止图标则按插件协议等待提示、发送 quit、等待保存并最终确认无残留进程。管道开发后端把单独的 `0x04` 转换为关闭 stdin，Ubuntu PTY 后端保留真实终端 Ctrl+D 语义。
+质检夹具中的交互任务会持续打印，`echo <内容>` 会回显，Ctrl+C 后可输入 `status`、`resume` 或 `quit`，Ctrl+D 关闭标准输入并直接退出；停止图标则按插件协议等待提示、发送 quit、等待保存并最终确认无残留进程。该夹具不进入首启目录或发布包。管道开发后端把单独的 `0x04` 转换为关闭 stdin，Ubuntu PTY 后端保留真实终端 Ctrl+D 语义。

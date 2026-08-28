@@ -7,7 +7,7 @@ from localflow import cli
 from localflow import executor as executor_module
 from localflow.executor import SystemdExecutor
 from localflow.models import TaskCreate
-from localflow.settings import initialize_root
+from localflow.settings import initialize_root, load_settings
 from localflow.storage import Store
 
 
@@ -19,8 +19,9 @@ def test_source_entry_uses_current_directory(monkeypatch, tmp_path: Path) -> Non
 
 def test_new_root_defaults_to_lan_listener(tmp_path: Path) -> None:
     initialize_root(tmp_path)
-    config = (tmp_path / "config" / "server.yaml").read_text(encoding="utf-8")
-    assert "bind: 0.0.0.0" in config
+    config = (tmp_path / "localflow.yaml").read_text(encoding="utf-8")
+    assert "bind:" not in config
+    assert load_settings(tmp_path).server.bind == "0.0.0.0"
 
 
 def test_frozen_entry_uses_executable_directory(monkeypatch, tmp_path: Path) -> None:

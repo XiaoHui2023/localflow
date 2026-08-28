@@ -122,7 +122,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="localflow-browser-qa-") as temporary:
         root = Path(temporary) / "root"
         initialize_root(root)
-        settings_path = root / "config" / "server.yaml"
+        settings_path = root / "localflow.yaml"
         settings = yaml.safe_load(settings_path.read_text(encoding="utf-8"))
         settings["execution"].update(
             {
@@ -133,17 +133,20 @@ def main() -> int:
             }
         )
         settings_path.write_text(yaml.safe_dump(settings, sort_keys=False), encoding="utf-8")
-        for name in ("marker-warning.yaml", "verification-demo.yaml"):
-            task_path = root / "config" / "tasks" / name
-            task = load_config_raw(task_path)
-            task["command"][0] = sys.executable
-            task_path.write_text(
-                yaml.safe_dump(task, allow_unicode=True, sort_keys=False), encoding="utf-8"
-            )
+        task_path = root / "config" / "verification" / "demo.yaml"
+        task = load_config_raw(task_path)
+        task["command"][0] = sys.executable
+        task_path.write_text(
+            yaml.safe_dump(task, allow_unicode=True, sort_keys=False), encoding="utf-8"
+        )
         (root / "qa-cases" / "case-a").mkdir(parents=True)
         (root / "qa-cases" / "case-b").mkdir(parents=True)
-        (root / "config" / "tasks" / "qa-invalid.yaml").write_text(
+        (root / "config" / "command" / "qa-invalid.yaml").write_text(
             "plugin: command\nlabels: wrong\n", encoding="utf-8"
+        )
+        (root / "config" / "shared").mkdir()
+        (root / "config" / "shared" / "qa-defaults.yaml").write_text(
+            "labels: [qa]\n", encoding="utf-8"
         )
         (root / "plugins" / "generic_picker.py").write_text(
             """from pydantic import BaseModel, ConfigDict, Field
@@ -194,7 +197,8 @@ class GenericPicker:
 """,
             encoding="utf-8",
         )
-        (root / "config" / "tasks" / "generic-picker.yaml").write_text(
+        (root / "config" / "generic-picker").mkdir()
+        (root / "config" / "generic-picker" / "demo.yaml").write_text(
             yaml.safe_dump(
                 {
                     "plugin": "generic-picker",

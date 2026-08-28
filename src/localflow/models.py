@@ -204,8 +204,9 @@ class RunCreate(BaseModel):
                 "configuration": {
                     "plugin": "verification",
                     "name": "smoke",
-                    "case_directory": "${root}/cases",
-                    "command": ["python3", "${root}/scripts/simulate.py", "--case", "${case}"],
+                    "case_directory": "cases",
+                    "working_directory": ".",
+                    "command": ["python3", "scripts/simulate.py", "--case", "${case}"],
                 },
                 "inputs": {"cases": ["smoke"], "case_runs": {"smoke": 2}},
             }

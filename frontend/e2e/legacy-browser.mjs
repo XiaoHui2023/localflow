@@ -38,8 +38,9 @@ try {
   await driver.wait(async () => (await driver.findElements(By.css("[role='tab']"))).length === 4, 10_000);
   step = "open configuration";
   await driver.findElement(By.xpath("//*[@role='tab' and normalize-space()='运行']")).click();
-  const config = await driver.wait(until.elementLocated(By.css("[data-file='server.yaml']")), 20_000);
+  const config = await driver.wait(until.elementLocated(By.css("[data-file='command/hello-world.yaml']")), 20_000);
   await config.click();
+  await driver.findElement(By.xpath("//button[normalize-space()='编辑']")).click();
   await driver.wait(until.elementLocated(By.css(".monaco-editor")), 30_000);
   step = "collect diagnostics";
   const { bootErrors, consoleErrors, consoleLogSupported } = await diagnostics();

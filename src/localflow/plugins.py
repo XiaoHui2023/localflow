@@ -4,6 +4,8 @@ import asyncio
 import hashlib
 import importlib.util
 import inspect
+import shlex
+import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -51,6 +53,19 @@ class RunFieldSpec(BaseModel):
         elif self.count_field or self.default_count_field:
             raise ValueError("count fields are only valid for case-picker")
         return self
+
+
+class InspectionItem(BaseModel):
+    """One read-only value shown while preparing a configured run."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, pattern=r"^[A-Za-z_][A-Za-z0-9_]*$")
+    label: str | None = Field(default=None, min_length=1, max_length=80)
+    value: str
+    kind: Literal["text", "path", "command"] = "text"
+    severity: Literal["ok", "info", "warning", "error"] = "info"
+    message: str | None = None
 
 
 def run_field(name: str, component: str, **options: Any) -> dict[str, Any]:
@@ -366,6 +381,67 @@ class PluginRegistry:
         self._validate_inputs(name, overrides)
         values = self._config_values(document, overrides, context)
         return await self.discover(name, values, context, timeout_seconds)
+
+    @staticmethod
+    def _common_inspection(values: dict[str, Any], context: dict[str, Any]) -> list[dict[str, Any]]:
+        root = Path(context["root"])
+        directory_value = str(values.get("working_directory", "."))
+        directory = Path(directory_value)
+        if not directory.is_absolute():
+            directory = root / directory
+        directory = directory.resolve()
+        directory_ok = directory.is_dir()
+        items = [{
+            "name": "working_directory",
+            "label": "工作目录",
+            "value": str(directory),
+            "kind": "path",
+            "severity": "ok" if directory_ok else "error",
+            "message": None if directory_ok else "找不到工作目录",
+        }]
+        command = values.get("command")
+        if isinstance(command, list) and command:
+            executable = str(command[0])
+            executable_path = Path(executable)
+            found = (
+                (directory / executable_path).is_file()
+                if executable_path.parent != Path(".")
+                else shutil.which(executable) is not None
+            )
+            items.append({
+                "name": "command",
+                "label": "命令",
+                "value": shlex.join(str(part) for part in command),
+                "kind": "command",
+                "severity": "ok" if found else "error",
+                "message": None if found else f"找不到命令入口：{executable}",
+            })
+        return items
+
+    async def inspect_config(
+        self,
+        document: dict[str, Any],
+        overrides: dict[str, Any],
+        context: dict[str, Any],
+        timeout_seconds: float = 5,
+    ) -> list[dict[str, Any]]:
+        name = document.get("plugin")
+        if not isinstance(name, str) or not name:
+            raise ValueError("task configuration must name a plugin")
+        self._validate_inputs(name, overrides)
+        values = self._config_values(document, overrides, context)
+        raw = self._common_inspection(values, context)
+        method = getattr(self.plugins[name].instance, "inspect", None)
+        if callable(method):
+            parameters = inspect.signature(method).parameters
+            args = (values, context) if len(parameters) >= 2 else (values,)
+            extra = await asyncio.wait_for(
+                asyncio.to_thread(method, *args), timeout=timeout_seconds
+            )
+            if not isinstance(extra, list):
+                raise TypeError("plugin inspect must return a list")
+            raw.extend(extra)
+        return [InspectionItem.model_validate(item).model_dump() for item in raw]
 
     def evaluate_result(
         self, task: TaskRecord, context: dict[str, Any]

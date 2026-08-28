@@ -4,7 +4,7 @@
   "browser_name": "firefox",
   "browser_version": "78.0.2",
   "operating_system": "ubuntu-container",
-  "base_url": "http://192.168.1.118:50828",
+  "base_url": "http://192.168.1.118:18911",
   "source_commit": null,
   "boot_errors": [],
   "console_errors": [],

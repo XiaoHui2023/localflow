@@ -75,10 +75,11 @@ class Verification:
     instructions = "配置 Case 目录和仿真命令。使用时选择一个或多个 Case；每个 Case 的每次运行都会成为独立任务。"
     example = {
         "plugin": "verification",
-        "case_directory": "${root}/cases",
+        "case_directory": "cases",
         "cases": [],
         "runs": 1,
-        "command": ["python3", "-u", "${scripts_dir}/simulate.py"],
+        "working_directory": ".",
+        "command": ["python3", "-u", "scripts/simulate.py"],
         "mutex_keys": ["simulator:demo"],
     }
     api_inputs = {
@@ -132,9 +133,54 @@ class Verification:
             }
         )
 
-    def discover(self, values, _context):
-        root = Path(values.get("case_directory", values.get("case_root", "")))
+    @staticmethod
+    def _path(value, context):
+        path = Path(value)
+        return path if path.is_absolute() else Path(context["root"]) / path
+
+    def discover(self, values, context):
+        root = self._path(
+            values.get("case_directory", values.get("case_root", "")), context
+        )
         return self._case_names(root)
+
+    def inspect(self, values, context):
+        case_root = self._path(
+            values.get("case_directory", values.get("case_root", "")), context
+        ).resolve()
+        if case_root.is_dir():
+            count = len(self._case_names(case_root))
+            severity = "ok"
+            message = f"已发现 {count} 个 Case" if count else "目录存在，但没有可用 Case"
+            if count == 0:
+                severity = "warning"
+        else:
+            severity = "error"
+            message = "找不到 Case 目录"
+        items = [{
+            "name": "case_directory",
+            "label": "Case 目录",
+            "value": str(case_root),
+            "kind": "path",
+            "severity": severity,
+            "message": message,
+        }]
+        command = values.get("command", [])
+        script_value = next((str(part) for part in command[1:] if str(part).endswith(".py")), None)
+        if script_value:
+            working = self._path(values.get("working_directory", "."), context)
+            script = Path(script_value)
+            script = script if script.is_absolute() else (working / script).resolve()
+            exists = script.is_file()
+            items.append({
+                "name": "command_file",
+                "label": "脚本",
+                "value": str(script),
+                "kind": "path",
+                "severity": "ok" if exists else "error",
+                "message": None if exists else "找不到命令脚本",
+            })
+        return items
 
     def evaluate_result(self, task, _context):
         compile_logs = [Path(value) for value in task.custom.get("_compile_logs", [])]
@@ -157,12 +203,10 @@ class Verification:
         }
 
     def expand(self, values, context):
-        root_resolver = VariableResolver(
-            [("root", {"root": context["root"], "scripts_dir": str(Path(context["root"]) / "scripts")})]
-        )
-        case_root = Path(
-            root_resolver.resolve(values.get("case_directory", values.get("case_root", "")))
+        case_root = self._path(
+            values.get("case_directory", values.get("case_root", "")), context
         ).resolve()
+        working_directory = self._path(values.get("working_directory", "."), context).resolve()
         available = set(self._case_names(case_root))
         if not values.get("cases"):
             raise ValueError("at least one case is required")
@@ -205,7 +249,7 @@ class Verification:
                 tasks.append(
                     TaskCreate(
                         name=case_name,
-                        working_directory=str(case_root),
+                        working_directory=str(working_directory),
                         command=command,
                         labels=labels,
                         mutex_keys=list(dict.fromkeys(mutex_keys)),

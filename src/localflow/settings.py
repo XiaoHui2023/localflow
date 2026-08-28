@@ -78,8 +78,8 @@ class Settings(BaseModel):
 def initialize_root(root: Path) -> None:
     for relative, mode in (
         ("config", 0o750),
-        ("config/tasks", 0o750),
-        ("config/shared", 0o750),
+        ("config/command", 0o750),
+        ("config/verification", 0o750),
         ("scripts", 0o750),
         ("plugins", 0o750),
         ("runtime/instances", 0o750),
@@ -92,49 +92,29 @@ def initialize_root(root: Path) -> None:
         path.mkdir(parents=True, exist_ok=True)
         if os.name != "nt" and (created or relative != "secrets"):
             os.chmod(path, mode)
-    config = root / "config" / "server.yaml"
+    config = root / "localflow.yaml"
+    legacy_config = root / "config" / "server.yaml"
+    if legacy_config.is_file() and not config.exists():
+        legacy_config.replace(config)
     if not config.exists():
         config.write_text(
+            "# LocalFlow reads this file only when it starts. Restart after editing.\n"
             "server:\n"
-            "  bind: 0.0.0.0\n"
+            "  # 0 asks Ubuntu for an available port; use 1-65535 for a fixed port.\n"
             "  port: 0\n"
-            "  anonymous_access: summary\n"
             "execution:\n"
+            "  # systemd keeps tasks alive while the LocalFlow web service restarts.\n"
             "  backend: systemd\n"
-            "  max_concurrency: 4\n"
             "retention:\n"
-            "  task_days: 3\n"
-            "logging:\n"
-            "  level: info\n"
-            "  service_file_mb: 10\n"
-            "  service_files: 5\n"
-            "  task_file_mb: 100\n"
-            "  task_total_mb: 4096\n"
-            "  keep_free_mb: 512\n"
-            "  database_mb: 512\n"
-            "  wal_mb: 16\n"
-            "time:\n"
-            "  display_timezone: UTC\n"
-            "  privileged_helper:\n"
-            "    - /usr/bin/sudo\n"
-            "    - -n\n"
-            "    - /usr/libexec/localflow-set-time.py\n",
+            "  # One duration covers task details and terminal output.\n"
+            "  task_days: 3\n",
             encoding="utf-8",
         )
-    variables = root / "config" / "variables.yaml"
-    if not variables.exists():
-        variables.write_text("global: {}\nprojects: {}\n", encoding="utf-8")
     starter = files("localflow.starter_root")
     for relative in (
-        "config/shared/task-defaults.yaml",
-        "config/tasks/random-number.yaml",
-        "config/tasks/verification-demo.yaml",
-        "config/tasks/marker-warning.yaml",
-        "config/tasks/interactive-shutdown.yaml",
-        "scripts/random_number.py",
+        "config/command/hello-world.yaml",
+        "config/verification/demo.yaml",
         "scripts/simulate.py",
-        "scripts/marker_result.py",
-        "scripts/interactive_shutdown.py",
         "cases/case-a/README.txt",
         "cases/case-b/README.txt",
         "cases/smoke.case",
@@ -146,7 +126,7 @@ def initialize_root(root: Path) -> None:
             destination.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
             if os.name != "nt" and relative.startswith("scripts/"):
                 os.chmod(destination, 0o750)
-    for name in ("verification.py", "declarative.py", "marker.py", "interactive.py"):
+    for name in ("verification.py", "command.py"):
         example = root / "plugins" / name
         if not example.exists():
             source = files("localflow.builtin_plugins").joinpath(f"{name}.example")
@@ -162,7 +142,7 @@ def initialize_root(root: Path) -> None:
 
 
 def load_settings(root: Path) -> Settings:
-    path = root / "config" / "server.yaml"
+    path = root / "localflow.yaml"
     if not path.exists():
         return Settings()
     return Settings.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")) or {})

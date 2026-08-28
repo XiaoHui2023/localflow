@@ -62,8 +62,9 @@
   "configuration": {
     "plugin": "verification",
     "name": "smoke",
-    "case_directory": "${root}/cases",
-    "command": ["python3", "${root}/scripts/simulate.py", "--case", "${case}"]
+    "case_directory": "cases",
+    "working_directory": ".",
+    "command": ["python3", "scripts/simulate.py", "--case", "${case}"]
   },
   "inputs": {
     "cases": ["case-a", "case-b"],
@@ -101,7 +102,7 @@
 | `POST` | `/config/files/{path}/discover` | 用该配置调用插件发现钩子 | signed-client 或 admin |
 | `POST` | `/config/files/{path}/runs` | 运行诊断通过的配置 | signed-client 或 admin |
 
-配置读取的 `diagnosis` 返回 `kind`（`generic`、`fragment` 或 `task`）、`valid`、`runnable`、`plugin`、已出现的公共字段、错误和警告。插件名只取自配置顶层 `plugin`。保存先验证语法、受限导入和分层字段；`server.yaml` 还会完整执行设置模型语义验证。随后同目录写临时文件、`fsync` 并原子替换。版本不符返回 `412`，无效配置返回 `422`。外部写入的无效文件仍可由 GET 读取原文和诊断。
+配置读取的 `diagnosis` 返回 `kind`（`generic`、`fragment` 或 `task`）、`valid`、`runnable`、`plugin`、已出现的公共字段、错误和警告。插件名只取自配置顶层 `plugin`。保存先验证语法、受限导入和分层字段，随后同目录写临时文件、`fsync` 并原子替换。版本不符返回 `412`，无效配置返回 `422`。外部写入的无效文件仍可由 GET 读取原文和诊断。`POST /api/v1/config/files/{path}/inspection` 接受与运行相同的 `inputs`，返回只读检查项 `{name,label,value,kind,severity,message}`；它与发现钩子一样有五秒上限，不创建任务。
 
 这些接口覆盖配置的创建、读取、保存、移动、重命名、删除、诊断、发现与运行。无需保存文件时使用 `/runs`，在单个请求的 `configuration` 中直接携带相同配置；需要长期复用时先用配置文件接口保存，再调用对应 `/runs`。两条路径都以配置顶层 `plugin` 决定字段与任务展开方式。
 

@@ -1,8 +1,0 @@
-!include ../shared/task-defaults.yaml
-plugin: command
-name: 随机数
-working_directory: "${scripts_dir}"
-command: [python3, -u, random_number.py]
-labels: [example, once]
-custom:
-  description: 生成一个随机数后立即结束

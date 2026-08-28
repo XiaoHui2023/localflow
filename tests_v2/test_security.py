@@ -65,7 +65,7 @@ def test_loopback_is_not_administrator_identity(root: Path) -> None:
         assert loopback.get("/api/v1/plugins").status_code == 403
         created = loopback.post(
             "/api/v1/config/files",
-            json={"path": "tasks/direct.yaml", "plugin": "marker"},
+            json={"path": "command/direct.yaml", "plugin": "command"},
         )
         assert created.status_code == 403
 
@@ -194,25 +194,25 @@ def test_signed_client_can_manage_config_and_use_plugin_run_contract(
     created = request(
         "POST",
         "/api/v1/config/files",
-        {"path": "tasks/signed.yaml", "plugin": "marker"},
+        {"path": "command/signed.yaml", "plugin": "command"},
     )
     assert created.status_code == 201
-    read = request("GET", "/api/v1/config/files/tasks/signed.yaml")
+    read = request("GET", "/api/v1/config/files/command/signed.yaml")
     assert read.status_code == 200
     assert read.json()["diagnosis"]["runnable"] is True
 
-    content = read.json()["content"].replace("结果检查", "签名检查")
+    content = read.json()["content"].replace("hello-world", "signed-command")
     updated = request(
         "PUT",
-        "/api/v1/config/files/tasks/signed.yaml",
+        "/api/v1/config/files/command/signed.yaml",
         {"content": content},
         {"If-Match": created.json()["version"]},
     )
     assert updated.status_code == 200
     moved = request(
         "POST",
-        "/api/v1/config/files/tasks/signed.yaml/move",
-        {"target": "tasks/signed-renamed.yaml", "version": updated.json()["version"]},
+        "/api/v1/config/files/command/signed.yaml/move",
+        {"target": "command/signed-renamed.yaml", "version": updated.json()["version"]},
     )
     assert moved.status_code == 200
 
@@ -264,7 +264,7 @@ def test_signed_client_can_manage_config_and_use_plugin_run_contract(
 
     deleted = request(
         "DELETE",
-        "/api/v1/config/files/tasks/signed-renamed.yaml",
+        "/api/v1/config/files/command/signed-renamed.yaml",
         extra_headers={"If-Match": moved.json()["version"]},
     )
     assert deleted.status_code == 204

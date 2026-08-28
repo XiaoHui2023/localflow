@@ -835,6 +835,28 @@ def create_app(
             raise HTTPException(422, f"plugin discovery failed: {exc}") from None
         return {"items": items}
 
+    @app.post("/api/v1/config/files/{path:path}/inspection")
+    async def config_inspection(
+        path: str, payload: ConfigRun, _actor: str = Depends(require_submitter)
+    ):
+        try:
+            document = config.parse(path)
+            diagnosis = diagnose_config(document, plugins)
+            if not diagnosis.runnable:
+                raise ValueError("; ".join(diagnosis.errors) or "configuration is not runnable")
+            items = await plugins.inspect_config(
+                document,
+                payload.inputs,
+                {"root": str(root), "config_path": path},
+            )
+        except KeyError:
+            raise HTTPException(404, "configuration plugin is not loaded") from None
+        except TimeoutError:
+            raise HTTPException(504, "plugin inspection timed out") from None
+        except (TypeError, ValueError, FileNotFoundError, OSError, yaml.YAMLError) as exc:
+            raise HTTPException(422, f"plugin inspection failed: {exc}") from None
+        return {"items": items}
+
     @app.websocket("/api/v1/tasks/{task_id}/terminal")
     async def terminal(websocket: WebSocket, task_id: str):
         is_admin = auth.is_websocket_admin(websocket)

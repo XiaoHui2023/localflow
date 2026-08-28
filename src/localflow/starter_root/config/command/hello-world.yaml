@@ -1,0 +1,5 @@
+# The working directory is relative to the LocalFlow folder.
+plugin: command
+name: hello-world
+working_directory: .
+command: [sh, -c, "printf 'hello world\\n' > hello-world.txt"]

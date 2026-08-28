@@ -38,7 +38,7 @@ install -d -m 0750 "dist/$BUNDLE"
 install -d -m 0750 "dist/$BUNDLE/deploy" "dist/$BUNDLE/docs" "dist/$BUNDLE/skills" \
   "dist/$BUNDLE/config" "dist/$BUNDLE/scripts" "dist/$BUNDLE/plugins" \
   "dist/$BUNDLE/runtime" "dist/$BUNDLE/logs" "dist/$BUNDLE/exports"
-install -d -m 0750 "dist/$BUNDLE/config/tasks" "dist/$BUNDLE/config/shared" \
+install -d -m 0750 "dist/$BUNDLE/config/command" "dist/$BUNDLE/config/verification" \
   "dist/$BUNDLE/runtime/instances"
 install -d -m 0700 "dist/$BUNDLE/secrets"
 install -m 0755 dist/localflow "dist/$BUNDLE/localflow"
@@ -50,14 +50,25 @@ install -m 0644 deploy/localflow.sudoers "dist/$BUNDLE/deploy/localflow.sudoers"
 install -m 0644 docs/api.md docs/configuration.md docs/operations.md docs/plugins.md \
   docs/security.md docs/stopping.md docs/terminal.md "dist/$BUNDLE/docs/"
 cp -R skills/. "dist/$BUNDLE/skills/"
-install -m 0644 src/localflow/starter_root/config/tasks/*.yaml "dist/$BUNDLE/config/tasks/"
-install -m 0644 src/localflow/starter_root/config/shared/*.yaml "dist/$BUNDLE/config/shared/"
-install -m 0755 src/localflow/starter_root/scripts/*.py "dist/$BUNDLE/scripts/"
-install -m 0644 src/localflow/builtin_plugins/declarative.py.example "dist/$BUNDLE/plugins/declarative.py"
+install -m 0644 src/localflow/starter_root/config/command/*.yaml "dist/$BUNDLE/config/command/"
+install -m 0644 src/localflow/starter_root/config/verification/*.yaml "dist/$BUNDLE/config/verification/"
+install -m 0755 src/localflow/starter_root/scripts/simulate.py "dist/$BUNDLE/scripts/"
+install -m 0644 src/localflow/builtin_plugins/command.py.example "dist/$BUNDLE/plugins/command.py"
 install -m 0644 src/localflow/builtin_plugins/verification.py.example "dist/$BUNDLE/plugins/verification.py"
-install -m 0644 src/localflow/builtin_plugins/interactive.py.example "dist/$BUNDLE/plugins/interactive.py"
-install -m 0644 src/localflow/builtin_plugins/marker.py.example "dist/$BUNDLE/plugins/marker.py"
 install -m 0644 src/localflow/builtin_plugins/README.md.example "dist/$BUNDLE/plugins/README.md"
+install -m 0644 /dev/null "dist/$BUNDLE/localflow.yaml"
+cat > "dist/$BUNDLE/localflow.yaml" <<'EOF'
+# LocalFlow reads this file only when it starts. Restart after editing.
+server:
+  # 0 asks Ubuntu for an available port; use 1-65535 for a fixed port.
+  port: 0
+execution:
+  # systemd keeps tasks alive while the LocalFlow web service restarts.
+  backend: systemd
+retention:
+  # One duration covers task details and terminal output.
+  task_days: 3
+EOF
 tar -C dist -czf "dist/$BUNDLE.tar.gz" "$BUNDLE"
 rm -rf "dist/$BUNDLE"
 (cd dist && sha256sum localflow "$BUNDLE.tar.gz" > SHA256SUMS)

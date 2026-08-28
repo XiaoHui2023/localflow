@@ -12,7 +12,6 @@ from typing import Any
 from configlib import load_config_raw
 
 from .config_diagnostics import ConfigDiagnosis
-from .settings import Settings
 
 
 @dataclass(frozen=True)
@@ -100,8 +99,6 @@ class ConfigRepository:
 
     def validate(self, relative: str, content: str) -> object:
         parsed = self.parse(relative, content)
-        if relative == "server.yaml":
-            Settings.model_validate(parsed or {})
         if self._diagnose is not None:
             diagnosis = self._diagnose(parsed)
             if diagnosis.kind != "generic" and not diagnosis.valid:
