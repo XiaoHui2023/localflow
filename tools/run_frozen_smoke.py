@@ -101,7 +101,7 @@ def main() -> None:
             raise RuntimeError(
                 f"startup endpoint is not a copyable private LAN address: {endpoints[-1]}"
             )
-        config = root / "localflow.yaml"
+        config = root / "config.yaml"
         config.write_text(
             "server:\n  bind: 127.0.0.1\n  port: 0\n"
             "execution:\n  backend: subprocess\n  max_concurrency: 2\n",

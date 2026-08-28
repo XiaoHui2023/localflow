@@ -122,7 +122,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="localflow-browser-qa-") as temporary:
         root = Path(temporary) / "root"
         initialize_root(root)
-        settings_path = root / "localflow.yaml"
+        settings_path = root / "config.yaml"
         settings = yaml.safe_load(settings_path.read_text(encoding="utf-8"))
         settings["execution"].update(
             {

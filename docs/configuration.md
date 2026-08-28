@@ -4,7 +4,7 @@
 
 ```text
 localflow
-localflow.yaml                 # 启动配置，网页不显示，修改后重启
+config.yaml                    # 启动配置，网页不显示，修改后重启
 config/
 ├── command/
 │   └── hello-world.yaml       # 简易命令
@@ -17,11 +17,11 @@ cases/
 scripts/
 ```
 
-配置目录按插件名分组。网页“运行”页只扫描 `config/`；根目录的 `localflow.yaml` 不属于任务配置，不进入资源树，也不会动态加载。时间校准保存在运行状态中，不写入启动配置。
+配置目录按插件名分组。网页“运行”页只扫描 `config/`；根目录的 `config.yaml` 不属于任务配置，不进入资源树，也不会动态加载。时间校准保存在运行状态中，不写入启动配置。
 
 ## 启动配置
 
-`localflow.yaml` 的默认内容只保留常改项，并在原位解释含义：
+`config.yaml` 的默认内容只保留常改项，并在原位解释含义：
 
 ```yaml
 # LocalFlow reads this file only when it starts. Restart after editing.
@@ -38,7 +38,7 @@ retention:
 
 未写字段使用安全默认值：监听 `0.0.0.0`、匿名摘要读取、最多四个并发任务和有界日志容量。需要覆盖高级字段时参照 `Settings` 模型或运维文档添加，不为默认安装预先生成空字段。
 
-旧安装若只有 `config/server.yaml`，下一次启动会把它原样迁移为根目录 `localflow.yaml`，随后仅从新位置读取。
+旧安装若只有根目录 `localflow.yaml` 或更早的 `config/server.yaml`，下一次启动会把它原样迁移为根目录 `config.yaml`，随后仅从新位置读取。若 `config.yaml` 已存在，则不会覆盖。
 
 ## 简易命令
 

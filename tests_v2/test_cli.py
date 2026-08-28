@@ -19,7 +19,7 @@ def test_source_entry_uses_current_directory(monkeypatch, tmp_path: Path) -> Non
 
 def test_new_root_defaults_to_lan_listener(tmp_path: Path) -> None:
     initialize_root(tmp_path)
-    config = (tmp_path / "localflow.yaml").read_text(encoding="utf-8")
+    config = (tmp_path / "config.yaml").read_text(encoding="utf-8")
     assert "bind:" not in config
     assert load_settings(tmp_path).server.bind == "0.0.0.0"
 

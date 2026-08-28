@@ -21,7 +21,7 @@ localflow
 
 `localflow` 没有参数和子命令。它把可执行文件所在目录作为完整运行目录；源码安装时使用启动命令时的当前目录。首次运行只补齐两个生产插件和各一份配置：`command/hello-world.yaml` 用四个字段执行任意命令，`verification/demo.yaml` 选择 Case、次数与 seed。测试插件只存在于质检流程，不进入发布包。网页“运行”页自动显示任务配置，不需要导入或扫描。
 
-试用环境可在首次启动后，把根目录 `localflow.yaml` 中的执行器改为：
+试用环境可在首次启动后，把根目录 `config.yaml` 中的执行器改为：
 
 ```yaml
 execution:

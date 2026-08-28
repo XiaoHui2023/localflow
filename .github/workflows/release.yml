@@ -52,7 +52,7 @@ jobs:
           extract_dir="$(mktemp -d)"
           tar -xzf "dist/localflow-${version}-linux-x86_64.tar.gz" -C "$extract_dir"
           bundle="$extract_dir/localflow-${version}-linux-x86_64"
-          test -f "$bundle/localflow.yaml"
+          test -f "$bundle/config.yaml"
           test -f "$bundle/config/command/hello-world.yaml"
           test -f "$bundle/config/verification/demo.yaml"
           test -f "$bundle/plugins/command.py"

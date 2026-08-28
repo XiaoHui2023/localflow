@@ -92,9 +92,12 @@ def initialize_root(root: Path) -> None:
         path.mkdir(parents=True, exist_ok=True)
         if os.name != "nt" and (created or relative != "secrets"):
             os.chmod(path, mode)
-    config = root / "localflow.yaml"
+    config = root / "config.yaml"
+    previous_config = root / "localflow.yaml"
     legacy_config = root / "config" / "server.yaml"
-    if legacy_config.is_file() and not config.exists():
+    if previous_config.is_file() and not config.exists():
+        previous_config.replace(config)
+    elif legacy_config.is_file() and not config.exists():
         legacy_config.replace(config)
     if not config.exists():
         config.write_text(
@@ -142,7 +145,7 @@ def initialize_root(root: Path) -> None:
 
 
 def load_settings(root: Path) -> Settings:
-    path = root / "localflow.yaml"
+    path = root / "config.yaml"
     if not path.exists():
         return Settings()
     return Settings.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")) or {})

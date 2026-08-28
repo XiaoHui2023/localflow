@@ -56,8 +56,8 @@ install -m 0755 src/localflow/starter_root/scripts/simulate.py "dist/$BUNDLE/scr
 install -m 0644 src/localflow/builtin_plugins/command.py.example "dist/$BUNDLE/plugins/command.py"
 install -m 0644 src/localflow/builtin_plugins/verification.py.example "dist/$BUNDLE/plugins/verification.py"
 install -m 0644 src/localflow/builtin_plugins/README.md.example "dist/$BUNDLE/plugins/README.md"
-install -m 0644 /dev/null "dist/$BUNDLE/localflow.yaml"
-cat > "dist/$BUNDLE/localflow.yaml" <<'EOF'
+install -m 0644 /dev/null "dist/$BUNDLE/config.yaml"
+cat > "dist/$BUNDLE/config.yaml" <<'EOF'
 # LocalFlow reads this file only when it starts. Restart after editing.
 server:
   # 0 asks Ubuntu for an available port; use 1-65535 for a fixed port.

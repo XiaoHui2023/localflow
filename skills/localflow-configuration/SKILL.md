@@ -7,7 +7,7 @@ description: Create, diagnose, compose, move, or run LocalFlow YAML, TOML, and J
 
 Read `../../docs/configuration.md`. Inspect the single matching example under `../../config/` or `../../examples/` instead of inventing a second schema.
 
-Production packages contain only `command/hello-world.yaml` and `verification/demo.yaml`. `localflow.yaml` is a startup-only file beside the executable; it is not part of the dynamic configuration API or Run page. Resolve relative paths against the LocalFlow root and use the inspection endpoint before running path-sensitive configurations.
+Production packages contain only `command/hello-world.yaml` and `verification/demo.yaml`. `config.yaml` is a startup-only file beside the executable; it is not part of the dynamic configuration API or Run page. Resolve relative paths against the LocalFlow root and use the inspection endpoint before running path-sensitive configurations.
 
 ## Classification
 

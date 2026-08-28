@@ -57,7 +57,7 @@ No mock-only result can satisfy a target-platform metric.
 2. Create `/opt/localflow/venv`, install the project, and verify `/opt/localflow/venv/bin/localflow`.
 3. Create the dedicated `localflow` system user and enable linger so its user systemd manager survives logouts.
 4. Validate and install `deploy/localflow.sudoers`; install the fixed time helper, tmpfiles configuration, and main service unit with the modes in `README.md`.
-5. Run tmpfiles, initialize `/var/lib/localflow` as the service user, build or edit the startup-only `/var/lib/localflow/localflow.yaml`, then enable the service.
+5. Run tmpfiles, initialize `/var/lib/localflow` as the service user, build or edit the startup-only `/var/lib/localflow/config.yaml`, then enable the service.
 6. Read the actual endpoint with `localflow status`; read the one-time administrator code only as the service user.
 7. Run all `tests_target` under the `localflow` user manager and run `tests_target/deployed_probe.py` before claiming the deployment stable.
 8. Run `tools/run_browser_quality.py` against system Edge; preserve explicit `blocked` status if neither that route nor the target route is available, and link exact evidence instead of widening the claim.
