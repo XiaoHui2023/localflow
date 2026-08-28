@@ -27,3 +27,7 @@
 采用 Radix Tooltip 的 Portal/collision 合同、Floating UI 的 flip/shift 定位模型和 MDN stacking-context 模型。三种路线比较后，LocalFlow 选择 Radix 作为 React 交互所有者，并保留项目级像素 Oracle；低层定位需求才使用 Floating UI，自写定位因碰撞、焦点和维护成本被拒绝。
 
 资料访问成功，没有网络、权限、登录、下载或依赖失败。`npm install @radix-ui/react-tooltip` 完成且 audit 报告 0 个已知漏洞。
+
+## Release gate correction
+
+The first pushed revision was correctly rejected by the Release source-quality step because Ruff found two import-order violations. Local pytest and browser gates did not cover that workflow command. The imports were fixed, the full Ruff target list passed, and the project skill now requires mirroring every Release source-quality command before a release commit. This failure did not reach the publish job and did not replace the existing Release assets.

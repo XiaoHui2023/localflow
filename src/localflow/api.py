@@ -44,7 +44,6 @@ from .time_service import TimeService
 from .variables import VariableError, VariableResolver
 from .watcher import DirectoryWatcher
 
-
 logger = logging.getLogger(__name__)
 
 

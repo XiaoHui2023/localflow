@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import signal
 import shutil
+import signal
 import socket
 import subprocess
 import sys

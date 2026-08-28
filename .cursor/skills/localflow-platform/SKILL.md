@@ -41,7 +41,7 @@ Read the relevant project sources before changing behavior:
 2. Update design sources first when behavior or ownership changes.
 3. Implement the smallest responsibility owner; do not introduce a second lifecycle writer.
 4. Add a passing case and a fault case that proves the oracle detects failure.
-5. Run focused tests, then repository gates.
+5. Run focused tests, then mirror every command in the Release workflow's source-quality step locally, including Ruff, pytest, the traceability checker, frontend build, and npm audit. A partial local gate is not release evidence.
 6. Store evidence under `quality/evidence/` and update `quality/traceability.json`.
 7. Report platform limits and any autonomous-learning failure explicitly.
 
