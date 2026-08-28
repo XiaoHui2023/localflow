@@ -21,7 +21,7 @@ class ServerSettings(BaseModel):
 
 
 class ExecutionSettings(BaseModel):
-    backend: Literal["systemd", "subprocess"] = "systemd"
+    backend: Literal["auto", "systemd", "subprocess"] = "auto"
     max_concurrency: int = Field(default=4, ge=1, le=256)
     sigint_grace_seconds: float = Field(default=20, ge=0, le=3600)
     sigterm_grace_seconds: float = Field(default=10, ge=0, le=3600)
@@ -106,8 +106,8 @@ def initialize_root(root: Path) -> None:
             "  # 0 asks Ubuntu for an available port; use 1-65535 for a fixed port.\n"
             "  port: 0\n"
             "execution:\n"
-            "  # systemd keeps tasks alive while the LocalFlow web service restarts.\n"
-            "  backend: systemd\n"
+            "  # auto uses systemd when its user manager is available, otherwise subprocess.\n"
+            "  backend: auto\n"
             "retention:\n"
             "  # One duration covers task details and terminal output.\n"
             "  task_days: 3\n",

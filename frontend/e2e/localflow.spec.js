@@ -3,11 +3,13 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { assertTooltipInteraction } from "./ui-quality.js";
 
 const evidence = path.resolve("../quality/evidence/browser");
 const qaRoot = process.env.LOCALFLOW_QA_ROOT;
 const qaPython = process.env.LOCALFLOW_QA_PYTHON;
 const resourceContract = JSON.parse(fs.readFileSync(path.resolve("../quality/resource-budgets.json"), "utf8"));
+const currentAdminKey = () => fs.readFileSync(path.join(qaRoot, "secrets", "web-admin-key"), "utf8").trim();
 
 function sha256(file, normalizeText = false) {
   const content = fs.readFileSync(file); const value = normalizeText ? Buffer.from(content.toString("utf8").replace(/\r\n/g, "\n")) : content;
@@ -78,6 +80,66 @@ test("an open testing page reloads when the frontend revision changes", async ({
   await expect.poll(() => mainNavigations, { timeout: 8_000 }).toBeGreaterThanOrEqual(2);
 });
 
+async function runAcceptance(page) {
+  const helloSource = path.join(qaRoot, "config", "command", "hello-world.yaml");
+  fs.writeFileSync(helloSource, fs.readFileSync(helloSource, "utf8").replace("name: hello-world", "name: hello-world-feedback"), "utf8");
+  await page.goto("/");
+  await page.getByRole("tab", { name: "设置" }).click();
+  const loginKey = page.getByLabel("管理员秘钥");
+  if (await loginKey.count()) {
+    await loginKey.fill(currentAdminKey());
+    await page.getByRole("button", { name: "登录", exact: true }).click();
+  }
+  await page.getByRole("tab", { name: "运行" }).click();
+  await page.locator('[data-file="verification/demo.yaml"]').click();
+  const inspectionTrigger = page.locator(".inspection-item").filter({ hasText: "Case 目录" }).locator(".inspection-state");
+  await assertTooltipInteraction(page, inspectionTrigger, "已发现 3 个 Case");
+  const helloConfig = page.locator('[data-file="command/hello-world.yaml"]');
+  await helloConfig.click();
+
+  let delayed = false;
+  await page.route("**/api/v1/config/files/command/hello-world.yaml/runs", async (route) => {
+    delayed = true;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await route.continue();
+  }, { times: 1 });
+  const responsePromise = page.waitForResponse((response) => response.url().endsWith("/api/v1/config/files/command/hello-world.yaml/runs") && response.request().method() === "POST");
+  const runButton = page.getByRole("button", { name: "运行", exact: true });
+  await runButton.click();
+  await expect.poll(() => delayed).toBeTruthy();
+  await expect(runButton).toHaveAttribute("data-run-state", "submitting");
+  await expect(runButton).toBeDisabled();
+  const response = await responsePromise;
+  const accepted = await response.json();
+  await expect(page.getByRole("button", { name: "任务已创建" })).toHaveAttribute("data-run-state", "accepted");
+  await expect(page.getByRole("status")).toHaveText(`已加入 ${accepted.count} 个任务`);
+
+  const taskId = accepted.task_ids[0];
+  await page.getByRole("tab", { name: "任务" }).click();
+  const row = page.getByRole("button", { name: /hello-world-feedback/ });
+  await expect(row).toBeVisible();
+  const assertOrderedCells = async () => {
+    const cells = await row.locator(":scope > *").evaluateAll((nodes) => nodes.map((node) => { const box = node.getBoundingClientRect(); return { left: box.left, right: box.right, width: box.width }; }).filter((box) => box.width > 0));
+    for (let index = 1; index < cells.length; index += 1) expect(cells[index].left).toBeGreaterThanOrEqual(cells[index - 1].right - 1);
+  };
+  await assertOrderedCells();
+  await waitForState(page, taskId, ["succeeded"]);
+  await assertOrderedCells();
+  const task = await browserApi(page, `/tasks/${taskId}`);
+  expect(task.started_at).toBeTruthy();
+  expect(fs.existsSync(task.log_path)).toBeTruthy();
+  const log = fs.readFileSync(task.log_path, "utf8");
+  expect(log).toContain("task.queued");
+  expect(log).toContain("task.starting");
+  expect(log).toContain("process.started");
+  expect(log).toContain("hello world");
+  expect(log).toContain("process.exited");
+  expect(fs.readFileSync(path.join(qaRoot, "hello-world.txt"), "utf8").replace(/\r\n/g, "\n")).toBe("hello world\n");
+  await row.click();
+  await expect(page.locator(".task-item.open .detail-time time")).not.toHaveText("—");
+  await expect(page.locator(".task-item.open .copy-value").filter({ hasText: task.log_path })).toBeVisible();
+}
+
 test("plugin configuration console remains concise and operable in Edge", async ({ page, browser }) => {
   fs.mkdirSync(evidence, { recursive: true }); const consoleErrors = [];
   let openWebSockets = 0;
@@ -109,7 +171,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(page.getByRole("alert")).toHaveText("秘钥不正确");
   expect(consoleErrors).toEqual(["Failed to load resource: the server responded with a status of 401 (Unauthorized)"]);
   consoleErrors.length = 0;
-  await page.getByLabel("管理员秘钥").fill(process.env.LOCALFLOW_QA_ADMIN_KEY);
+  await page.getByLabel("管理员秘钥").fill(currentAdminKey());
   await page.getByRole("button", { name: "登录", exact: true }).click();
   await expect(page.getByLabel("管理员秘钥")).toHaveCount(0);
   await expect(page.getByRole("tab")).toHaveText(["任务", "运行", "终端", "设置"]);
@@ -201,7 +263,8 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await page.setViewportSize({ width: 390, height: 844 }); await page.getByRole("tab", { name: "任务" }).click(); expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0); await page.getByRole("tab", { name: "任务" }).press("ArrowDown"); await expect(page.getByRole("tab", { name: "运行" })).toBeFocused();
   await page.screenshot({ path: path.join(evidence, "admin-mobile-390.png"), fullPage: true }); expect(consoleErrors, consoleErrors.join("\n")).toEqual([]);
 
-  const repository = path.resolve(".."); const boundFiles = ["frontend/index.html", "frontend/public/compat-boot.js", "frontend/public/theme-boot.js", "frontend/src/App.jsx", "frontend/src/api.js", "frontend/src/main.jsx", "frontend/src/index.css", "frontend/src/extra.css", "frontend/src/round6.css", "frontend/src/case-picker.css", "frontend/e2e/localflow.spec.js", "frontend/e2e/compatibility.spec.js", "frontend/e2e/legacy-browser.mjs", "frontend/playwright.config.js", "frontend/vite.config.js", "frontend/package-lock.json", "quality/resource-budgets.json", "tools/check_quality.py", "tools/run_browser_quality.py", "tools/run_linux_browser_quality.py"];
+  await runAcceptance(page);
+  const repository = path.resolve(".."); const boundFiles = ["frontend/index.html", "frontend/public/compat-boot.js", "frontend/public/theme-boot.js", "frontend/src/App.jsx", "frontend/src/Tooltip.jsx", "frontend/src/api.js", "frontend/src/main.jsx", "frontend/src/index.css", "frontend/src/extra.css", "frontend/src/round6.css", "frontend/src/case-picker.css", "frontend/e2e/ui-quality.js", "frontend/e2e/localflow.spec.js", "frontend/e2e/compatibility.spec.js", "frontend/e2e/legacy-browser.mjs", "frontend/playwright.config.js", "frontend/vite.config.js", "frontend/package.json", "frontend/package-lock.json", "quality/resource-budgets.json", "tools/check_quality.py", "tools/run_browser_quality.py", "tools/run_linux_browser_quality.py"];
   const sourceFiles = Object.fromEntries(boundFiles.map((relative) => [relative, sha256(path.join(repository, relative), true)])); const screenshots = Object.fromEntries(fs.readdirSync(evidence).filter((name) => name.endsWith(".png") && (name.startsWith("admin-") || name.startsWith("anonymous-"))).sort().map((name) => [name, sha256(path.join(evidence, name))]));
-  fs.writeFileSync(path.join(evidence, "browser-receipt.json"), JSON.stringify({ completed_at: new Date().toISOString(), browser: "Microsoft Edge", browser_version: browser.version(), base_url: process.env.LOCALFLOW_QA_URL, result: "passed", source_files: sourceFiles, screenshots, resource_contract: resourceContract, resource_metrics: resourceMetrics, assertions: ["testing-ui-revision-auto-reload", "secret-login-required", "secret-login-error", "login-control-disappears", "persistent-browser-session", "nav-order", "removed-plugin-api-destinations", "compact-content-height-nav", "nav-target-size", "theme-memory", "run-context-memory", "aligned-settings-rows", "live-time-calibration-control", "single-time-calibration", "inline-toggle-detail", "dedicated-terminal", "xterm-fit-search", "explorer-create-rename-delete", "explorer-icon-only-state", "shared-fragment-semantic-icon", "neutral-config-filenames", "hidden-config-extensions", "opened-invalid-inline-diagnosis", "config-opens-in-use-mode", "plugin-config-discovery", "run-fields-only", "plugin-case-field-mapping", "case-empty-default", "case-hover-wheel", "case-click-increment", "case-count-progressive-editor", "case-marquee-scope-only", "case-group-relative-edit", "case-group-fixed-edit", "case-scope-dismissal", "case-intrinsic-compact-grid", "blank-seed", "verification-seed-task-detail", "required-run-field-gate", "icon-only-run", "uniform-control-geometry", "nonblocking-expiring-status", "config-use", "plugin-arbitrary-status", "idle-web-resource-budget", "compact-copyable-task-detail", "neutral-scroll-copy-feedback", "unboxed-stop-action", "direct-config-file-actions", "terminal-responsive-fit", "terminal-fill-layout", "wcag-a-aa", "mobile-no-overflow"] }, null, 2));
+  fs.writeFileSync(path.join(evidence, "browser-receipt.json"), JSON.stringify({ completed_at: new Date().toISOString(), browser: "Microsoft Edge", browser_version: browser.version(), base_url: process.env.LOCALFLOW_QA_URL, result: "passed", source_files: sourceFiles, screenshots, resource_contract: resourceContract, resource_metrics: resourceMetrics, assertions: ["testing-ui-revision-auto-reload", "secret-login-required", "secret-login-error", "login-control-disappears", "persistent-browser-session", "nav-order", "removed-plugin-api-destinations", "compact-content-height-nav", "nav-target-size", "theme-memory", "run-context-memory", "aligned-settings-rows", "live-time-calibration-control", "single-time-calibration", "inline-toggle-detail", "dedicated-terminal", "xterm-fit-search", "explorer-create-rename-delete", "explorer-icon-only-state", "shared-fragment-semantic-icon", "neutral-config-filenames", "hidden-config-extensions", "opened-invalid-inline-diagnosis", "config-opens-in-use-mode", "plugin-config-discovery", "run-fields-only", "plugin-case-field-mapping", "case-empty-default", "case-hover-wheel", "case-click-increment", "case-count-progressive-editor", "case-marquee-scope-only", "case-group-relative-edit", "case-group-fixed-edit", "case-scope-dismissal", "case-intrinsic-compact-grid", "blank-seed", "verification-seed-task-detail", "required-run-field-gate", "icon-only-run", "uniform-control-geometry", "nonblocking-expiring-status", "config-use", "plugin-arbitrary-status", "idle-web-resource-budget", "compact-copyable-task-detail", "neutral-scroll-copy-feedback", "unboxed-stop-action", "direct-config-file-actions", "terminal-responsive-fit", "terminal-fill-layout", "tooltip-portal-clipping-pixel-layer", "run-submitting-accepted-duplicate-lock", "task-row-state-geometry", "hello-world-log-lifecycle", "start-time-log-path", "wcag-a-aa", "mobile-no-overflow"] }, null, 2));
 });

@@ -139,6 +139,17 @@ def main() -> int:
         task_path.write_text(
             yaml.safe_dump(task, allow_unicode=True, sort_keys=False), encoding="utf-8"
         )
+        hello_path = root / "config" / "command" / "hello-world.yaml"
+        hello = load_config_raw(hello_path)
+        hello["command"] = [
+            sys.executable,
+            "-u",
+            "-c",
+            "import time; from pathlib import Path; print('hello world', flush=True); time.sleep(.4); Path('hello-world.txt').write_text('hello world\\n', encoding='utf-8')",
+        ]
+        hello_path.write_text(
+            yaml.safe_dump(hello, allow_unicode=True, sort_keys=False), encoding="utf-8"
+        )
         (root / "qa-cases" / "case-a").mkdir(parents=True)
         (root / "qa-cases" / "case-b").mkdir(parents=True)
         (root / "config" / "command" / "qa-invalid.yaml").write_text(

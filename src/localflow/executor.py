@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import signal
+import shutil
 import socket
 import subprocess
 import sys
@@ -12,8 +13,31 @@ from pathlib import Path
 from typing import Protocol
 
 from .control import control_socket_path
-from .log_files import BoundedLogWriter
+from .log_files import BoundedLogWriter, lifecycle_line
 from .models import TaskRecord
+
+
+def systemd_user_manager_available() -> tuple[bool, str]:
+    """Return whether a usable user manager can accept transient units."""
+
+    if os.name == "nt":
+        return False, "systemd is unavailable on Windows"
+    if not shutil.which("systemd-run") or not shutil.which("systemctl"):
+        return False, "systemd-run or systemctl is not installed"
+    try:
+        result = subprocess.run(
+            ["systemctl", "--user", "show-environment"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            timeout=3,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return False, f"systemd user-manager probe failed: {exc}"
+    if result.returncode:
+        reason = result.stderr.decode(errors="replace").strip()
+        return False, reason or "systemd user manager is not reachable"
+    return True, "systemd user manager is reachable"
 
 
 @dataclass(frozen=True)
@@ -46,10 +70,14 @@ class SubprocessExecutor:
 
     async def start(self, task: TaskRecord, log_path: Path) -> StartResult:
         workdir = Path(task.working_directory)
-        if not workdir.is_dir():
-            raise FileNotFoundError(f"working directory does not exist: {workdir}")
         log_path.parent.mkdir(parents=True, exist_ok=True)
         log = BoundedLogWriter(log_path, self.task_log_max_bytes, self.keep_free_bytes)
+        log.write(lifecycle_line("executor.starting", backend="subprocess"))
+        if not workdir.is_dir():
+            error = FileNotFoundError(f"working directory does not exist: {workdir}")
+            log.write(lifecycle_line("executor.start_failed", error=str(error)))
+            log.close()
+            raise error
         kwargs: dict[str, object] = {}
         if os.name == "nt":
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
@@ -64,9 +92,15 @@ class SubprocessExecutor:
                 stdin=asyncio.subprocess.PIPE,
                 **kwargs,
             )
-        except BaseException:
+        except BaseException as exc:
+            log.write(
+                lifecycle_line(
+                    "executor.start_failed", error=f"{type(exc).__name__}: {exc}"
+                )
+            )
             log.close()
             raise
+        log.write(lifecycle_line("process.started", pid=process.pid))
         self._processes[task.id] = process
         self._writers[task.id] = log
 
@@ -85,6 +119,9 @@ class SubprocessExecutor:
             pump = self._pumps.get(task_id)
             if pump:
                 await pump
+            log = self._writers.get(task_id)
+            if log:
+                log.write(lifecycle_line("process.exited", exit_code=code))
             return code
         finally:
             self._pumps.pop(task_id, None)
@@ -209,12 +246,28 @@ class SystemdExecutor:
                     task.id,
                 ]
             )
-        process = await asyncio.create_subprocess_exec(
-            *command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-        )
-        _, stderr = await process.communicate()
-        if process.returncode:
-            raise RuntimeError(stderr.decode(errors="replace").strip() or "systemd-run failed")
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with BoundedLogWriter(
+            log_path, self.task_log_max_bytes, self.keep_free_bytes
+        ) as log:
+            log.write(lifecycle_line("executor.starting", backend="systemd", unit=unit))
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    *command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+                )
+                _, stderr = await process.communicate()
+                if process.returncode:
+                    raise RuntimeError(
+                        stderr.decode(errors="replace").strip() or "systemd-run failed"
+                    )
+            except BaseException as exc:
+                log.write(
+                    lifecycle_line(
+                        "executor.start_failed", error=f"{type(exc).__name__}: {exc}"
+                    )
+                )
+                raise
+            log.write(lifecycle_line("executor.accepted", unit=unit))
         return StartResult(None, unit)
 
     async def wait(self, task_id: str) -> int:

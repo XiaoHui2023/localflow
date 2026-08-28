@@ -29,14 +29,16 @@ server:
   # 0 asks Ubuntu for an available port; use 1-65535 for a fixed port.
   port: 0
 execution:
-  # systemd keeps tasks alive while the LocalFlow web service restarts.
-  backend: systemd
+  # auto uses systemd when its user manager is available, otherwise subprocess.
+  backend: auto
 retention:
   # One duration covers task details and terminal output.
   task_days: 3
 ```
 
 未写字段使用安全默认值：监听 `0.0.0.0`、匿名摘要读取、最多四个并发任务和有界日志容量。需要覆盖高级字段时参照 `Settings` 模型或运维文档添加，不为默认安装预先生成空字段。
+
+`auto` 会先探测当前账号的 systemd 用户管理器；可用时任务由 transient unit 持有，网页服务重启不带走任务。直接解压运行且用户管理器不可达时会在服务日志明确记录原因并使用 subprocess，避免页面可打开但所有任务随后启动失败。要求强制持久承载的部署可写 `backend: systemd`，并按运维文档启用用户管理器；此模式探测失败时任务会如实失败并把原因写入任务输出。
 
 旧安装若只有根目录 `localflow.yaml` 或更早的 `config/server.yaml`，下一次启动会把它原样迁移为根目录 `config.yaml`，随后仅从新位置读取。若 `config.yaml` 已存在，则不会覆盖。
 

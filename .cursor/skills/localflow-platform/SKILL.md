@@ -24,11 +24,14 @@ Read the relevant project sources before changing behavior:
 - Keep task processes outside the web server lifecycle.
 - Route all lifecycle state changes through one task service.
 - Store an immutable resolved snapshot when a task is queued.
+- Create the bounded task log at queue acceptance. A start failure must still own a start time, log path, lifecycle context, concrete exception and final state.
 - Keep display labels separate from mutex keys.
 - Treat loopback binding and random ports as exposure reduction, never authentication.
 - Enforce read-only projections on the server for HTTP, SSE, and WebSocket.
 - Never place long-lived API keys in browser storage or task environments.
 - Preserve source config formatting and reject stale web writes.
+- Treat run acceptance as a transaction: immediate pending state, duplicate-submit lock, 202 confirmation, then bind QA to the returned task identity rather than a non-unique name.
+- Render tooltips through one portal layer and prove clipping, viewport collision, pixel topness, hover, focus and Escape behavior with the shared browser oracle.
 - Make SIGINT the first interrupt stage and test escalation with real processes.
 - Do not claim Ubuntu production readiness without target systemd evidence.
 

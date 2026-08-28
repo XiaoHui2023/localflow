@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .executor import Executor
 from .ids import new_id
-from .log_files import MIB
+from .log_files import MIB, append_lifecycle
 from .models import TERMINAL_STATES, StopAction, StopStrategy, TaskCreate, TaskRecord, TaskState
 from .settings import LoggingSettings, RetentionSettings
 from .storage import Store
@@ -63,6 +63,13 @@ class TaskService:
 
     def submit(self, draft: TaskCreate) -> TaskRecord:
         record = self.store.create_task(new_id(), draft)
+        self._log_lifecycle(
+            record,
+            "task.queued",
+            name=record.name,
+            working_directory=record.working_directory,
+            command=json.dumps(record.command, ensure_ascii=False),
+        )
         name = " ".join(draft.name.split())[:160]
         logger.info("task queued task_id=%s name=%s", record.id, name)
         self._wake.set()
@@ -74,6 +81,15 @@ class TaskService:
         batch_id = new_id()
         task_drafts = [(new_id(), draft) for draft in drafts]
         records = self.store.create_batch(batch_id, template, values, task_drafts)
+        for record in records:
+            self._log_lifecycle(
+                record,
+                "task.queued",
+                name=record.name,
+                working_directory=record.working_directory,
+                command=json.dumps(record.command, ensure_ascii=False),
+                batch_id=batch_id,
+            )
         logger.info("batch queued batch_id=%s tasks=%s template=%s", batch_id, len(records), template)
         self._wake.set()
         return batch_id, records
@@ -81,6 +97,20 @@ class TaskService:
     def _terminal(self) -> None:
         if self._on_terminal:
             self._on_terminal()
+
+    def _log_lifecycle(self, task: TaskRecord, event: str, **fields: object) -> None:
+        path = self.root / "logs" / task.id / "output.log"
+        try:
+            append_lifecycle(
+                path,
+                self.logging_settings.task_file_mb * MIB,
+                self.logging_settings.keep_free_mb * MIB,
+                event,
+                task_id=task.id,
+                **fields,
+            )
+        except OSError:
+            logger.exception("task lifecycle log could not be written task_id=%s", task.id)
 
     async def start(self) -> None:
         self._stopping = False
@@ -225,7 +255,13 @@ class TaskService:
                 self.store.set_blocked_by(task.id, blockers, blocked_keys)
                 continue
             self.store.set_blocked_by(task.id, [], [])
-            if self.store.transition(task.id, [TaskState.QUEUED], TaskState.STARTING):
+            if self.store.transition(
+                task.id,
+                [TaskState.QUEUED],
+                TaskState.STARTING,
+                started_at=_now(),
+                started_monotonic=time.monotonic(),
+            ):
                 for key in task.mutex_keys:
                     holders.setdefault(key, []).append(task.id)
                 held.update(task.mutex_keys)
@@ -234,6 +270,7 @@ class TaskService:
 
     async def _start(self, task_id: str) -> None:
         task = self.store.get_task(task_id)
+        self._log_lifecycle(task, "task.starting", backend=type(self.executor).__name__)
         try:
             if task.custom.get("_runtime_seed") == "unix":
                 seed = int(time.time())
@@ -251,8 +288,20 @@ class TaskService:
             logger.error("task failed to start task_id=%s", task.id)
             logger.debug("task start exception task_id=%s", task.id, exc_info=True)
             self.store.append_event(task.id, "task.start_error", {"error": str(exc)})
+            self._log_lifecycle(
+                task,
+                "task.start_failed",
+                error=f"{type(exc).__name__}: {exc}",
+            )
+            log = self.root / "logs" / task.id / "output.log"
             self.store.transition(
-                task.id, [TaskState.STARTING], TaskState.FAILED, ended_at=_now(), exit_code=127
+                task.id,
+                [TaskState.STARTING],
+                TaskState.FAILED,
+                ended_at=_now(),
+                exit_code=127,
+                log_size=log.stat().st_size if log.exists() else 0,
+                elapsed_seconds=_elapsed(task),
             )
             self._terminal()
             self._wake.set()
@@ -261,8 +310,6 @@ class TaskService:
             task.id,
             [TaskState.STARTING],
             TaskState.RUNNING,
-            started_at=_now(),
-            started_monotonic=time.monotonic(),
             pid=result.pid,
             executor_ref=result.reference,
         )

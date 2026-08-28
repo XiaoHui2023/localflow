@@ -2,11 +2,34 @@ from __future__ import annotations
 
 import shutil
 import threading
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import BinaryIO
 
 MIB = 1024 * 1024
 OUTPUT_LIMIT_MARKER = b"\r\n[LocalFlow] task output limit reached; later output is not stored.\r\n"
+
+
+def lifecycle_line(event: str, **fields: object) -> bytes:
+    """Create a compact, human-readable task lifecycle record."""
+
+    timestamp = datetime.now(UTC).isoformat(timespec="milliseconds")
+    details = " ".join(f"{key}={value!r}" for key, value in fields.items() if value is not None)
+    suffix = f" {details}" if details else ""
+    return f"[LocalFlow {timestamp}] {event}{suffix}\n".encode("utf-8", errors="replace")
+
+
+def append_lifecycle(
+    path: Path,
+    max_bytes: int,
+    keep_free_bytes: int,
+    event: str,
+    **fields: object,
+) -> None:
+    """Append a bounded lifecycle record and make the task log exist immediately."""
+
+    with BoundedLogWriter(path, max_bytes, keep_free_bytes) as writer:
+        writer.write(lifecycle_line(event, **fields))
 
 
 class BoundedLogWriter:

@@ -90,7 +90,7 @@ def _serve(root: Path) -> None:
     logger.info(
         "LocalFlow starting root=%s backend=%s", root, settings.execution.backend
     )
-    if settings.execution.backend == "systemd" and os.name != "nt":
+    if settings.execution.backend in {"auto", "systemd"} and os.name != "nt":
         user_runtime = f"/run/user/{os.getuid()}"
         os.environ["XDG_RUNTIME_DIR"] = user_runtime
         os.environ["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={user_runtime}/bus"

@@ -14,7 +14,7 @@ from contextlib import suppress
 from pathlib import Path
 
 from .control import control_socket_path
-from .log_files import BoundedLogWriter
+from .log_files import BoundedLogWriter, lifecycle_line
 
 
 def supervise(root: Path, task_id: str) -> int:
@@ -49,6 +49,7 @@ def supervise(root: Path, task_id: str) -> int:
         int(limits.get("task_log_max_bytes", 100 * 1024 * 1024)),
         int(limits.get("keep_free_bytes", 0)),
     ) as log:
+        log.write(lifecycle_line("process.started", pid=child_pid, terminal="pty"))
         while True:
             for key, _ in selector.select(0.25):
                 if key.fileobj is control:
@@ -69,6 +70,7 @@ def supervise(root: Path, task_id: str) -> int:
             waited, status = os.waitpid(child_pid, os.WNOHANG)
             if waited:
                 code = os.waitstatus_to_exitcode(status)
+                log.write(lifecycle_line("process.exited", exit_code=code))
                 result = root / "runtime" / "instances" / f"{task_id}.exit"
                 result.write_text(str(code), encoding="ascii")
                 os.chmod(result, 0o600)

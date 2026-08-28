@@ -5,6 +5,7 @@ import base64
 import binascii
 import hashlib
 import json
+import logging
 import os
 import re
 import sys
@@ -33,7 +34,7 @@ from pydantic import BaseModel, Field
 from .auth import AuthManager
 from .config_diagnostics import ConfigDiagnosis, diagnose_config
 from .config_repository import ConfigConflict, ConfigRepository
-from .executor import SubprocessExecutor, SystemdExecutor
+from .executor import SubprocessExecutor, SystemdExecutor, systemd_user_manager_available
 from .models import BatchCreate, RunCreate, TaskCreate, TaskRecord
 from .plugins import PluginRegistry
 from .service import TaskService
@@ -42,6 +43,9 @@ from .storage import Store
 from .time_service import TimeService
 from .variables import VariableError, VariableResolver
 from .watcher import DirectoryWatcher
+
+
+logger = logging.getLogger(__name__)
 
 
 class WebAdminLogin(BaseModel):
@@ -183,13 +187,18 @@ def create_app(
     plugins = PluginRegistry(root / "plugins")
     plugins.load()
     config = ConfigRepository(root, lambda document: diagnose_config(document, plugins))
+    use_systemd = settings.execution.backend == "systemd"
+    if settings.execution.backend == "auto":
+        use_systemd, reason = systemd_user_manager_available()
+        if not use_systemd:
+            logger.warning("systemd unavailable; using subprocess backend reason=%s", reason)
     executor = (
         SystemdExecutor(
             root,
             task_log_max_bytes=settings.logging.task_file_mb * 1024 * 1024,
             keep_free_bytes=settings.logging.keep_free_mb * 1024 * 1024,
         )
-        if settings.execution.backend == "systemd"
+        if use_systemd
         else SubprocessExecutor(
             task_log_max_bytes=settings.logging.task_file_mb * 1024 * 1024,
             keep_free_bytes=settings.logging.keep_free_mb * 1024 * 1024,

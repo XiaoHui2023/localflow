@@ -19,6 +19,8 @@ cd /var/lib/localflow
 sudo -u localflow ./localflow
 ```
 
+默认 `execution.backend: auto`。已启用 linger 且用户 systemd 管理器可达时自动使用 transient unit；普通 shell/解压试用环境没有用户管理器时自动回退到 subprocess 并写服务告警。生产部署仍应启用用户管理器以获得网页服务重启后的任务接管；若配置为显式 `systemd`，启动失败不会降级，而会在该任务的 `output.log` 中留下完整诊断。
+
 程序客户端从管理员分配的只读密钥文件读取当前代次。不要把密钥复制到 shell 历史、命令参数或网页地址。
 
 ## systemd 服务建议

@@ -22,6 +22,7 @@ def test_new_root_defaults_to_lan_listener(tmp_path: Path) -> None:
     config = (tmp_path / "config.yaml").read_text(encoding="utf-8")
     assert "bind:" not in config
     assert load_settings(tmp_path).server.bind == "0.0.0.0"
+    assert load_settings(tmp_path).execution.backend == "auto"
 
 
 def test_frozen_entry_uses_executable_directory(monkeypatch, tmp_path: Path) -> None:

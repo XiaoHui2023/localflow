@@ -36,6 +36,9 @@ async def test_mutex_queue_and_logs(root: Path) -> None:
             name="three", working_directory=str(root), command=command, mutex_keys=["license:b"]
         )
     )
+    queued_log = root / "logs" / first.id / "output.log"
+    assert queued_log.is_file()
+    assert b"task.queued" in queued_log.read_bytes()
     await service.start()
     for _ in range(50):
         await asyncio.sleep(0.01)
@@ -52,8 +55,52 @@ async def test_mutex_queue_and_logs(root: Path) -> None:
     one, two, three = [store.get_task(item.id) for item in (first, second, third)]
     assert one.state == two.state == three.state == "succeeded"
     assert two.started_at >= one.ended_at
-    assert b"ok" in service.read_log(first.id)[0]
+    task_log = service.read_log(first.id)[0]
+    assert b"task.starting" in task_log
+    assert b"process.started" in task_log
+    assert b"ok" in task_log
+    assert b"process.exited" in task_log
     store.close()
+
+
+@pytest.mark.asyncio
+async def test_start_failure_keeps_time_and_complete_diagnostic_log(root: Path) -> None:
+    root.mkdir()
+    store = Store(root / "runtime" / "localflow.db")
+    service = TaskService(root, store, SubprocessExecutor(), max_concurrency=1)
+    missing = root / "missing-working-directory"
+    task = service.submit(
+        TaskCreate(
+            name="broken-start",
+            working_directory=str(missing),
+            command=[sys.executable, "-c", "print('must not run')"],
+        )
+    )
+    output = root / "logs" / task.id / "output.log"
+    assert output.is_file()
+    await service.start()
+    try:
+        for _ in range(100):
+            current = store.get_task(task.id)
+            if current.ended_at:
+                break
+            await asyncio.sleep(0.02)
+        current = store.get_task(task.id)
+        assert current.state.value == "failed"
+        assert current.started_at is not None
+        assert current.ended_at is not None
+        assert current.elapsed_seconds is not None
+        assert current.log_size == output.stat().st_size > 0
+        text = output.read_text(encoding="utf-8")
+        assert "task.queued" in text
+        assert missing.name in text
+        assert "task.starting" in text
+        assert "executor.start_failed" in text
+        assert "working directory does not exist" in text
+        assert "task.start_failed" in text
+    finally:
+        await service.stop()
+        store.close()
 
 
 @pytest.mark.asyncio

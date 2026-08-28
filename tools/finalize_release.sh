@@ -63,8 +63,8 @@ server:
   # 0 asks Ubuntu for an available port; use 1-65535 for a fixed port.
   port: 0
 execution:
-  # systemd keeps tasks alive while the LocalFlow web service restarts.
-  backend: systemd
+  # auto uses systemd when its user manager is available, otherwise subprocess.
+  backend: auto
 retention:
   # One duration covers task details and terminal output.
   task_days: 3
