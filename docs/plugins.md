@@ -20,11 +20,8 @@ class Example:
     required_common_fields = {"name", "command"}
     title = "示例"
     instructions = "填写名称和命令。"
-    example = {"plugin": "example", "name": "示例", "command": ["echo", "ok"]}
-    run_fields = [
-        run_field("name", "string", required=True, label="名称"),
-        run_field("command", "string-list", required=True, label="命令"),
-    ]
+    example = {"plugin": "example", "name": "示例", "command": "echo ok"}
+    run_fields = []
 
     def expand(self, values, context):
         return [
@@ -88,7 +85,7 @@ run_field(
 ## 随安装提供的插件
 
 - `verification.py`：配置 Case 路径后自动发现 Case，支持点击或滚轮调整、框选后的同步增量/固定值、逐 Case 次数以及留空随机/手工种子；每次运行形成独立任务。`${case}`、`${seed}` 和 `${run}` 延迟到单任务展开时解析，命令可直接引用。每个显示标签同时生成 `tag:<标签>` 互斥键，因此任一标签相同的仿真按队列串行。
-- `command.py`：生产插件。只需名称、工作目录和参数数组命令，适合直接代为执行一条命令。
+- `command.py`：生产插件。只需名称、工作目录和命令，示例优先使用字符串，也兼容精确 argv 列表，适合直接代为执行一条命令。
 - `verification.py`：生产插件。发现 Case、展开逐 Case 任务、生成运行时 seed 并判定 VCS/UVM 结果。
 
 其它状态、交互退出和通用选择器插件只作为测试夹具在质检时动态写入隔离目录，不进入首启内容或 Linux 发布包。
@@ -103,7 +100,7 @@ run_field(
 plugin: command
 name: "${name}"
 working_directory: "${scripts_dir}"
-command: [bash, -lc, "./run.sh --seed ${seed}"]
+command: "./run.sh --seed ${seed}"
 labels: [verification, "${project}"]
 mutex_keys: ["license:${simulator}"]
 custom:

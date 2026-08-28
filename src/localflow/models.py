@@ -11,6 +11,24 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
+CommandInput = str | list[str]
+
+
+def normalize_command(value: CommandInput) -> list[str]:
+    """Normalize the public command contract to the executor's argv contract.
+
+    A string intentionally has Ubuntu shell semantics.  A list remains exact argv,
+    which is useful when callers need to bypass shell parsing.
+    """
+    if isinstance(value, str):
+        if not value.strip() or "\x00" in value:
+            raise ValueError("command must be non-empty and contain no NUL")
+        return ["/bin/sh", "-lc", value]
+    if not value or any(not isinstance(item, str) or not item or "\x00" in item for item in value):
+        raise ValueError("command arguments must be non-empty strings and contain no NUL")
+    return value
+
+
 class TaskState(StrEnum):
     QUEUED = "queued"
     STARTING = "starting"
@@ -89,7 +107,7 @@ class CommonConfigFields(BaseModel):
     plugin: str | None = Field(default=None, min_length=1)
     name: str | None = Field(default=None, min_length=1, max_length=200)
     working_directory: str | None = Field(default=None, min_length=1)
-    command: list[str] | None = Field(default=None, min_length=1)
+    command: CommandInput | None = None
     labels: list[str] | None = Field(default=None, max_length=64)
     mutex_keys: list[str] | None = Field(default=None, max_length=32)
     custom: dict[str, Any] | None = None
@@ -99,9 +117,9 @@ class CommonConfigFields(BaseModel):
 
     @field_validator("command")
     @classmethod
-    def validate_command(cls, value: list[str] | None) -> list[str] | None:
-        if value is not None and any(not item or "\x00" in item for item in value):
-            raise ValueError("command arguments must be non-empty and contain no NUL")
+    def validate_command(cls, value: CommandInput | None) -> CommandInput | None:
+        if value is not None:
+            normalize_command(value)
         return value
 
     @field_validator("labels", "mutex_keys")
@@ -125,7 +143,7 @@ class TaskCreate(BaseModel):
                 {
                     "name": "smoke-case-a",
                     "working_directory": "/srv/project-a",
-                    "command": ["bash", "run.sh", "--case", "case_a"],
+                    "command": "bash run.sh --case case_a",
                     "labels": ["smoke", "project-a"],
                     "mutex_keys": ["license:sim-a"],
                     "custom": {"report_path": "/srv/reports/case_a/index.html"},
@@ -135,7 +153,7 @@ class TaskCreate(BaseModel):
     )
     name: str = Field(min_length=1, max_length=200)
     working_directory: str = Field(min_length=1)
-    command: list[str] = Field(min_length=1)
+    command: list[str]
     labels: list[str] = Field(default_factory=list, max_length=64)
     mutex_keys: list[str] = Field(default_factory=list, max_length=32)
     custom: dict[str, Any] = Field(default_factory=dict)
@@ -143,12 +161,10 @@ class TaskCreate(BaseModel):
     plugin_snapshot: dict[str, Any] = Field(default_factory=dict)
     stop: StopStrategy | None = None
 
-    @field_validator("command")
+    @field_validator("command", mode="before")
     @classmethod
-    def non_empty_arguments(cls, value: list[str]) -> list[str]:
-        if any(not argument or "\x00" in argument for argument in value):
-            raise ValueError("command arguments must be non-empty and contain no NUL")
-        return value
+    def non_empty_arguments(cls, value: CommandInput) -> list[str]:
+        return normalize_command(value)
 
     @field_validator("labels", "mutex_keys")
     @classmethod
@@ -206,7 +222,7 @@ class RunCreate(BaseModel):
                     "name": "smoke",
                     "case_directory": "cases",
                     "working_directory": ".",
-                    "command": ["python3", "scripts/simulate.py", "--case", "${case}"],
+                    "command": "python3 scripts/simulate.py --case ${case}",
                 },
                 "inputs": {"cases": ["smoke"], "case_runs": {"smoke": 2}},
             }

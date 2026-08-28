@@ -32,4 +32,10 @@ stop:
 
 开发用子进程执行器只能近似进程组语义，不能替代 Ubuntu/systemd 验收。`tests_target/test_localflow_systemd_executor.py` 会让主程序创建后台 `sleep`，走“Ctrl+C → 提示 → quit”正常退出，再证明后台 PID 不存在、单元清单为空。
 
-不要对未知程序自动输入 `quit`，它可能成为业务数据或 shell 指令。无法声明协议时使用默认 SIGINT → SIGTERM → cgroup SIGKILL；需要长期保存的程序应由插件声明更长的等待时间。服务停止时清理观察协程但不杀用户任务，下一次启动继续接管，避免网页服务重启中断长任务。
+不要对未知程序自动输入 `quit`，它可能成为业务数据或 shell 指令。无法声明协议时使用默认 SIGINT → SIGTERM → cgroup SIGKILL；需要长期保存的程序应由插件声明更长的等待时间。
+
+## LocalFlow 本体停机
+
+直接运行的 LocalFlow 忽略终端 `Ctrl+C`、`SIGTERM` 和 `SIGHUP`，防止误按、终端断开或普通 kill 让任务失管。发布包提供唯一显式入口 `./stop-localflow.sh`；systemd 单元把 `KillSignal` 同样设为 `SIGUSR1`。收到显式停机后，HTTP 服务先停止接收请求，队列任务取消，运行任务执行各自停止协议；60 秒后仍存活的任务升级为完整进程组/cgroup 清理。只有任务进程树已确认结束，控制器才退出并删除 PID 文件。
+
+停机脚本从所有者专读的 `runtime/localflow.pid` 定位实例，并核对 `/proc/<pid>/cwd` 等于当前发布目录，避免 PID 复用误杀。脚本等待 90 秒；若存在 Linux 不可中断进程，它返回非零并让控制器继续持有、重试，绝不通过杀掉控制器伪报“已停止”。服务意外崩溃与显式停机不同：生产 systemd 使用 `Restart=on-failure` 拉起控制器并恢复任务状态。

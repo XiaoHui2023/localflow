@@ -33,6 +33,37 @@ jobs:
           pytest
           python tools/check_quality.py
           npm --prefix frontend audit
+      - name: Run Ubuntu systemd, PTY and cgroup quality gates
+        run: |
+          image="localflow-systemd-test:${GITHUB_RUN_ID}"
+          container="localflow-systemd-${GITHUB_RUN_ID}"
+          cleanup() { docker rm -f "$container" >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          docker build -f tests_target/Dockerfile.systemd -t "$image" .
+          docker run --privileged --name "$container" -d \
+            --tmpfs /run --tmpfs /run/lock \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+            -v "$PWD:/work" "$image"
+          for attempt in $(seq 1 60); do
+            docker exec "$container" systemctl is-system-running --wait >/dev/null 2>&1 && break
+            test "$attempt" -lt 60 || { docker logs "$container"; exit 1; }
+            sleep 1
+          done
+          docker exec "$container" bash -lc '
+            useradd --system --create-home --shell /bin/bash localflow
+            loginctl enable-linger localflow
+            uid="$(id -u localflow)"
+            systemctl start "user@${uid}.service"
+            python3 -m venv /opt/localflow/venv
+            /opt/localflow/venv/bin/pip install -e "/work[dev]"
+          '
+          uid="$(docker exec "$container" id -u localflow | tr -d '\r')"
+          docker exec "$container" runuser -u localflow -- \
+            env XDG_RUNTIME_DIR="/run/user/${uid}" \
+            DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
+            /opt/localflow/venv/bin/pytest -q \
+            /work/tests_v2 /work/tests_target/test_localflow_systemd_executor.py \
+            /work/tests_target/test_secret_permissions.py
       - name: Build complete static executable on glibc 2.23 baseline
         run: |
           docker run --rm \
@@ -58,6 +89,7 @@ jobs:
           test -f "$bundle/plugins/command.py"
           test -f "$bundle/plugins/verification.py"
           test -f "$bundle/plugins/README.md"
+          test -x "$bundle/stop-localflow.sh"
           test -f "$bundle/docs/api.md"
           test -f "$bundle/docs/configuration.md"
           test -f "$bundle/docs/plugins.md"

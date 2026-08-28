@@ -51,10 +51,10 @@ retention:
 plugin: command
 name: hello-world
 working_directory: .
-command: [sh, -c, "printf 'hello world\\n' > hello-world.txt"]
+command: "printf 'hello world\\n' > hello-world.txt"
 ```
 
-运行后在 LocalFlow 根目录生成 `hello-world.txt`。把 `working_directory` 和参数数组 `command` 改成自己的目录与命令即可。命令以参数数组执行；只有示例显式调用 `sh -c`，LocalFlow 不会为其它命令偷偷增加 shell 解析。
+运行后在 LocalFlow 根目录生成 `hello-world.txt`。把 `working_directory` 和 `command` 改成自己的目录与命令即可。`command` 优先使用字符串，Ubuntu 明确以 `/bin/sh -lc` 执行，管道、重定向和 shell 变量均可直接使用；需要完全绕过 shell 解析时仍可写参数列表，例如 `command: [python3, -u, script.py]`。任务快照最终统一保存为参数数组。
 
 ## 验证仿真
 
@@ -69,6 +69,14 @@ command: [sh, -c, "printf 'hello world\\n' > hello-world.txt"]
 - 出现 `plugin`：继续校验插件是否加载以及插件专属字段。
 - 语法、导入、类型、必填字段或插件字段错误：文件仍可编辑，但不可运行。
 
-YAML 可使用 configlib 的显式 `!include`，导入目标必须位于 `config/` 内。需要复用时再创建一份共享参数文件；默认安装不生成空变量文件或共享默认文件。
+YAML 可使用 configlib 的显式 `!include`。需要复用时再创建一份共享参数文件；默认安装不生成空变量文件或共享默认文件。
 
 网页保存携带内容版本，服务先解析和诊断，再在同目录写临时文件、刷新并原子替换。外部编辑由文件事件自动同步。保存、同步和运行提示位于固定通知层，不参与资源树、工具栏或编辑器布局；必须处理的冲突和字段错误仍保留在对应内容旁。
+
+## 资源与软链接
+
+“运行”页的资源树同时管理 `config/` 与 `plugins/`，支持空目录、新建目录、拖放、行内重命名、复制、剪切、粘贴和删除。快捷键为 `Ctrl/Command+C`、`X`、`V`、`F2` 与 `Delete`；常用动作也直接显示在工具栏，不藏入更多菜单。插件 Python 文件保存前先做语法编译，配置保存前先做完整解析与诊断；版本冲突不会覆盖外部更新。
+
+整个 `config/`、`plugins/`，其中的目录或单个文件都可以是软链接。读取和编辑跟随目标，但保留链接目录项；移动或重命名软链接移动链接本身，复制软链接复制链接文本，删除软链接不删除目标。目录移动、复制或删除若会让原本可解析的 `!include` 失效，操作会回滚。HTTP 路径仍只接受以 `config/` 或 `plugins/` 开头的词法路径，禁止绝对路径和 `..`；外部目标必须由本机所有者预先创建软链接才能获得能力。
+
+原生文件事件对嵌套软链接的跟随行为不一致，因此服务每秒进行一次有界内容哈希校对。网页和 AI Agent 修改 `config/` 或顶层插件文件后，另一侧无需刷新按钮即可看到变化。

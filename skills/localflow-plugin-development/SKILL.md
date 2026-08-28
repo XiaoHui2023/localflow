@@ -14,6 +14,7 @@ Read `../../docs/plugins.md` and `../../plugins/README.md`. Start from the close
 - Discovery returns data; it does not render components. The host owns controls, accessibility, layout, and responsive behavior.
 - Optional `inspect(values, context)` returns read-only values and diagnostics; the host owns the compact component and tooltip. Keep inspection bounded, side-effect free and valid for both web and API callers.
 - Expansion returns independent `TaskCreate` records. Use mutex keys for scheduling, not display tags alone.
+- Prefer string commands in examples and configuration; LocalFlow gives them Ubuntu shell semantics. Accept exact argv lists for callers that must bypass the shell. Stable commands belong in configuration and normally do not appear in `run_fields`.
 - Result evaluation must use final authoritative output, include only files that exist, and return plugin-defined status keys. Keep internal calculation inputs under underscore-prefixed custom keys.
 - A stop strategy is bounded and replayable. It may send signals, terminal input, or a fixed command, but terminal state still waits for executor confirmation.
 

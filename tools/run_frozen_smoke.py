@@ -127,6 +127,7 @@ def main() -> None:
                 stdout=log,
                 stderr=subprocess.STDOUT,
             )
+        stopped_explicitly = False
         try:
             endpoint = wait_for(
                 lambda: (
@@ -174,16 +175,63 @@ def main() -> None:
             output = base64.b64decode(json.loads(log_body)["data"])
             if b"LOCALFLOW_FROZEN_OK" not in output:
                 raise RuntimeError("task output marker is missing")
-            print(f"frozen release smoke passed: {binary} task={task_id}")
+            for protected_signal in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+                process.send_signal(protected_signal)
+                time.sleep(0.2)
+                if process.poll() is not None:
+                    raise RuntimeError(f"controller exited on protected signal {protected_signal}")
+            status, _ = request(opener, endpoint + "/api/v1/system/status")
+            if status != 200:
+                raise RuntimeError("controller did not serve after protected signals")
+            pid_file = root / "runtime" / "localflow.pid"
+            if pid_file.read_text(encoding="ascii").strip() != str(process.pid):
+                raise RuntimeError("controller PID file does not identify the running process")
+            child_pid_file = isolated / "protected-child.pid"
+            long_payload = {
+                "name": "shutdown-cleanup-smoke",
+                "labels": ["release", "shutdown"],
+                "working_directory": str(isolated),
+                "command": [
+                    "/bin/sh",
+                    "-lc",
+                    "trap '' INT TERM; echo $$ > protected-child.pid; while :; do sleep 1; done",
+                ],
+                "stop": {
+                    "actions": [
+                        {"type": "signal", "signal": "SIGINT", "timeout_seconds": 0.2},
+                        {"type": "signal", "signal": "SIGTERM", "timeout_seconds": 0.2},
+                    ]
+                },
+            }
+            request(opener, endpoint + "/api/v1/tasks", "POST", long_payload, headers)
+            child_pid = int(
+                wait_for(
+                    lambda: child_pid_file.read_text(encoding="ascii").strip()
+                    if child_pid_file.is_file()
+                    else None,
+                    30,
+                    "protected child did not start",
+                )
+            )
+            process.send_signal(signal.SIGUSR1)
+            process.wait(timeout=90)
+            stopped_explicitly = True
+            if process.returncode != 0:
+                raise RuntimeError(f"controller graceful shutdown returned {process.returncode}")
+            if Path(f"/proc/{child_pid}").exists():
+                raise RuntimeError(f"task process remained after controller shutdown: {child_pid}")
+            if pid_file.exists():
+                raise RuntimeError("controller PID file remained after shutdown")
+            print(f"frozen release smoke passed: {binary} task={task_id} cleanup_pid={child_pid}")
         finally:
-            if process.poll() is None:
-                process.send_signal(signal.SIGINT)
+            if not stopped_explicitly and process.poll() is None:
+                process.send_signal(signal.SIGUSR1)
                 try:
-                    process.wait(timeout=15)
+                    process.wait(timeout=90)
                 except subprocess.TimeoutExpired:
-                    process.terminate()
+                    process.kill()
                     process.wait(timeout=5)
-            if process.returncode not in {0, -signal.SIGINT}:
+            if process.returncode != 0:
                 print(log_path.read_text(encoding="utf-8", errors="replace"))
                 raise RuntimeError(f"server exited with {process.returncode}")
 

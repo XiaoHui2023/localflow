@@ -8,7 +8,7 @@
 
 Ubuntu systemd 执行器把 Fit 产生的行列同步给任务 PTY。仅用于开发/测试的管道子进程后端没有可调整的 PTY；它接受合法尺寸作为无操作，使浏览器本地终端仍能正确排版，同时不把“resize rejected”伪错误混入真实任务输出。
 
-输出按不可信终端文本处理；链接只有按住 Ctrl/Command 点击才打开。回滚固定为 5000 行，防止长任务让浏览器内存无界增长。离开终端页时关闭 WebSocket、ResizeObserver 和 xterm 实例，不在隐藏页面保留连接。
+输出按不可信终端文本处理；链接只有按住 Ctrl/Command 点击才打开。回滚固定为 5000 行，防止长任务让浏览器内存无界增长。WebSocket 每次最多发送 64 KiB，xterm 完成本块渲染后才回送 ACK，服务收到 ACK 才读取下一块，避免高速输出在浏览器缓冲区无界堆积。离开终端页时先清除全部 socket 回调，再关闭 WebSocket、ResizeObserver、动画帧和 xterm 实例，不在隐藏页面保留连接。
 
 Fit 监听实际终端容器，不监听窗口猜测宽度。1440px、760px 和 390px 浏览器门禁要求页面级横向溢出为零，终端列数随容器变窄而下降。服务端支持 PTY 时同步 rows/cols；开发用普通 subprocess 不具备 PTY 调整能力，但本地显示仍会重排。
 

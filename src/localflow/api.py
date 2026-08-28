@@ -43,6 +43,7 @@ from .storage import Store
 from .time_service import TimeService
 from .variables import VariableError, VariableResolver
 from .watcher import DirectoryWatcher
+from .workspace_repository import WorkspaceConflict, WorkspaceRepository
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,15 @@ class ConfigRun(BaseModel):
 class ConfigCreate(BaseModel):
     path: str
     plugin: str
+
+
+class WorkspaceCreateDirectory(BaseModel):
+    path: str
+
+
+class WorkspaceTransfer(BaseModel):
+    source: str
+    target: str
 
 
 class TimeAdjustment(BaseModel):
@@ -186,6 +196,7 @@ def create_app(
     plugins = PluginRegistry(root / "plugins")
     plugins.load()
     config = ConfigRepository(root, lambda document: diagnose_config(document, plugins))
+    workspace = WorkspaceRepository(root, config)
     use_systemd = settings.execution.backend == "systemd"
     if settings.execution.backend == "auto":
         use_systemd, reason = systemd_user_manager_available()
@@ -225,6 +236,7 @@ def create_app(
         watcher.stop()
         await watcher_task
         if start_scheduler:
+            await tasks.shutdown_all()
             await tasks.stop()
         store.close()
 
@@ -715,6 +727,89 @@ def create_app(
             diagnostics[path] = diagnosis.model_dump()
         return {"items": items, "diagnostics": diagnostics}
 
+    @app.get("/api/v1/workspace")
+    async def workspace_entries(_actor: str = Depends(require_submitter)):
+        entries = workspace.entries()
+        diagnostics: dict[str, dict[str, Any]] = {}
+        for entry in entries:
+            path = str(entry["path"])
+            if entry["kind"] != "file" or not path.startswith("config/"):
+                continue
+            relative = path.split("/", 1)[1]
+            try:
+                diagnosis = diagnose_config(config.parse(relative), plugins)
+            except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
+                diagnosis = ConfigDiagnosis(kind="generic", valid=False, runnable=False, errors=[f"syntax or import error: {error}"])
+            diagnostics[path] = diagnosis.model_dump()
+        return {"items": entries, "diagnostics": diagnostics}
+
+    @app.get("/api/v1/workspace/files/{path:path}")
+    async def workspace_read(path: str, _actor: str = Depends(require_submitter)):
+        try:
+            item = workspace.read(path)
+            result: dict[str, Any] = item.__dict__.copy()
+            if path.startswith("config/"):
+                relative = path.split("/", 1)[1]
+                try:
+                    document = config.parse(relative)
+                    diagnosis = diagnose_config(document, plugins)
+                except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
+                    document = None
+                    diagnosis = ConfigDiagnosis(kind="generic", valid=False, runnable=False, errors=[f"syntax or import error: {error}"])
+                result.update(document=document, plugin=document.get("plugin") if isinstance(document, dict) else None, diagnosis=diagnosis.model_dump())
+            return result
+        except (ValueError, FileNotFoundError) as exc:
+            raise HTTPException(404, str(exc)) from None
+
+    @app.put("/api/v1/workspace/files/{path:path}")
+    async def workspace_write(path: str, payload: ConfigWrite, _actor: str = Depends(require_submitter), if_match: Annotated[str | None, Header()] = None):
+        try:
+            return workspace.write(path, payload.content, if_match).__dict__
+        except WorkspaceConflict as exc:
+            raise HTTPException(412, {"current_version": str(exc)}) from None
+        except (SyntaxError, ValueError) as exc:
+            raise HTTPException(422, str(exc)) from None
+
+    @app.post("/api/v1/workspace/directories", status_code=201)
+    async def workspace_create_directory(payload: WorkspaceCreateDirectory, _actor: str = Depends(require_submitter)):
+        try:
+            workspace.create_directory(payload.path)
+            return {"path": payload.path}
+        except FileExistsError:
+            raise HTTPException(409, "workspace entry already exists") from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+
+    @app.post("/api/v1/workspace/moves")
+    async def workspace_move(payload: WorkspaceTransfer, _actor: str = Depends(require_submitter)):
+        try:
+            workspace.move(payload.source, payload.target)
+            return {"path": payload.target}
+        except FileExistsError:
+            raise HTTPException(409, "workspace target already exists") from None
+        except (OSError, ValueError) as exc:
+            raise HTTPException(422, str(exc)) from None
+
+    @app.post("/api/v1/workspace/copies", status_code=201)
+    async def workspace_copy(payload: WorkspaceTransfer, _actor: str = Depends(require_submitter)):
+        try:
+            workspace.copy(payload.source, payload.target)
+            return {"path": payload.target}
+        except FileExistsError:
+            raise HTTPException(409, "workspace target already exists") from None
+        except (OSError, ValueError) as exc:
+            raise HTTPException(422, str(exc)) from None
+
+    @app.delete("/api/v1/workspace/entries/{path:path}", status_code=204)
+    async def workspace_delete(path: str, _actor: str = Depends(require_submitter)):
+        try:
+            workspace.delete(path)
+        except FileNotFoundError as exc:
+            raise HTTPException(404, str(exc)) from None
+        except (OSError, ValueError) as exc:
+            raise HTTPException(422, str(exc)) from None
+        return Response(status_code=204)
+
     @app.post("/api/v1/config/files", status_code=201)
     async def config_create(
         payload: ConfigCreate, _actor: str = Depends(require_submitter)
@@ -876,9 +971,12 @@ def create_app(
             return
         await websocket.accept()
         offset = 0
+        awaiting_ack = False
         try:
             while True:
-                data, offset = tasks.read_log(task_id, offset, 65536)
+                data = b""
+                if not awaiting_ack:
+                    data, offset = tasks.read_log(task_id, offset, 65536)
                 if data:
                     await websocket.send_json(
                         {
@@ -887,8 +985,9 @@ def create_app(
                             "offset": offset,
                         }
                     )
+                    awaiting_ack = True
                 try:
-                    message = await asyncio.wait_for(websocket.receive_json(), 0.5)
+                    message = await asyncio.wait_for(websocket.receive_json(), 0.1)
                     message_type = message.get("type")
                     if message_type in {"input", "resize"} and not is_admin:
                         await websocket.send_json(
@@ -910,6 +1009,8 @@ def create_app(
                             await websocket.send_json(
                                 {"type": "error", "message": "terminal resize rejected"}
                             )
+                    elif message_type == "ack":
+                        awaiting_ack = False
                 except (binascii.Error, ValueError, TypeError):
                     await websocket.send_json(
                         {"type": "error", "message": "invalid terminal message"}

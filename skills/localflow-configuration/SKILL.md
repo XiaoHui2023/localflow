@@ -16,6 +16,8 @@ Production packages contain only `command/hello-world.yaml` and `verification/de
 - `plugin` present: also validate plugin existence and plugin-specific fields.
 - Invalid or partial task configuration remains visible but cannot run.
 
-Use the supported configlib include syntax for shared values. Keep the complete include graph inside the configuration root. The selected plugin comes from the merged configuration, not separate UI or client state.
+Use the supported configlib include syntax for shared values. The selected plugin comes from the merged configuration, not separate UI or client state. Prefer a string `command`; it has Ubuntu `/bin/sh -lc` semantics. Use a string list only when exact argv without shell parsing is required.
 
 When changing a file through the API, preserve its version token. When editing directly, use an atomic save so the watcher never consumes a half-written document.
+
+The Run page manages both `config/` and trusted `plugins/`. It supports directories, rename/move, copy/cut/paste and external edits. A root, directory or file may be a symbolic link: edit follows the target, while move/copy/delete preserves link identity. Never replace a symlink with a regular file. Lexical API paths remain under `config/` or `plugins/`; an external target is authorized only by an owner-created link.

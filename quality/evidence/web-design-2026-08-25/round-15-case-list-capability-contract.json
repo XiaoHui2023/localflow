@@ -1,0 +1,36 @@
+{
+  "capability_id": "localflow-case-list-interaction",
+  "owner": "modern-web-interface-design",
+  "problem": "Case 选择器的多列卡片布局不符合用户的一列长行偏好，悬浮与键盘聚焦反馈不够及时，旧门禁反而要求多列。",
+  "scope": "仿真插件 Case 列表的布局、悬浮、键盘焦点、计数编辑、框选、滚轮调次、浏览器性能和自动化门禁；不改变插件字段与任务生成语义。",
+  "baseline": "宽屏使用 auto-fit 多列，单项高度不超过 40px，但一列长行要求无法满足；旧断言要求至少两列。",
+  "benchmarks": ["W3C APG vertical listbox keyboard model", "Adobe React Aria ListBox stack states", "Adobe React Aria Virtualizer large-list strategy", "Fluent interaction state vocabulary"],
+  "advantages": ["已有原生按钮语义", "已有框选、滚轮和批量次数编辑", "无额外运行时依赖"],
+  "disadvantages": ["多列导致扫描路径跳跃", "悬浮只有鼠标态而缺少统一 focus-within", "未测量大量 Case 的 DOM 与反馈延迟"],
+  "limitations": ["框选依赖所有行的几何信息", "Case 点击是增加次数而不是标准 listbox selection", "旧版企业浏览器需避免新实验 API"],
+  "defects": ["宽屏多列", "聚焦态不统一", "悬浮过渡偏慢", "旧质量 Oracle 与新需求冲突"],
+  "bottlenecks": ["case-picker.css 布局所有权", "App.jsx CasePicker 状态语义", "E2E 仍要求多列"],
+  "metrics": [
+    {"name":"case_column_count","unit":"columns","direction":"equal","threshold":1,"measurement":"Edge 每项 x 坐标唯一值","evidence":"browser receipt"},
+    {"name":"case_row_width_ratio","unit":"ratio","direction":"increase","threshold":0.95,"measurement":"Case 行宽/列表内容宽","evidence":"browser receipt"},
+    {"name":"case_hover_response","unit":"ms","direction":"decrease","threshold":100,"measurement":"CSS transition duration 与浏览器状态采样","evidence":"browser receipt"},
+    {"name":"case_focus_visibility","unit":"boolean","direction":"equal","threshold":true,"measurement":"键盘 focus-visible 的 outline/border/background","evidence":"browser receipt"},
+    {"name":"page_horizontal_overflow","unit":"px","direction":"decrease","threshold":0,"measurement":"1440/760/390 三视口几何","evidence":"browser receipt"}
+  ],
+  "hypotheses": ["单列长行降低纵横视线跳跃", "hover 与 focus-within 共用低延迟表面反馈能提升一致性", "保留轻量原生实现比引入不匹配的 listbox/virtualizer 更兼容"],
+  "allowed_variables": ["CasePicker semantic attributes", "case-picker.css layout and states", "browser assertions", "project/user-root design knowledge"],
+  "stages": [
+    {"id":"S1","input":"rejected multi-column baseline","output":"research and measurable contract","checker":"contract validator","rollback":"round 14 baseline","allowed_variables":["evidence","skills"]},
+    {"id":"S2","input":"validated contract","output":"single-column interaction candidate","checker":"Vite build","rollback":"S1","allowed_variables":["App.jsx","case-picker.css"]},
+    {"id":"S3","input":"built candidate","output":"real-browser geometry, focus, interaction and resource evidence","checker":"browser quality","rollback":"S2","allowed_variables":["tests","screenshots","receipt"]}
+  ],
+  "hard_gates": ["exactly one Case column at wide and narrow viewports", "rows fill at least 95 percent of list content width", "hover feedback transition no more than 100ms", "keyboard focus is visible without selecting or changing count", "wheel, click, marquee and batch editing regressions remain green"],
+  "failure_fixtures": ["restore auto-fit multiple columns", "remove focus-within and focus-visible state", "set hover transition to 200ms", "make row fixed-width card"],
+  "success_fixtures": ["three Case rows share one x coordinate", "focused Case retains a visible neutral/accent state", "each row spans the list", "all prior count interactions pass"],
+  "fault_injections": ["two-column grid", "transparent keyboard focus", "slow hover transition", "horizontal overflow"],
+  "rollback": "Restore the prior compact CasePicker behavior while keeping the rejected multi-column baseline as evidence.",
+  "iteration_budget": {"max_rounds":3,"max_time":"2h","review_trigger":"one browser geometry/focus/resource gate failure"},
+  "stop_conditions": ["failure fixtures rejected", "success fixtures accepted", "Edge plus compatibility browsers pass", "resource budget and full regression pass", "design rules and counterexample are written back"],
+  "promotion_decision": {"destination":"modern-web-interface-design references/operator-microinteractions.md","reason":"single-column scan preference after explicit rejection and focus-state latency checks generalize to dense operator pickers","independent_trigger":false,"repeatable_validation":true},
+  "writeback": "Project-specific screenshots and metrics stay in quality evidence; reusable picker routing and focus-response checks go to the user-root web interface skill."
+}

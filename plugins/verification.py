@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import shlex
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -160,6 +161,8 @@ class Verification:
             "kind": "path", "severity": severity, "message": message,
         }]
         command = values.get("command", [])
+        if isinstance(command, str):
+            command = shlex.split(command)
         script_value = next((str(part) for part in command[1:] if str(part).endswith(".py")), None)
         if script_value:
             working = self._path(values.get("working_directory", "."), context)
@@ -232,11 +235,19 @@ class Verification:
                 ]
                 mutex_keys = [str(item) for item in dynamic.resolve(values.get("mutex_keys", []))]
                 mutex_keys.extend(f"tag:{label}" for label in labels)
-                command = [str(item) for item in dynamic.resolve(values["command"])]
-                if not any("${case}" in str(item) or item == case_name for item in values["command"]):
-                    command.extend(["--case", case_name])
-                if not any("${seed}" in str(item) or item == str(seed) for item in values["command"]):
-                    command.extend(["--seed", str(seed)])
+                command_template = values["command"]
+                command = dynamic.resolve(command_template)
+                if isinstance(command, str):
+                    if "${case}" not in command_template and case_name not in command_template:
+                        command += f" --case {shlex.quote(case_name)}"
+                    if "${seed}" not in command_template and str(seed) not in command_template:
+                        command += f" --seed {shlex.quote(str(seed))}"
+                else:
+                    command = [str(item) for item in command]
+                    if not any("${case}" in str(item) or item == case_name for item in command_template):
+                        command.extend(["--case", case_name])
+                    if not any("${seed}" in str(item) or item == str(seed) for item in command_template):
+                        command.extend(["--seed", str(seed)])
                 tasks.append(
                     TaskCreate(
                         name=case_name,

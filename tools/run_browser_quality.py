@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import shutil
 import sqlite3
 import subprocess
@@ -135,7 +136,9 @@ def main() -> int:
         settings_path.write_text(yaml.safe_dump(settings, sort_keys=False), encoding="utf-8")
         task_path = root / "config" / "verification" / "demo.yaml"
         task = load_config_raw(task_path)
-        task["command"][0] = sys.executable
+        command = shlex.split(task["command"]) if isinstance(task["command"], str) else task["command"]
+        command[0] = sys.executable
+        task["command"] = command
         task_path.write_text(
             yaml.safe_dump(task, allow_unicode=True, sort_keys=False), encoding="utf-8"
         )

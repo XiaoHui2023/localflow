@@ -39,7 +39,7 @@ localflow
 
 ## Ubuntu 安装要点
 
-GitHub Release 提供 `localflow` 静态单文件、完整目录压缩包和 `SHA256SUMS`。压缩包根目录已包含 `config/tasks`、`scripts`、`plugins` 及运行目录骨架；解压后只需在该目录执行 `./localflow`，首次运行生成本机密钥和缺失设置，不覆盖示例或用户文件。`main` 每次 push 只有在解压目录示例、静态包真实任务冒烟，以及最终 StaticX 二进制通过当前 Chrome/Firefox 全旅程和固定 Chrome 84/Firefox 78 启动、登录、Monaco 旅程后才更新滚动 Release；目标 Ubuntu 无需为 LocalFlow 本身安装 Python，示例脚本需要系统 `python3`。
+GitHub Release 提供 `localflow` 静态单文件、完整目录压缩包和 `SHA256SUMS`。压缩包根目录已包含 `config`、`scripts`、`plugins`、`stop-localflow.sh` 及运行目录骨架；解压后只需在该目录执行 `./localflow`，首次运行生成本机密钥和缺失设置，不覆盖示例或用户文件。显式关闭使用同目录 `./stop-localflow.sh`，普通 Ctrl+C、SIGTERM 与终端断开不会误关控制器。`main` 每次 push 只有在解压目录示例、静态包真实任务冒烟，以及最终 StaticX 二进制通过当前 Chrome/Firefox 全旅程和固定 Chrome 84/Firefox 78 启动、登录、Monaco 旅程后才更新滚动 Release；目标 Ubuntu 无需为 LocalFlow 本身安装 Python，示例脚本需要系统 `python3`。
 
 ```bash
 sudo useradd --system --create-home --home-dir /var/lib/localflow localflow

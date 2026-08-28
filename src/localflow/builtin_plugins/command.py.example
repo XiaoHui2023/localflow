@@ -23,7 +23,7 @@ class Command:
         "plugin": "command",
         "name": "hello-world",
         "working_directory": ".",
-        "command": ["sh", "-c", "printf 'hello world\\n' > hello-world.txt"],
+        "command": "printf 'hello world\\n' > hello-world.txt",
     }
     statuses = {
         "waiting": {"label": "等待", "tone": "neutral", "finished": False},

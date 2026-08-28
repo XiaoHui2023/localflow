@@ -46,6 +46,7 @@ install -m 0644 README.md "dist/$BUNDLE/README.md"
 install -m 0644 deploy/localflow-static.service "dist/$BUNDLE/deploy/localflow.service"
 install -m 0644 deploy/localflow.tmpfiles.conf "dist/$BUNDLE/deploy/localflow.tmpfiles.conf"
 install -m 0755 deploy/localflow-set-time.py "dist/$BUNDLE/deploy/localflow-set-time.py"
+install -m 0755 deploy/stop-localflow.sh "dist/$BUNDLE/stop-localflow.sh"
 install -m 0644 deploy/localflow.sudoers "dist/$BUNDLE/deploy/localflow.sudoers"
 install -m 0644 docs/api.md docs/configuration.md docs/operations.md docs/plugins.md \
   docs/security.md docs/stopping.md docs/terminal.md "dist/$BUNDLE/docs/"

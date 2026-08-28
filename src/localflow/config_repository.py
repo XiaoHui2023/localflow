@@ -33,27 +33,53 @@ class ConfigRepository:
         root: Path,
         diagnose: Callable[[Any], ConfigDiagnosis] | None = None,
     ) -> None:
-        self.root = (root / "config").resolve()
+        # Keep the lexical root as well as its target.  A release may deliberately
+        # make config/ (or descendants) symbolic links managed elsewhere.
+        self.root = root / "config"
         self._diagnose = diagnose
 
-    def _resolve(self, relative: str) -> Path:
-        path = (self.root / relative).resolve()
-        if path == self.root or self.root not in path.parents:
+    def _path(self, relative: str) -> Path:
+        candidate = Path(relative)
+        if candidate.is_absolute() or not relative or any(part in {"", ".", ".."} for part in candidate.parts):
             raise ValueError("config path escapes config directory")
+        path = self.root.joinpath(*candidate.parts)
         if path.suffix.lower() not in {".yaml", ".yml", ".toml", ".json"}:
             raise ValueError("unsupported config format")
         return path
+
+    def _resolve(self, relative: str) -> Path:
+        """Resolve content access while leaving the directory entry untouched."""
+        return self._path(relative).resolve()
 
     @staticmethod
     def _version(content: str) -> str:
         return hashlib.sha256(content.encode()).hexdigest()
 
     def list(self) -> list[str]:
-        return sorted(
-            str(path.relative_to(self.root)).replace("\\", "/")
-            for path in self.root.rglob("*")
-            if path.is_file() and path.suffix.lower() in {".yaml", ".yml", ".toml", ".json"}
-        )
+        found: list[str] = []
+
+        def visit(directory: Path, relative: Path, ancestors: frozenset[tuple[int, int]]) -> None:
+            try:
+                stat = directory.stat()
+                identity = (stat.st_dev, stat.st_ino)
+                if identity in ancestors:
+                    return
+                next_ancestors = ancestors | {identity}
+                entries = sorted(directory.iterdir(), key=lambda item: item.name.casefold())
+            except (FileNotFoundError, NotADirectoryError, OSError):
+                return
+            for entry in entries:
+                logical = relative / entry.name
+                try:
+                    if entry.is_dir():
+                        visit(entry, logical, next_ancestors)
+                    elif entry.is_file() and entry.suffix.lower() in {".yaml", ".yml", ".toml", ".json"}:
+                        found.append(logical.as_posix())
+                except OSError:
+                    continue
+
+        visit(self.root, Path(), frozenset())
+        return sorted(found)
 
     def read(self, relative: str) -> ConfigFile:
         path = self._resolve(relative)
@@ -67,8 +93,6 @@ class ConfigRepository:
             for raw in match.group(1).split():
                 relative = raw.strip("'\"")
                 included = (path.parent / relative).resolve()
-                if included == self.root or self.root not in included.parents:
-                    raise ValueError("included config escapes config directory")
                 if included.suffix.lower() not in {".yaml", ".yml", ".toml", ".json"}:
                     raise ValueError(f"unsupported included config format: {relative}")
                 if not included.is_file():
@@ -106,7 +130,8 @@ class ConfigRepository:
         return parsed
 
     def write(self, relative: str, content: str, expected: str | None) -> ConfigFile:
-        path = self._resolve(relative)
+        logical_path = self._path(relative)
+        path = logical_path.resolve() if logical_path.is_symlink() else logical_path
         if path.exists():
             current = self.read(relative)
             if expected is None or current.version != expected:
@@ -130,8 +155,8 @@ class ConfigRepository:
         return self.read(relative)
 
     def move(self, source: str, target: str, expected: str) -> ConfigFile:
-        source_path = self._resolve(source)
-        target_path = self._resolve(target)
+        source_path = self._path(source)
+        target_path = self._path(target)
         if source_path == target_path:
             return self.read(source)
         current = self.read(source)
@@ -139,6 +164,10 @@ class ConfigRepository:
             raise ConfigConflict(current.version)
         if target_path.exists():
             raise FileExistsError(target)
+        if source_path.is_symlink():
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            source_path.rename(target_path)
+            return self.read(target)
         content = current.content
         if source_path.parent != target_path.parent and source_path.suffix.lower() in {".yaml", ".yml"}:
             def relocate(match: re.Match[str]) -> str:
@@ -170,7 +199,7 @@ class ConfigRepository:
         return self.read(target)
 
     def delete(self, relative: str, expected: str) -> None:
-        path = self._resolve(relative)
+        path = self._path(relative)
         current = self.read(relative)
         if current.version != expected:
             raise ConfigConflict(current.version)

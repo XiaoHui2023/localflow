@@ -64,8 +64,8 @@ test("Ubuntu browser can operate the released web console", async ({ page, brows
   await expect(page.getByRole("tab")).toHaveText(["任务", "运行", "终端", "设置"]);
 
   await page.getByRole("tab", { name: "运行" }).click();
-  await expect(page.locator('[data-file="command/hello-world.yaml"]')).toBeVisible();
-  await page.locator('[data-file="command/hello-world.yaml"]').click();
+  await expect(page.locator('[data-file="config/command/hello-world.yaml"]')).toBeVisible();
+  await page.locator('[data-file="config/command/hello-world.yaml"]').click();
   await page.getByRole("button", { name: "编辑" }).click();
   await expect(page.locator(".monaco-editor")).toBeVisible({ timeout: 20_000 });
 

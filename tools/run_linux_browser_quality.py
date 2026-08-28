@@ -174,7 +174,7 @@ def main() -> int:
             return 0
         finally:
             if process.poll() is None:
-                process.send_signal(signal.SIGINT)
+                process.send_signal(signal.SIGUSR1)
                 try:
                     process.wait(timeout=15)
                 except subprocess.TimeoutExpired:

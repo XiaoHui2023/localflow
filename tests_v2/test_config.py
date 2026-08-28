@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,30 @@ def test_config_conditional_atomic_write(root: Path) -> None:
     assert saved.version != before.version
     with pytest.raises(ConfigConflict):
         repository.write(before.path, before.content, before.version)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Linux release symlink semantics")
+def test_config_preserves_file_and_directory_symlinks(root: Path, tmp_path: Path) -> None:
+    initialize_root(root)
+    external = tmp_path / "managed-elsewhere"
+    external.mkdir()
+    target = external / "linked.yaml"
+    target.write_text("name: before\n", encoding="utf-8")
+    link = root / "config" / "linked.yaml"
+    link.symlink_to(target)
+    linked_directory = root / "config" / "linked-directory"
+    linked_directory.symlink_to(external, target_is_directory=True)
+
+    repository = ConfigRepository(root)
+    assert {"linked.yaml", "linked-directory/linked.yaml"}.issubset(repository.list())
+    before = repository.read("linked.yaml")
+    repository.write("linked.yaml", "name: after\n", before.version)
+    assert link.is_symlink() and target.read_text(encoding="utf-8") == "name: after\n"
+
+    moved = repository.move("linked.yaml", "renamed-link.yaml", repository.read("linked.yaml").version)
+    assert not link.exists() and (root / "config" / "renamed-link.yaml").is_symlink()
+    repository.delete(moved.path, moved.version)
+    assert target.is_file() and not (root / "config" / "renamed-link.yaml").exists()
 
 
 def test_config_rejects_escape_invalid_content_and_preserves_atomic_write(

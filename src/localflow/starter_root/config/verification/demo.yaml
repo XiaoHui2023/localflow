@@ -2,7 +2,9 @@
 plugin: verification
 case_directory: cases
 working_directory: .
-command: [python3, -u, scripts/simulate.py, --case, "${case}", --seed, "${seed}", --compile-log, "artifacts/${case}.compile.log", --run-log, "artifacts/${case}.run.log"]
+command: >-
+  python3 -u scripts/simulate.py --case ${case} --seed ${seed}
+  --compile-log artifacts/${case}.compile.log --run-log artifacts/${case}.run.log
 labels: [verification]
 compile_logs: ["artifacts/${case}.compile.log"]
 run_logs: ["artifacts/${case}.run.log"]

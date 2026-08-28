@@ -63,6 +63,30 @@ HTTP Message Signatures 的组件覆盖、随机数和创建时间模型用于�
 - [Vite 8 发布与 Node.js 要求](https://vite.dev/blog/announcing-vite8)
 - [WAI-ARIA Authoring Practices](https://www.w3.org/WAI/ARIA/apg/)
 
+### 资源树、软链接与终端流控（2026-08-28）
+
+- React Arborist 官方把虚拟化、拖放、内联重命名、键盘导航、多选、过滤和 ARIA 作为核心能力，并明确以 VS Code sidebar/Finder/Explorer 为目标。LocalFlow 继续使用受控树，直接实现对象工具栏与标准剪贴板快捷键；大目录只渲染可视行并保留 8 行 overscan。
+- VS Code API 文档明确说明文件 watcher 不会自动跟随符号链接，事件会保留所提供的链接路径。LocalFlow 因此不把单一 watcher 当作充分同步证明，而是使用原生事件加每秒一次的有界内容校对；校对基于逻辑路径，保持链接身份。
+- Python `pathlib`/`os` 区分解析目标与目录项操作。资源仓库据此分开词法路径和解析路径：编辑链接写目标，rename/unlink 作用于链接目录项，copy 用 `readlink` 重建链接。
+- xterm.js 官方流控指南指出 `Terminal.write()` 非阻塞、WebSocket 没有天然背压且缓冲可能耗尽内存。LocalFlow 使用 `write` 完成回调 ACK 与服务端单块窗口，不以更快轮询冒充流控。
+- systemd 的 `KillSignal`、`TimeoutStopSec`、`Restart=on-failure` 适合长期控制器。误操作信号与显式停机信号分离；显式停机仍必须由应用层先收敛任务进程树，不能只杀 HTTP 主进程。
+
+参考资料：
+
+- [React Arborist 官方 README](https://github.com/jameskerr/react-arborist/blob/main/README.md)
+- [VS Code API 文件监听与符号链接说明](https://code.visualstudio.com/api/references/vscode-api)
+- [Python pathlib 文档](https://docs.python.org/3/library/pathlib.html)
+- [Linux inotify 手册](https://man7.org/linux/man-pages/man7/inotify.7.html)
+- [xterm.js Flow Control](https://xtermjs.org/docs/guides/flowcontrol/)
+- [xterm.js Addons](https://xtermjs.org/docs/guides/using-addons/)
+- [systemd.service 手册](https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html)
+
+### Case 单列、焦点与性能（2026-08-28）
+
+Case 的点击语义是增加运行次数，框选只建立临时批量作用域，因此不冒充标准 ListBox selection。W3C APG 与 React Aria 的垂直堆叠、focus/hover/selected 分离用于状态设计；React Aria Virtualizer 的可见行复用适合数千项，但会与当前依赖完整行几何的框选冲突。本轮采用原生按钮、单列全宽 flex、单个委托 wheel listener 和局部 CSS containment：不增加依赖，同时把列数、占宽、≤100ms 状态反馈、焦点不改次数与资源预算交给真实浏览器门。
+
+详细检索、候选比较与失败基线见 [Round 15 研究记录](../quality/evidence/web-design-2026-08-25/round-15-case-list-sources.md)，反例见 [用户要求顺序扫描后仍保留多列](ui-counterexamples/multi-column-case-picker-after-rejection.md)。
+
 ## VCS 与 UVM 结果判定
 
 Accellera UVM 1.2 用户指南给出的终局格式包含 `--- UVM Report Summary ---`、按严重级别统计以及 `UVM_ERROR : N`、`UVM_FATAL : N`。UVM 参考实现的 report server 负责汇总，`run_test` 在结束阶段调用报告汇总。因此验证插件从最后一份摘要读取计数，不扫描全文中的任意 `UVM_ERROR` 字样；这能排除被后续摘要纠正的早期消息。没有 UVM 摘要时，才按 Synopsys 资料中编译/运行诊断的行首消息形态识别 VCS error/fatal。

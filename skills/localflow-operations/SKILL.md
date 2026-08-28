@@ -10,7 +10,8 @@ Read `../../docs/operations.md`. For task exit incidents also read `../../docs/s
 ## Safe operating boundary
 
 - Resolve the actual root, service account, configuration, backend, PID, and active task count before restart or migration.
-- Do not stop the controller merely to refresh static files while user tasks are active. The Ubuntu executor owns tasks through systemd/cgroups so controller restart must not kill them.
+- Do not send Ctrl+C, SIGTERM or SIGHUP to stop the controller; they are intentionally ignored. Use the release-root `./stop-localflow.sh` or `systemctl stop localflow`, both of which use SIGUSR1 and wait for task cleanup.
+- Explicit shutdown cancels queued tasks and drains running task protocols before the controller exits. If cleanup cannot be confirmed, keep the controller alive and report failure instead of orphaning tasks.
 - Treat `stopping` as active. Confirm the complete task process owner is inactive before calling the task cancelled or the machine clean.
 - Keep secrets owner-readable only and never print their contents.
 - Retention deletes terminal task metadata and output together. Capacity protection may remove oldest terminal output early, but must record that it is unavailable.

@@ -42,7 +42,7 @@
 {
   "name": "smoke-case-a",
   "working_directory": "/srv/project-a",
-  "command": ["bash", "run.sh", "--case", "case_a"],
+  "command": "bash run.sh --case case_a",
   "labels": ["smoke", "project-a"],
   "mutex_keys": ["license:sim-a"],
   "custom": {"report_path": "/srv/reports/case_a/index.html"},
@@ -64,7 +64,7 @@
     "name": "smoke",
     "case_directory": "cases",
     "working_directory": ".",
-    "command": ["python3", "scripts/simulate.py", "--case", "${case}"]
+    "command": "python3 scripts/simulate.py --case ${case}"
   },
   "inputs": {
     "cases": ["case-a", "case-b"],
@@ -101,6 +101,18 @@
 | `DELETE` | `/config/files/{path}` | 按 `If-Match` 删除配置 | signed-client 或 admin |
 | `POST` | `/config/files/{path}/discover` | 用该配置调用插件发现钩子 | signed-client 或 admin |
 | `POST` | `/config/files/{path}/runs` | 运行诊断通过的配置 | signed-client 或 admin |
+
+资源工作区接口覆盖网页资源管理器的 `config/` 与 `plugins/` 两棵树。文件内容使用 `If-Match` 版本条件保存；复制、移动和删除在会破坏现有配置导入时整体回滚。软链接本身是显式授权：读取和保存跟随目标，复制/移动/删除保留并操作链接本体，不把外部目标复制成普通文件或误删目标。
+
+| 方法 | 路径 | 用途 | 最低身份 |
+| --- | --- | --- | --- |
+| `GET` | `/workspace` | 目录、文件、软链接和配置诊断清单 | signed-client 或 admin |
+| `GET` | `/workspace/files/{path}` | 读取配置或插件源文件 | signed-client 或 admin |
+| `PUT` | `/workspace/files/{path}` | 条件创建或原子保存文件 | signed-client 或 admin |
+| `POST` | `/workspace/directories` | 新建目录 | signed-client 或 admin |
+| `POST` | `/workspace/moves` | 移动或重命名文件、目录、软链接 | signed-client 或 admin |
+| `POST` | `/workspace/copies` | 复制文件、目录或软链接 | signed-client 或 admin |
+| `DELETE` | `/workspace/entries/{path}` | 删除文件、目录或软链接 | signed-client 或 admin |
 
 配置读取的 `diagnosis` 返回 `kind`（`generic`、`fragment` 或 `task`）、`valid`、`runnable`、`plugin`、已出现的公共字段、错误和警告。插件名只取自配置顶层 `plugin`。保存先验证语法、受限导入和分层字段，随后同目录写临时文件、`fsync` 并原子替换。版本不符返回 `412`，无效配置返回 `422`。外部写入的无效文件仍可由 GET 读取原文和诊断。`POST /api/v1/config/files/{path}/inspection` 接受与运行相同的 `inputs`，返回只读检查项 `{name,label,value,kind,severity,message}`；它与发现钩子一样有五秒上限，不创建任务。
 
@@ -145,7 +157,7 @@ body = json.dumps(
             "plugin": "command",
             "name": "example",
             "working_directory": "/srv/project",
-            "command": ["python3", "-u", "run.py"],
+            "command": "python3 -u run.py",
         },
         "inputs": {},
     },
@@ -194,7 +206,7 @@ with urllib.request.urlopen(request) as response:
 
 SSE 使用 `after` 查询参数从指定事件 ID 后续传，并在空闲时发送 keepalive。摘要访问者的事件数据同样经过字段投影。
 
-终端 WebSocket 输出消息为 `output`，包含 Base64 数据和下一字节偏移；输入与尺寸消息为 `input`、`resize`，拒绝结果为 `error`。单次块上限 64 KiB，发送端等待 WebSocket 背压，输入也执行大小、Base64 和尺寸范围校验。断线后的完整回放使用日志接口的字节偏移完成。
+终端 WebSocket 输出消息为 `output`，包含 Base64 数据和下一字节偏移；浏览器必须在 xterm 完成该块写入后回复 `{type:"ack",offset}`，服务器才读取下一块。输入与尺寸消息为 `input`、`resize`，拒绝结果为 `error`。单次块上限 64 KiB；这个应用层确认弥补浏览器 WebSocket API 缺少可靠背压的问题。输入同时执行大小、Base64 和尺寸范围校验，断线后的完整回放使用日志接口的字节偏移完成。
 
 HTTP 日志响应的 `next_offset` 是下一次读取起点；正文 `data` 为 Base64。输出文件由监督程序以无缓冲二进制追加写入，因此接口不等待任务结束。HTTP 终端接口适合脚本控制，WebSocket/xterm 适合人在环；两者使用同一 PTY，调用方必须避免同时发送相互冲突的输入。
 

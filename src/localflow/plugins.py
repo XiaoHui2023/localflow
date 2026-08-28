@@ -400,7 +400,16 @@ class PluginRegistry:
             "message": None if directory_ok else "找不到工作目录",
         }]
         command = values.get("command")
-        if isinstance(command, list) and command:
+        if isinstance(command, str) and command.strip():
+            items.append({
+                "name": "command",
+                "label": "命令",
+                "value": command,
+                "kind": "command",
+                "severity": "ok",
+                "message": "由 /bin/sh -lc 执行",
+            })
+        elif isinstance(command, list) and command:
             executable = str(command[0])
             executable_path = Path(executable)
             found = (

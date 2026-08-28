@@ -3,6 +3,7 @@ from __future__ import annotations
 import ipaddress
 import logging
 import os
+import signal
 import socket
 import sys
 from contextlib import suppress
@@ -106,6 +107,24 @@ def _serve(root: Path) -> None:
         log_config=None,
     )
     server = uvicorn.Server(config)
+    if os.name != "nt":
+        # Ctrl+C, terminal closure and ordinary service-manager TERM must not
+        # accidentally abandon a long-running task fleet.  SIGUSR1 is the
+        # explicit, package-owned graceful shutdown channel.
+        server.install_signal_handlers = lambda: None
+        # Use a caught no-op instead of SIG_IGN.  Caught dispositions reset to
+        # SIG_DFL across exec(), so tasks launched by the development executor
+        # still receive Ctrl+C/SIGTERM normally instead of inheriting immunity.
+        def protect_controller(_signum, _frame):
+            return None
+
+        for protected in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+            signal.signal(protected, protect_controller)
+        signal.signal(signal.SIGUSR1, lambda _signum, _frame: setattr(server, "should_exit", True))
+        logger.info(
+            "Controller signals protected; stop explicitly with stop-localflow.sh "
+            "or systemctl stop localflow"
+        )
     original_started = server.startup
 
     async def startup_with_port(sockets=None):
@@ -122,6 +141,9 @@ def _serve(root: Path) -> None:
             if os.name != "nt":
                 os.chmod(port_file, 0o600)
             print(port_file.read_text(encoding="ascii").strip(), flush=True)
+            pid_file = root / "runtime" / "localflow.pid"
+            pid_file.write_text(f"{os.getpid()}\n", encoding="ascii")
+            os.chmod(pid_file, 0o600)
             if os.environ.get(_STARTUP_PROBE) == "1":
                 server.should_exit = True
 
@@ -135,6 +157,9 @@ def _serve(root: Path) -> None:
         port_file = root / "runtime" / "port"
         if port_file.is_file():
             port_file.unlink()
+        pid_file = root / "runtime" / "localflow.pid"
+        if pid_file.is_file() and pid_file.read_text(encoding="ascii").strip() == str(os.getpid()):
+            pid_file.unlink()
 
 
 def main() -> None:

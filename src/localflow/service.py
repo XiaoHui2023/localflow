@@ -129,6 +129,25 @@ class TaskService:
         if observers:
             await asyncio.gather(*observers, return_exceptions=True)
 
+    async def shutdown_all(self, timeout_seconds: float = 60) -> None:
+        """Stop every queued/running task and verify that no process tree remains."""
+        active_states = [TaskState.QUEUED, TaskState.STARTING, TaskState.RUNNING, TaskState.STOPPING]
+        active = self.store.list_tasks(states=active_states, limit=10_000, ascending=True)
+        for task in active:
+            await self.interrupt(task.id)
+        deadline = time.monotonic() + timeout_seconds
+        while time.monotonic() < deadline:
+            remaining = self.store.list_tasks(states=active_states, limit=10_000, ascending=True)
+            if not remaining:
+                return
+            await asyncio.sleep(0.1)
+        remaining = self.store.list_tasks(states=active_states, limit=10_000, ascending=True)
+        for task in remaining:
+            logger.warning("shutdown force cleanup task_id=%s", task.id)
+            await self.executor.interrupt(task.id, "sigkill")
+        for task in remaining:
+            await self._confirm_forced_exit(task.id)
+
     async def recover(self) -> None:
         for task in self.store.list_tasks(
             states=["starting", "running", "stopping"], limit=500, ascending=True
