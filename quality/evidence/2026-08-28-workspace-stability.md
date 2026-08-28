@@ -9,6 +9,7 @@
 - Plugin reconciliation reports changed paths; clean editors refresh only when their file changed, while dirty editor content is preserved with a conflict notice.
 - Terminal output uses a 64 KiB application-level ACK window tied to the xterm write callback.
 - The controller survives accidental terminal signals. Only SIGUSR1 starts fleet shutdown; it exits after all task process trees are confirmed gone.
+- The frozen release smoke sends INT, TERM and HUP to the complete foreground process group and verifies the private controller PID plus HTTP after every signal; it then sends SIGUSR1 to that same PID used by `stop-localflow.sh`.
 - Verification Case rows use one compact full-width column with 70 ms hover/focus transitions; focus alone never changes a run count.
 
 ## Oracles and failure samples
@@ -19,9 +20,11 @@ The release workflow repeats these checks on Ubuntu, runs the systemd/PTY target
 
 The first hosted run stopped at the systemd container readiness gate. A new local container proved all 106 tests still passed, isolating the difference to the hosted runner's cgroup namespace/readiness state. The workflow now shares the host cgroup namespace explicitly, accepts both systemd `running` and `degraded` as readiness states, prints failed units on timeout, and still requires the functional PTY/cgroup tests to pass before packaging.
 
+The second hosted run passed source, systemd, static build and legacy CPU gates, then exposed that current Uvicorn uses `capture_signals()` rather than the legacy `install_signal_handlers()` hook. After disabling both ownership paths, a rebuilt onefile exposed the separate PyInstaller parent/controller PID model under SIGHUP. The final oracle follows the real controller PID instead of equating it with the unpacking parent. Both the standalone staticx executable and a fresh archive extraction passed the complete task, process-group signal, uncooperative child cleanup and PID-file smoke.
+
 ## Final local and target results
 
-- Windows source suite: 94 passed, 4 skipped; Ruff, dependency audit and `git diff --check` passed.
+- Windows source suite: 95 passed, 4 skipped; Ruff, dependency audit and `git diff --check` passed.
 - Ubuntu 24.04 systemd target: 106 passed, including owner permission, PTY and symlink behavior.
 - Browser matrix: Edge full journey 2/2, current Chromium/Firefox 2/2, fixed Chrome 84 and Firefox 78 boot/login/editor journeys passed with zero captured console/resource errors.
 - Warm idle evidence: controller RSS 62.285 MiB, controller CPU 0.757% of one core, renderer heap 11.409 MiB, renderer idle CPU 0.621%, 1,110 DOM nodes, 309 listeners, 7 background requests, zero hidden WebSockets and one observed xterm ACK frame.

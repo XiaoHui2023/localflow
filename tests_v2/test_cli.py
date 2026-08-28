@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 from pathlib import Path
 from types import ModuleType
 
@@ -9,6 +10,22 @@ from localflow.executor import SystemdExecutor
 from localflow.models import TaskCreate
 from localflow.settings import initialize_root, load_settings
 from localflow.storage import Store
+
+
+def test_controller_disables_current_and_legacy_uvicorn_signal_capture() -> None:
+    class Server:
+        def install_signal_handlers(self) -> None:
+            raise AssertionError("legacy Uvicorn signal capture remained active")
+
+        def capture_signals(self):
+            raise AssertionError("current Uvicorn signal capture remained active")
+
+    server = Server()
+    cli._disable_uvicorn_signal_capture(server)
+    server.install_signal_handlers()
+    assert server.capture_signals is nullcontext
+    with server.capture_signals():
+        pass
 
 
 def test_source_entry_uses_current_directory(monkeypatch, tmp_path: Path) -> None:

@@ -18,6 +18,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from contextlib import suppress
 from pathlib import Path
 
 
@@ -126,6 +127,7 @@ def main() -> None:
                 env=clean_env,
                 stdout=log,
                 stderr=subprocess.STDOUT,
+                start_new_session=True,
             )
         stopped_explicitly = False
         try:
@@ -175,17 +177,22 @@ def main() -> None:
             output = base64.b64decode(json.loads(log_body)["data"])
             if b"LOCALFLOW_FROZEN_OK" not in output:
                 raise RuntimeError("task output marker is missing")
-            for protected_signal in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
-                process.send_signal(protected_signal)
-                time.sleep(0.2)
-                if process.poll() is not None:
-                    raise RuntimeError(f"controller exited on protected signal {protected_signal}")
-            status, _ = request(opener, endpoint + "/api/v1/system/status")
-            if status != 200:
-                raise RuntimeError("controller did not serve after protected signals")
             pid_file = root / "runtime" / "localflow.pid"
-            if pid_file.read_text(encoding="ascii").strip() != str(process.pid):
-                raise RuntimeError("controller PID file does not identify the running process")
+            controller_pid = int(pid_file.read_text(encoding="ascii").strip())
+            for protected_signal in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+                os.killpg(process.pid, protected_signal)
+                time.sleep(0.2)
+                try:
+                    os.kill(controller_pid, 0)
+                except ProcessLookupError as exc:
+                    raise RuntimeError(
+                        f"controller exited on protected signal {protected_signal}"
+                    ) from exc
+                status, _ = request(opener, endpoint + "/api/v1/system/status")
+                if status != 200:
+                    raise RuntimeError(
+                        f"controller stopped serving after protected signal {protected_signal}"
+                    )
             child_pid_file = isolated / "protected-child.pid"
             long_payload = {
                 "name": "shutdown-cleanup-smoke",
@@ -213,25 +220,39 @@ def main() -> None:
                     "protected child did not start",
                 )
             )
-            process.send_signal(signal.SIGUSR1)
-            process.wait(timeout=90)
+            os.kill(controller_pid, signal.SIGUSR1)
+            wait_for(
+                lambda: not Path(f"/proc/{controller_pid}").exists(),
+                90,
+                "controller PID remained after explicit shutdown",
+            )
+            if process.poll() is None:
+                process.wait(timeout=5)
             stopped_explicitly = True
-            if process.returncode != 0:
-                raise RuntimeError(f"controller graceful shutdown returned {process.returncode}")
+            if process.returncode not in {0, -signal.SIGHUP}:
+                raise RuntimeError(f"onefile wrapper returned {process.returncode}")
             if Path(f"/proc/{child_pid}").exists():
                 raise RuntimeError(f"task process remained after controller shutdown: {child_pid}")
             if pid_file.exists():
                 raise RuntimeError("controller PID file remained after shutdown")
             print(f"frozen release smoke passed: {binary} task={task_id} cleanup_pid={child_pid}")
         finally:
-            if not stopped_explicitly and process.poll() is None:
-                process.send_signal(signal.SIGUSR1)
-                try:
-                    process.wait(timeout=90)
-                except subprocess.TimeoutExpired:
+            if not stopped_explicitly:
+                pid_file = root / "runtime" / "localflow.pid"
+                if pid_file.is_file():
+                    with suppress(ProcessLookupError, ValueError):
+                        os.kill(
+                            int(pid_file.read_text(encoding="ascii").strip()), signal.SIGUSR1
+                        )
+                else:
                     process.kill()
-                    process.wait(timeout=5)
-            if process.returncode != 0:
+                if process.poll() is None:
+                    try:
+                        process.wait(timeout=90)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait(timeout=5)
+            if process.returncode not in {0, -signal.SIGHUP}:
                 print(log_path.read_text(encoding="utf-8", errors="replace"))
                 raise RuntimeError(f"server exited with {process.returncode}")
 

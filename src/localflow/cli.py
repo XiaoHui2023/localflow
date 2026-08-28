@@ -6,7 +6,7 @@ import os
 import signal
 import socket
 import sys
-from contextlib import suppress
+from contextlib import nullcontext, suppress
 from pathlib import Path
 
 import uvicorn
@@ -80,6 +80,15 @@ def _run_internal_mode() -> bool:
     raise SystemExit(supervise(Path(root_text).resolve(), task_id))
 
 
+def _disable_uvicorn_signal_capture(server: uvicorn.Server) -> None:
+    """Keep controller-owned signals across old and current Uvicorn releases."""
+    # Uvicorn <= 0.29 called install_signal_handlers(); current releases wrap
+    # serve() in capture_signals().  Override both so a dependency update
+    # cannot silently reclaim SIGINT/SIGTERM from the controller.
+    server.install_signal_handlers = lambda: None
+    server.capture_signals = nullcontext
+
+
 def _serve(root: Path) -> None:
     initialize_root(root)
     settings = load_settings(root)
@@ -111,7 +120,7 @@ def _serve(root: Path) -> None:
         # Ctrl+C, terminal closure and ordinary service-manager TERM must not
         # accidentally abandon a long-running task fleet.  SIGUSR1 is the
         # explicit, package-owned graceful shutdown channel.
-        server.install_signal_handlers = lambda: None
+        _disable_uvicorn_signal_capture(server)
         # Use a caught no-op instead of SIG_IGN.  Caught dispositions reset to
         # SIG_DFL across exec(), so tasks launched by the development executor
         # still receive Ctrl+C/SIGTERM normally instead of inheriting immunity.

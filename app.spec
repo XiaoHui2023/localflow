@@ -30,6 +30,6 @@ a = Analysis(
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz, a.scripts, a.binaries, a.datas, [], name="localflow", debug=False,
-    bootloader_ignore_signals=False, strip=False, upx=False, console=True,
+    bootloader_ignore_signals=True, strip=False, upx=False, console=True,
     disable_windowed_traceback=False,
 )
