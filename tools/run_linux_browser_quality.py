@@ -174,12 +174,19 @@ def main() -> int:
             return 0
         finally:
             if process.poll() is None:
-                process.send_signal(signal.SIGUSR1)
-                try:
-                    process.wait(timeout=15)
-                except subprocess.TimeoutExpired:
-                    process.terminate()
+                pid_file = root / "runtime" / "localflow.pid"
+                if not pid_file.is_file():
+                    process.kill()
                     process.wait(timeout=5)
+                    raise RuntimeError("release controller PID file disappeared before cleanup")
+                controller_pid = int(pid_file.read_text(encoding="ascii").strip())
+                os.kill(controller_pid, signal.SIGUSR1)
+                try:
+                    process.wait(timeout=90)
+                except subprocess.TimeoutExpired as exc:
+                    raise RuntimeError(
+                        "release controller remained alive while cleaning task processes"
+                    ) from exc
             if process.returncode not in {0, -signal.SIGINT}:
                 print(log_path.read_text(encoding="utf-8", errors="replace"))
                 raise RuntimeError(f"release server exited with {process.returncode}")

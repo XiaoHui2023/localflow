@@ -22,12 +22,14 @@ The first hosted run stopped at the systemd container readiness gate. A new loca
 
 The second hosted run passed source, systemd, static build and legacy CPU gates, then exposed that current Uvicorn uses `capture_signals()` rather than the legacy `install_signal_handlers()` hook. After disabling both ownership paths, a rebuilt onefile exposed the separate PyInstaller parent/controller PID model under SIGHUP. The final oracle follows the real controller PID instead of equating it with the unpacking parent. Both the standalone staticx executable and a fresh archive extraction passed the complete task, process-group signal, uncooperative child cleanup and PID-file smoke.
 
+The third hosted run passed both frozen smokes and reached the final browser executable gate. Its cleanup path still sent SIGUSR1 to the protected onefile parent, so the harness—not the browser journey—could leave the controller alive. Browser cleanup now uses the same private controller PID contract and 90-second verified shutdown window as the frozen smoke; a timeout fails without killing the controller, preserving ownership of any task fleet instead of pretending the unpacking parent owns it.
+
 ## Final local and target results
 
 - Windows source suite: 95 passed, 4 skipped; Ruff, dependency audit and `git diff --check` passed.
 - Ubuntu 24.04 systemd target: 106 passed, including owner permission, PTY and symlink behavior.
 - Browser matrix: Edge full journey 2/2, current Chromium/Firefox 2/2, fixed Chrome 84 and Firefox 78 boot/login/editor journeys passed with zero captured console/resource errors.
-- Warm idle evidence: controller RSS 62.285 MiB, controller CPU 0.757% of one core, renderer heap 11.409 MiB, renderer idle CPU 0.621%, 1,110 DOM nodes, 309 listeners, 7 background requests, zero hidden WebSockets and one observed xterm ACK frame.
+- Warm idle evidence: controller RSS 62.324 MiB, controller CPU 0.757% of one core, renderer heap 11.409 MiB, renderer idle CPU 0.665%, 1,110 DOM nodes, 309 listeners, 7 background requests, zero hidden WebSockets and one observed xterm ACK frame.
 - Case browser oracle: exactly one x origin, every row at least 95% of list width, transition duration at most 100 ms, focus-visible state without count mutation; click, wheel, marquee and group editing remained green.
 
 ## Research disclosure
