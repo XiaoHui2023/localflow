@@ -53,6 +53,7 @@ install -m 0644 docs/api.md docs/configuration.md docs/operations.md docs/plugin
 cp -R skills/. "dist/$BUNDLE/skills/"
 install -m 0644 src/localflow/starter_root/config/command/*.yaml "dist/$BUNDLE/config/command/"
 install -m 0644 src/localflow/starter_root/config/verification/*.yaml "dist/$BUNDLE/config/verification/"
+install -m 0644 src/localflow/starter_root/Makefile "dist/$BUNDLE/Makefile"
 install -m 0755 src/localflow/starter_root/scripts/simulate.py "dist/$BUNDLE/scripts/"
 install -m 0644 src/localflow/builtin_plugins/command.py.example "dist/$BUNDLE/plugins/command.py"
 install -m 0644 src/localflow/builtin_plugins/verification.py.example "dist/$BUNDLE/plugins/verification.py"

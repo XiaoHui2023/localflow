@@ -32,12 +32,15 @@ def test_release_workflow_tracks_the_current_starter_examples() -> None:
     workflow = (root / ".github" / "workflows" / "release.yml").read_text(
         encoding="utf-8"
     )
-    for required in ("hello-world.yaml", "demo.yaml", "simulate.py", "command.py"):
+    for required in ("hello-world.yaml", "demo.yaml", "Makefile", "simulate.py", "command.py"):
         assert required in workflow
     for forbidden in ("marker.py", "interactive.py", "marker_result.py", "interactive_shutdown.py"):
         assert forbidden in workflow and "test ! -e" in workflow
     assert "heartbeat.yaml" not in workflow
     assert "heartbeat.py" not in workflow
+    packer = (root / "tools" / "finalize_release.sh").read_text(encoding="utf-8")
+    assert 'starter_root/Makefile "dist/$BUNDLE/Makefile"' in packer
+    assert 'make -C "$bundle" all CASE=release-case SEED=12345' in workflow
     assert "heartbeat.yaml" not in (root / "docs" / "configuration.md").read_text(
         encoding="utf-8"
     )

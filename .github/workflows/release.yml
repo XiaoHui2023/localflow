@@ -91,6 +91,7 @@ jobs:
           test -f "$bundle/config.yaml"
           test -f "$bundle/config/command/hello-world.yaml"
           test -f "$bundle/config/verification/demo.yaml"
+          test -f "$bundle/Makefile"
           test -f "$bundle/plugins/command.py"
           test -f "$bundle/plugins/verification.py"
           test -f "$bundle/plugins/README.md"
@@ -116,6 +117,7 @@ jobs:
           test ! -e "$bundle/scripts/interactive_shutdown.py"
           (cd "$bundle" && /bin/sh -c "printf 'hello world\\n' > hello-world.txt")
           test "$(cat "$bundle/hello-world.txt")" = "hello world"
+          make -C "$bundle" all CASE=release-case SEED=12345
           python3 tools/run_frozen_smoke.py --binary "$bundle/localflow" --bundle-root "$bundle"
       - name: Install Ubuntu Chrome and Firefox for release UI gate
         run: npm --prefix frontend exec -- playwright install --with-deps chrome firefox
