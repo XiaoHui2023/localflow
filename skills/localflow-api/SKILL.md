@@ -14,6 +14,8 @@ Read `../../docs/api.md` before generating a client and `../../docs/security.md`
 - Never place the key in a URL, browser storage, checked-in configuration, logs, examples, or answers.
 - Use idempotency keys for retryable task or batch creation. Treat `422` as an input problem, not a retry signal.
 - Prefer `POST /api/v1/runs` when one request must carry a plugin configuration plus run inputs and expand into one or more tasks.
+- Fetch `/api/v1/plugins/{name}` for separate configuration and input JSON Schemas. Use `/runs/plan` or the saved configuration `/plan` endpoint to inspect exact task drafts without side effects; `deferred_values` are allocated only by the atomic submit transaction.
+- Saved-configuration runs and inline runs return the same batch response and support atomic idempotency. Reusing one key with a changed body returns the original response, so generate one key per logical request.
 - Read logs by byte offset and send task input/control through the documented task endpoints. An interrupt response of `stopping` is not proof that the process has exited.
 
 Use placeholders such as `/srv/localflow`, `/srv/project`, and `KEY_FILE`; never copy machine-specific paths, ports, cookies, or secrets into reusable examples.

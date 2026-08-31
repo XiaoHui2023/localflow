@@ -56,6 +56,10 @@ def test_one_request_inline_configuration_uses_plugin_and_creates_batch(
         },
         "inputs": {},
     }
+    planned = admin.post("/api/v1/runs/plan", json=payload)
+    assert planned.status_code == 200
+    assert planned.json()["count"] == 1
+    assert planned.json()["items"][0]["name"] == "inline-api"
     created = admin.post(
         "/api/v1/runs", json=payload, headers={"Idempotency-Key": "inline-run"}
     )
@@ -110,3 +114,51 @@ def test_inline_configuration_rejects_missing_or_unknown_plugin(admin: TestClien
     )
     assert undeclared.status_code == 422
     assert "not declared" in undeclared.json()["detail"]
+
+
+def test_plugin_contract_plan_and_saved_config_run_are_machine_complete(
+    admin: TestClient,
+) -> None:
+    contract = admin.get("/api/v1/plugins/verification")
+    assert contract.status_code == 200
+    assert contract.json()["api"]["input_schema"]["additionalProperties"] is False
+    assert {"cases", "case_runs", "runs", "seed"}.issubset(
+        contract.json()["api"]["input_schema"]["properties"]
+    )
+
+    before = {item["id"] for item in admin.get("/api/v1/tasks").json()["items"]}
+    inputs = {
+        "inputs": {
+            "cases": ["case-a"],
+            "case_runs": {"case-a": 2},
+            "seed": None,
+        }
+    }
+    plan = admin.post("/api/v1/config/files/verification/demo.yaml/plan", json=inputs)
+    assert plan.status_code == 200
+    assert plan.json()["count"] == 2
+    assert plan.json()["immutable_after_submit"] is True
+    assert all("seed" in item["deferred_values"] for item in plan.json()["items"])
+    after = {item["id"] for item in admin.get("/api/v1/tasks").json()["items"]}
+    assert after == before
+
+    first = admin.post(
+        "/api/v1/config/files/verification/demo.yaml/runs",
+        json=inputs,
+        headers={"Idempotency-Key": "saved-verification"},
+    )
+    second = admin.post(
+        "/api/v1/config/files/verification/demo.yaml/runs",
+        json=inputs,
+        headers={"Idempotency-Key": "saved-verification"},
+    )
+    assert first.status_code == 202
+    assert second.json() == first.json()
+    assert first.json()["count"] == 2
+    records = [
+        admin.get(f"/api/v1/tasks/{task_id}").json()
+        for task_id in first.json()["task_ids"]
+    ]
+    seeds = [record["custom"]["seed"] for record in records]
+    assert seeds[1] == seeds[0] + 1
+    assert all("${seed}" not in record["command"] for record in records)

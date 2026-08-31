@@ -57,9 +57,7 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     assert verification["api"]["endpoint"] == "/api/v1/runs"
     assert verification["api"]["configuration_schema"] is not None
     schema = verification["api"]["configuration_schema"]
-    assert {"plugin", "command", "case_directory", "case_runs"}.issubset(
-        schema["properties"]
-    )
+    assert {"plugin", "command", "case_directory"}.issubset(schema["properties"])
     assert {"plugin", "command"}.issubset(schema["required"])
     assert schema["additionalProperties"] is False
     assert {
@@ -68,10 +66,10 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
         "mutex_keys",
         "compile_logs",
         "run_logs",
-        "runs",
-        "case_runs",
-        "seed",
     }.issubset(schema["properties"])
+    input_schema = verification["api"]["input_schema"]
+    assert {"cases", "runs", "case_runs", "seed"}.issubset(input_schema["properties"])
+    assert input_schema["additionalProperties"] is False
     assert verification["api"]["example"]["configuration"]["plugin"] == "verification"
     assert verification["api"]["example"]["inputs"] == {
         "cases": ["case-a"],
@@ -110,8 +108,8 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     )[0]
     assert task.name == "case-a"
     assert task.custom["_case"] == "case-a"
-    assert task.custom["_runtime_seed"] == "unix"
     assert "seed" not in task.custom
+    assert task.deferred_values["seed"].source == "monotonic_unix"
     assert task.command.count("--case") == task.command.count("--seed") == 1
     assert task.command[task.command.index("--case") + 1] == "case-a"
     assert task.command[task.command.index("--seed") + 1] == "${seed}"
@@ -214,6 +212,31 @@ def test_command_task_resolves_config_variables(root: Path) -> None:
     assert task.labels == ["nightly"]
     assert task.mutex_keys == ["license:nightly"]
     assert task.plugin_snapshot["name"] == "command"
+
+
+def test_plugin_input_model_must_match_run_field_contract(root: Path) -> None:
+    directory = root / "plugins"
+    directory.mkdir(parents=True)
+    (directory / "mismatch.py").write_text(
+        "from pydantic import BaseModel, ConfigDict\n"
+        "from localflow.plugins import plugin, run_field\n"
+        "class Inputs(BaseModel):\n"
+        " model_config=ConfigDict(extra='forbid')\n"
+        " hidden: str = ''\n"
+        "@plugin('mismatch')\n"
+        "class Mismatch:\n"
+        " input_model=Inputs\n"
+        " run_fields=[run_field('visible','string')]\n"
+        " example={'plugin':'mismatch'}\n"
+        " def expand(self, values, context): return []\n",
+        encoding="utf-8",
+    )
+    registry = PluginRegistry(directory)
+    registry.load()
+    assert not registry.plugins
+    assert "input_model fields differ from run fields" in next(
+        iter(registry.diagnostics.values())
+    )
 
 
 def test_plugin_descriptions_have_user_facing_names(root: Path) -> None:

@@ -19,7 +19,7 @@ Use this skill when analyzing or modifying the extracted LocalFlow project.
 ## Invariants
 
 - A task becomes terminal only after the executor confirms its process owner ended.
-- Commands, paths, labels, plugin snapshots, and explicit inputs freeze at submission. Values explicitly declared as start-time values freeze atomically in `starting`.
+- Commands, paths, labels, mutex keys, plugin snapshots, explicit inputs and host-allocated values freeze in the enqueue transaction. The scheduler never edits task parameters after submission.
 - Browser presentation never substitutes for server authorization.
 - Do not publish or mutate external systems unless the user separately authorizes it.
 - Search equivalent implementations, examples, starter files and packaging inputs together. Add a failure mutant that removes the required surface so an older receipt cannot silently remain valid.

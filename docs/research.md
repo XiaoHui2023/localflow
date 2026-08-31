@@ -99,3 +99,17 @@ Accellera UVM 1.2 用户指南给出的终局格式包含 `--- UVM Report Summar
 - [Synopsys VCS 产品页](https://www.synopsys.com/verification/simulation/vcs.html)
 
 当前开发机没有 VCS 许可证和 Linux 仿真环境，因此判定器使用来自正式格式的 PASS、ERROR、FATAL、仅编译、非 UVM VCS 错误和多日志夹具验证；真实 VCS 回归仍属于 Ubuntu 目标机验收范围。
+
+## 不可变任务计划与自动值（2026-08-31）
+
+LocalFlow 比较了三条路线：调度器在 `starting` 修改任务、插件自行分配值、宿主在入队事务中完成计划。前两条分别造成排队快照不完整和插件重复实现并发/重启一致性，因此采用第三条。插件返回普通 `TaskCreate` 或声明宿主自动值的 `TaskDraft`；SQLite 的单写者串行化和 `BEGIN IMMEDIATE` 让自动序列、任务、批次、事件与幂等回执成为一个提交。自动 Unix 值取 `max(now, previous+1)`，避免同秒并发、重启和墙钟回拨重复。
+
+Terraform 的保存计划说明“预演”和“执行已冻结内容”应是不同动作；LocalFlow 因此提供无副作用 `/plan`，但不会把包含路径或潜在敏感信息的计划文件另存到可分享目录。OpenAPI 3.1/JSON Schema 用于把稳定配置和本次输入拆成两个可独立校验的机器合同。第三方技能检索发现了后台任务、队列、幂等和插件生命周期候选，但没有安装：项目已有更窄的本地技能与直接官方依据，引入外部技能不会成为运行时依赖或提高本次实现证据等级。
+
+参考资料：
+
+- [SQLite 事务与 `BEGIN IMMEDIATE`](https://www.sqlite.org/lang_transaction.html)
+- [SQLite 隔离与单写者串行化](https://www.sqlite.org/isolation.html)
+- [SQLite `RETURNING` 与 ACID 说明](https://www.sqlite.org/lang_returning.html)
+- [OpenAPI Specification 3.1.1](https://spec.openapis.org/oas/v3.1.1.html)
+- [Terraform 保存执行计划](https://developer.hashicorp.com/terraform/tutorials/cli/plan)

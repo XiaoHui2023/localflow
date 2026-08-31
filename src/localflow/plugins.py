@@ -179,11 +179,48 @@ class PluginRegistry:
                     if config_model is not None
                     else None,
                     "input_fields": item.instance.run_fields,
+                    "input_schema": self._input_schema(item.instance),
                     "example": {"configuration": example, "inputs": api_inputs},
                 },
                 "statuses": getattr(item.instance, "statuses", {}),
             })
         return descriptions
+
+    @staticmethod
+    def _input_schema(instance: TemplatePlugin) -> dict[str, Any]:
+        input_model = getattr(instance, "input_model", None)
+        if input_model is not None:
+            return input_model.model_json_schema()
+        properties: dict[str, Any] = {}
+        required: list[str] = []
+        scalar_types = {
+            "string": {"type": "string"},
+            "path": {"type": "string"},
+            "integer": {"type": "integer"},
+            "seed": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+            "string-list": {"type": "array", "items": {"type": "string"}},
+            "json": {},
+            "case-picker": {"type": "array", "items": {"type": "string"}},
+        }
+        for raw in instance.run_fields:
+            field = RunFieldSpec.model_validate(raw)
+            properties[field.name] = dict(scalar_types[field.type])
+            if field.required:
+                required.append(field.name)
+            if field.count_field:
+                properties[field.count_field] = {
+                    "type": "object",
+                    "additionalProperties": {"type": "integer", "minimum": 1},
+                }
+            if field.default_count_field:
+                properties[field.default_count_field] = {"type": "integer", "minimum": 1}
+        return {
+            "title": f"{getattr(instance, 'title', 'plugin')} inputs",
+            "type": "object",
+            "properties": properties,
+            "required": sorted(required),
+            "additionalProperties": False,
+        }
 
     @staticmethod
     def _configuration_schema(name: str, instance: TemplatePlugin) -> dict[str, Any]:
@@ -232,6 +269,20 @@ class PluginRegistry:
             not isinstance(config_model, type) or not issubclass(config_model, BaseModel)
         ):
             raise TypeError(f"plugin {name} config_model must be a Pydantic model")
+        input_model = getattr(instance, "input_model", None)
+        if input_model is not None and (
+            not isinstance(input_model, type) or not issubclass(input_model, BaseModel)
+        ):
+            raise TypeError(f"plugin {name} input_model must be a Pydantic model")
+        if input_model is not None:
+            declared_inputs = PluginRegistry._allowed_inputs(instance)
+            model_inputs = set(input_model.model_fields)
+            if model_inputs != declared_inputs:
+                raise ValueError(
+                    f"plugin {name} input_model fields differ from run fields: "
+                    f"missing={sorted(declared_inputs - model_inputs)}, "
+                    f"extra={sorted(model_inputs - declared_inputs)}"
+                )
         if config_model is not None:
             collisions = set(config_model.model_fields).intersection(COMMON_CONFIG_FIELDS)
             if collisions:
@@ -244,6 +295,8 @@ class PluginRegistry:
         api_inputs = getattr(instance, "api_inputs", {})
         if not isinstance(api_inputs, dict):
             raise TypeError(f"plugin {name} api_inputs must be an object")
+        if input_model is not None:
+            input_model.model_validate(api_inputs)
         statuses = getattr(instance, "statuses", {})
         if not isinstance(statuses, dict):
             raise TypeError(f"plugin {name} statuses must be an object")
@@ -296,7 +349,7 @@ class PluginRegistry:
         name = document.get("plugin")
         if not isinstance(name, str) or not name:
             raise ValueError("task configuration must name a plugin")
-        self._validate_inputs(name, overrides)
+        overrides = self._validate_inputs(name, overrides)
         configured_stop = document.get("stop")
         values = self._config_values(document, overrides, context)
         drafts = self.expand(name, values, context)
@@ -317,13 +370,17 @@ class PluginRegistry:
                 allowed.add(field.default_count_field)
         return allowed
 
-    def _validate_inputs(self, name: str, overrides: dict[str, Any]) -> None:
+    def _validate_inputs(self, name: str, overrides: dict[str, Any]) -> dict[str, Any]:
+        input_model = getattr(self.plugins[name].instance, "input_model", None)
+        if input_model is not None:
+            return input_model.model_validate(overrides).model_dump(exclude_unset=True)
         allowed_inputs = self._allowed_inputs(self.plugins[name].instance)
         unknown_inputs = set(overrides).difference(allowed_inputs)
         if unknown_inputs:
             raise ValueError(
                 f"inputs are not declared by plugin {name}: {sorted(unknown_inputs)}"
             )
+        return overrides
 
     def _config_values(
         self,
@@ -378,7 +435,7 @@ class PluginRegistry:
         name = document.get("plugin")
         if not isinstance(name, str) or not name:
             raise ValueError("task configuration must name a plugin")
-        self._validate_inputs(name, overrides)
+        overrides = self._validate_inputs(name, overrides)
         values = self._config_values(document, overrides, context)
         return await self.discover(name, values, context, timeout_seconds)
 
@@ -437,7 +494,7 @@ class PluginRegistry:
         name = document.get("plugin")
         if not isinstance(name, str) or not name:
             raise ValueError("task configuration must name a plugin")
-        self._validate_inputs(name, overrides)
+        overrides = self._validate_inputs(name, overrides)
         values = self._config_values(document, overrides, context)
         raw = self._common_inspection(values, context)
         method = getattr(self.plugins[name].instance, "inspect", None)

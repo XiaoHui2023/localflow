@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import sys
-import time
 from pathlib import Path
 
 import pytest
@@ -276,7 +275,9 @@ async def test_verification_result_is_frozen_from_run_log(root: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_automatic_verification_seed_is_frozen_when_execution_starts(root: Path) -> None:
+async def test_automatic_verification_seeds_are_frozen_unique_and_persistent(
+    root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     initialize_root(root)
     registry = PluginRegistry(root / "plugins")
     registry.load()
@@ -294,13 +295,14 @@ async def test_automatic_verification_seed_is_frozen_when_execution_starts(root:
         ],
         "labels": ["auto-seed"],
     }
-    draft = registry.expand_config(
-        document, {"cases": ["case-a"], "seed": ""}, {"root": str(root)}
-    )[0]
-    assert draft.name == "case-a"
-    assert "seed" not in draft.custom
-    assert draft.command[-1] == "${seed}"
-    before = int(time.time())
+    drafts = registry.expand_config(
+        document,
+        {"cases": ["case-a"], "case_runs": {"case-a": 3}, "seed": ""},
+        {"root": str(root)},
+    )
+    assert all("seed" not in draft.custom for draft in drafts)
+    assert all(draft.command[-1] == "${seed}" for draft in drafts)
+    monkeypatch.setattr("localflow.storage.time.time", lambda: 1_700_000_000)
     store = Store(root / "runtime" / "localflow.db")
     service = TaskService(
         root,
@@ -309,17 +311,26 @@ async def test_automatic_verification_seed_is_frozen_when_execution_starts(root:
         max_concurrency=1,
         result_evaluator=registry.evaluate_result,
     )
-    task = service.submit(draft)
-    assert "seed" not in store.get_task(task.id).custom
-    await service.start()
-    for _ in range(100):
-        await asyncio.sleep(0.02)
-        if store.get_task(task.id).ended_at:
-            break
-    result = store.get_task(task.id)
-    after = int(time.time())
-    assert before <= result.custom["seed"] <= after
-    assert result.command[-1] == str(result.custom["seed"])
-    assert "_runtime_seed" not in result.custom
-    await service.stop()
+    _batch_id, records = service.submit_batch("verification", {}, drafts)
+    assert [record.custom["seed"] for record in records] == [
+        1_700_000_000,
+        1_700_000_001,
+        1_700_000_002,
+    ]
+    assert [record.command[-1] for record in records] == [
+        "1700000000",
+        "1700000001",
+        "1700000002",
+    ]
+    store.close()
+    # A restarted host must keep allocating forward even if its wall clock moved back.
+    monkeypatch.setattr("localflow.storage.time.time", lambda: 1_600_000_000)
+    store = Store(root / "runtime" / "localflow.db")
+    service = TaskService(root, store, SubprocessExecutor(), max_concurrency=1)
+    next_draft = registry.expand_config(
+        document, {"cases": ["case-a"], "seed": None}, {"root": str(root)}
+    )[0]
+    next_record = service.submit(next_draft)
+    assert next_record.custom["seed"] == 1_700_000_003
+    assert next_record.command[-1] == "1700000003"
     store.close()

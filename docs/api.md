@@ -21,6 +21,7 @@
 | --- | --- | --- | --- |
 | `POST` | `/tasks` | 创建单个任务 | signed-client 或 admin |
 | `POST` | `/runs` | 携带一份配置，按其中插件展开并原子创建一个或多个任务 | signed-client 或 admin |
+| `POST` | `/runs/plan` | 无副作用校验并预演内联配置的任务草稿 | signed-client 或 admin |
 | `POST` | `/batches` | 从模板展开并原子记录批次 | signed-client 或 admin |
 | `GET` | `/batches/{batch_id}` | 读取批次与有序任务 ID | signed-client、admin 或按匿名设置 |
 | `GET` | `/tasks` | 筛选与游标分页；签名客户端获得完整投影 | signed-client、admin 或按匿名设置 |
@@ -74,7 +75,9 @@
 }
 ```
 
-返回 `batch_id`、有序 `task_ids` 和 `count`。带相同 `Idempotency-Key` 重试不会重复创建。缺少插件、未知插件、插件字段错误或展开结果不是有效任务时，整个请求失败且不写入部分任务。
+正式提交返回 `batch_id`、有序 `task_ids` 和 `count`。自动值分配、任务、批次、事件和幂等回执在同一个 SQLite 写事务中提交；同一身份、路径和 `Idempotency-Key` 的并发或重试请求只会创建一个批次。缺少插件、未知插件、配置/输入字段错误、自动值冲突或展开结果不是有效任务时，整个请求失败且不消耗自动值、不写入部分任务。
+
+`POST /runs/plan` 使用相同请求体，返回 `plugin`、`count`、`immutable_after_submit` 和有序 `items`。每项包含名称、目录、规范化命令、标签、互斥键、自定义信息及 `deferred_values`。它不写数据库、不分配 seed；正式提交时核心在入队事务中分配并替换自动值，提交后的任务参数不可修改。
 
 列表参数包括可重复的 `state` 与 `label`、`name`，以及 `created_from/to`、`started_from/to`、`ended_from/to`、`cursor` 和 `limit`。重复标签表示必须全部命中。返回值：
 
@@ -92,7 +95,8 @@
 | `POST` | `/templates/{name}/discover` | 调用插件发现 case | signed-client 或 admin |
 | `POST` | `/templates/{name}/runs` | 展开并提交模板（兼容入口） | signed-client 或 admin |
 | `POST` | `/variables/resolve` | 四层变量解析预览 | signed-client 或 admin |
-| `GET` | `/plugins` | 已加载插件的字段、配置 schema 与可运行 API 示例 | signed-client 或 admin |
+| `GET` | `/plugins` | 全部插件的配置/输入 schema、网页字段与可运行示例 | signed-client 或 admin |
+| `GET` | `/plugins/{name}` | 单个插件的完整机器合同 | signed-client 或 admin |
 | `GET` | `/config/files` | 配置文件清单 | signed-client 或 admin |
 | `POST` | `/config/files` | 创建配置文件 | signed-client 或 admin |
 | `GET` | `/config/files/{path}` | 内容、合并结果、版本和分层诊断 | signed-client 或 admin |
@@ -100,6 +104,8 @@
 | `POST` | `/config/files/{path}/move` | 按版本移动或重命名配置 | signed-client 或 admin |
 | `DELETE` | `/config/files/{path}` | 按 `If-Match` 删除配置 | signed-client 或 admin |
 | `POST` | `/config/files/{path}/discover` | 用该配置调用插件发现钩子 | signed-client 或 admin |
+| `POST` | `/config/files/{path}/inspection` | 解析目录、命令和插件只读检查项 | signed-client 或 admin |
+| `POST` | `/config/files/{path}/plan` | 无副作用预演该配置将创建的任务 | signed-client 或 admin |
 | `POST` | `/config/files/{path}/runs` | 运行诊断通过的配置 | signed-client 或 admin |
 
 资源工作区接口覆盖网页资源管理器的 `config/` 与 `plugins/` 两棵树。文件内容使用 `If-Match` 版本条件保存；复制、移动和删除在会破坏现有配置导入时整体回滚。软链接本身是显式授权：读取和保存跟随目标，复制/移动/删除保留并操作链接本体，不把外部目标复制成普通文件或误删目标。
@@ -116,7 +122,7 @@
 
 配置读取的 `diagnosis` 返回 `kind`（`generic`、`fragment` 或 `task`）、`valid`、`runnable`、`plugin`、已出现的公共字段、错误和警告。插件名只取自配置顶层 `plugin`。保存先验证语法、受限导入和分层字段，随后同目录写临时文件、`fsync` 并原子替换。版本不符返回 `412`，无效配置返回 `422`。外部写入的无效文件仍可由 GET 读取原文和诊断。`POST /api/v1/config/files/{path}/inspection` 接受与运行相同的 `inputs`，返回只读检查项 `{name,label,value,kind,severity,message}`；它与发现钩子一样有五秒上限，不创建任务。
 
-这些接口覆盖配置的创建、读取、保存、移动、重命名、删除、诊断、发现与运行。无需保存文件时使用 `/runs`，在单个请求的 `configuration` 中直接携带相同配置；需要长期复用时先用配置文件接口保存，再调用对应 `/runs`。两条路径都以配置顶层 `plugin` 决定字段与任务展开方式。
+这些接口覆盖配置的创建、读取、保存、移动、重命名、删除、诊断、发现、检查、预演与运行。AI Agent 的最短可靠链路是：读取 `/plugins/{name}` 的两个 JSON Schema → 列出并读取配置 → 调用 `discover` 取得动态 Case → 用目标 `inputs` 调用 `plan` → 使用新的 `Idempotency-Key` 正式提交。无需保存文件时使用 `/runs`；需要长期复用时调用配置文件的 `/runs`。两条正式路径都原子创建批次并返回相同响应形状。
 
 ## 登录、签名与系统
 

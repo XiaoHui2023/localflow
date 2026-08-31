@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+import time
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -13,10 +14,12 @@ from .models import (
     EventRecord,
     StopStrategy,
     TaskCreate,
+    TaskDraft,
     TaskRecord,
     TaskState,
     TaskStatus,
 )
+from .variables import VariableResolver
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS tasks (
@@ -95,33 +98,109 @@ class Store:
         for column, declaration in migrations.items():
             if column not in columns:
                 self._db.execute(f"ALTER TABLE tasks ADD COLUMN {column} {declaration}")
+        self._migrate_legacy_runtime_seeds()
 
     def close(self) -> None:
         self._db.close()
 
-    def create_task(self, task_id: str, draft: TaskCreate) -> TaskRecord:
-        task_status = self._display_status(draft.plugin_snapshot, TaskState.QUEUED)
-        values = (
-            task_id,
-            TaskState.QUEUED,
-            draft.name,
-            draft.working_directory,
-            json.dumps(draft.command),
-            json.dumps(draft.labels),
-            json.dumps(draft.mutex_keys),
-            json.dumps(draft.custom),
-            draft.template,
-            json.dumps(draft.plugin_snapshot),
-            draft.stop.model_dump_json() if draft.stop else None,
-            _now(),
-            task_status.key,
-            task_status.label,
-            task_status.tone,
-            int(task_status.finished),
+    def _allocate_deferred_locked(self, source: str, namespace: str) -> int:
+        metadata_key = f"deferred:{source}:{namespace}"
+        row = self._db.execute(
+            "SELECT value FROM metadata WHERE key=?", (metadata_key,)
+        ).fetchone()
+        previous = int(row[0]) if row else 0
+        if source == "monotonic_unix":
+            value = max(int(time.time()), previous + 1)
+        else:  # pragma: no cover - Pydantic rejects unsupported sources
+            raise ValueError(f"unsupported deferred value source: {source}")
+        self._db.execute(
+            """INSERT INTO metadata(key,value) VALUES(?,?)
+            ON CONFLICT(key) DO UPDATE SET value=excluded.value""",
+            (metadata_key, str(value)),
         )
+        return value
+
+    def _migrate_legacy_runtime_seeds(self) -> None:
+        """Freeze queued tasks written by the former starting-time seed contract."""
+
         with self._lock:
             self._db.execute("BEGIN IMMEDIATE")
             try:
+                rows = self._db.execute(
+                    "SELECT id,command_json,custom_json FROM tasks WHERE state='queued'"
+                ).fetchall()
+                for row in rows:
+                    custom = json.loads(row["custom_json"])
+                    if custom.get("_runtime_seed") != "unix":
+                        continue
+                    seed = self._allocate_deferred_locked(
+                        "monotonic_unix", "verification.seed"
+                    )
+                    resolver = VariableResolver([("deferred", {"seed": seed})])
+                    command = [str(item) for item in resolver.resolve(json.loads(row["command_json"]))]
+                    custom = resolver.resolve(custom)
+                    custom.pop("_runtime_seed", None)
+                    custom["seed"] = seed
+                    self._db.execute(
+                        "UPDATE tasks SET command_json=?,custom_json=? WHERE id=? AND state='queued'",
+                        (json.dumps(command), json.dumps(custom), row["id"]),
+                    )
+                self._db.execute("COMMIT")
+            except BaseException:
+                self._db.execute("ROLLBACK")
+                raise
+
+    def _materialize_draft_locked(self, draft: TaskCreate) -> TaskCreate:
+        """Resolve host-owned values before the enclosing enqueue transaction commits."""
+
+        if not isinstance(draft, TaskDraft) or not draft.deferred_values:
+            excluded = {"deferred_values"} if isinstance(draft, TaskDraft) else set()
+            return TaskCreate.model_validate(draft.model_dump(exclude=excluded))
+        allocated: dict[str, int] = {}
+        for name, request in draft.deferred_values.items():
+            allocated[name] = self._allocate_deferred_locked(
+                request.source, request.namespace
+            )
+
+        resolver = VariableResolver([("deferred", allocated)])
+        payload = draft.model_dump(exclude={"deferred_values"})
+        for field in ("name", "working_directory", "command", "labels", "mutex_keys", "custom"):
+            payload[field] = resolver.resolve(payload[field])
+        payload["command"] = [str(item) for item in payload["command"]]
+        custom = dict(payload["custom"])
+        collisions = set(custom).intersection(allocated)
+        if collisions:
+            raise ValueError(
+                f"deferred values collide with task custom fields: {sorted(collisions)}"
+            )
+        custom.update(allocated)
+        payload["custom"] = custom
+        return TaskCreate.model_validate(payload)
+
+    def create_task(self, task_id: str, draft: TaskCreate) -> TaskRecord:
+        with self._lock:
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                draft = self._materialize_draft_locked(draft)
+                task_status = self._display_status(draft.plugin_snapshot, TaskState.QUEUED)
+                values = (
+                    task_id,
+                    TaskState.QUEUED,
+                    draft.name,
+                    draft.working_directory,
+                    json.dumps(draft.command),
+                    json.dumps(draft.labels),
+                    json.dumps(draft.mutex_keys),
+                    json.dumps(draft.custom),
+                    draft.template,
+                    json.dumps(draft.plugin_snapshot),
+                    draft.stop.model_dump_json() if draft.stop else None,
+                    _now(),
+                    task_status.key,
+                    task_status.label,
+                    task_status.tone,
+                    int(task_status.finished),
+                )
                 self._db.execute(
                     """INSERT INTO tasks(id,state,name,working_directory,command_json,labels_json,
                     mutex_keys_json,custom_json,template,plugin_snapshot_json,stop_json,created_at,
@@ -142,16 +221,29 @@ class Store:
         template: str,
         request_values: dict[str, Any],
         tasks: list[tuple[str, TaskCreate]],
-    ) -> list[TaskRecord]:
+        idempotency: tuple[str, str, str, dict[str, Any]] | None = None,
+    ) -> tuple[list[TaskRecord], dict[str, Any] | None]:
         created_at = _now()
         with self._lock:
             self._db.execute("BEGIN IMMEDIATE")
             try:
+                if idempotency is not None:
+                    actor, route, key, _response = idempotency
+                    existing = self._db.execute(
+                        "SELECT response_json FROM idempotency WHERE actor=? AND route=? AND key=?",
+                        (actor, route, key),
+                    ).fetchone()
+                    if existing is not None:
+                        response = json.loads(existing[0])
+                        self._db.execute("ROLLBACK")
+                        records = [self.get_task(task_id) for task_id in response["task_ids"]]
+                        return records, response
                 self._db.execute(
                     "INSERT INTO batches(id,template,values_json,created_at) VALUES(?,?,?,?)",
                     (batch_id, template, json.dumps(request_values), created_at),
                 )
                 for sequence, (task_id, draft) in enumerate(tasks):
+                    draft = self._materialize_draft_locked(draft)
                     task_status = self._display_status(draft.plugin_snapshot, TaskState.QUEUED)
                     self._db.execute(
                         """INSERT INTO tasks(id,state,name,working_directory,command_json,labels_json,
@@ -189,11 +281,18 @@ class Store:
                 self._add_event_locked(
                     None, "batch.created", {"batch_id": batch_id, "count": len(tasks)}
                 )
+                if idempotency is not None:
+                    actor, route, key, response = idempotency
+                    self._db.execute(
+                        """INSERT INTO idempotency(actor,route,key,response_json,created_at)
+                        VALUES(?,?,?,?,?)""",
+                        (actor, route, key, json.dumps(response), created_at),
+                    )
                 self._db.execute("COMMIT")
             except BaseException:
                 self._db.execute("ROLLBACK")
                 raise
-        return [self.get_task(task_id) for task_id, _ in tasks]
+        return [self.get_task(task_id) for task_id, _ in tasks], None
 
     def get_batch(self, batch_id: str) -> dict[str, Any]:
         batch = self._db.execute("SELECT * FROM batches WHERE id=?", (batch_id,)).fetchone()
@@ -344,31 +443,6 @@ class Store:
     def append_event(self, task_id: str | None, kind: str, data: dict[str, Any]) -> int:
         with self._lock:
             return self._add_event_locked(task_id, kind, data)
-
-    def materialize_runtime(
-        self, task_id: str, command: list[str], custom: dict[str, Any]
-    ) -> bool:
-        """Freeze values that intentionally become known only when a task starts."""
-        with self._lock:
-            self._db.execute("BEGIN IMMEDIATE")
-            try:
-                result = self._db.execute(
-                    """UPDATE tasks SET command_json=?,custom_json=?
-                       WHERE id=? AND state=?""",
-                    (
-                        json.dumps(command),
-                        json.dumps(custom, ensure_ascii=False),
-                        task_id,
-                        TaskState.STARTING.value,
-                    ),
-                )
-                if result.rowcount:
-                    self._add_event_locked(task_id, "task.runtime_materialized", {})
-                self._db.execute("COMMIT")
-            except BaseException:
-                self._db.execute("ROLLBACK")
-                raise
-        return bool(result.rowcount)
 
     def _add_event_locked(self, task_id: str | None, kind: str, data: dict[str, Any]) -> int:
         result = self._db.execute(

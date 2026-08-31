@@ -6,7 +6,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from localflow.models import TaskCreate
+from localflow.models import DeferredValue, TaskDraft
 from localflow.plugins import plugin, run_field
 from localflow.variables import VariableResolver
 
@@ -39,13 +39,23 @@ class VerificationConfig(BaseModel):
 
     case_directory: str | None = None
     case_root: str | None = None
-    cases: list[str] = Field(default_factory=list)
-    runs: int = Field(default=1, ge=1)
-    runs_per_case: int | None = Field(default=None, ge=1)
-    case_runs: dict[str, int] = Field(default_factory=dict)
-    seed: int | str | None = None
     compile_logs: list[str] = Field(default_factory=list)
     run_logs: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def require_case_directory(self):
+        if not self.case_directory and not self.case_root:
+            raise ValueError("case_directory is required")
+        return self
+
+
+class VerificationInputs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cases: list[str] = Field(default_factory=list)
+    runs: int = Field(default=1, ge=1)
+    case_runs: dict[str, int] = Field(default_factory=dict)
+    seed: int | str | None = None
 
     @field_validator("seed")
     @classmethod
@@ -58,17 +68,17 @@ class VerificationConfig(BaseModel):
             raise ValueError("seed must be an integer or empty") from error
 
     @model_validator(mode="after")
-    def require_case_directory(self):
-        if not self.case_directory and not self.case_root:
-            raise ValueError("case_directory is required")
-        if any(value < 1 for value in self.case_runs.values()):
-            raise ValueError("case_runs values must be at least 1")
+    def validate_case_runs(self):
+        unknown = set(self.case_runs).difference(self.cases)
+        if unknown:
+            raise ValueError(f"case_runs names must also appear in cases: {sorted(unknown)}")
         return self
 
 
 @plugin("verification", version="2")
 class Verification:
     config_model = VerificationConfig
+    input_model = VerificationInputs
     required_common_fields = {"command"}
     deferred_variables = {"case", "seed", "run"}
     title = "验证仿真"
@@ -77,10 +87,8 @@ class Verification:
     example = {
         "plugin": "verification",
         "case_directory": "cases",
-        "cases": [],
-        "runs": 1,
         "working_directory": ".",
-        "command": ["python3", "-u", "scripts/simulate.py"],
+        "command": "python3 -u scripts/simulate.py --case ${case} --seed ${seed}",
         "mutex_keys": ["simulator:demo"],
     }
     api_inputs = {
@@ -218,7 +226,7 @@ class Verification:
             if case_name not in available:
                 raise ValueError(f"case not found: {case_name}")
             case_runs = values.get("case_runs", {})
-            default_runs = values.get("runs", values.get("runs_per_case", 1))
+            default_runs = values.get("runs", 1)
             for index in range(int(case_runs.get(case_name, default_runs))):
                 configured = values.get("seed")
                 automatic_seed = configured in {None, ""}
@@ -258,7 +266,7 @@ class Verification:
                     if not any("${seed}" in str(item) or item == str(seed) for item in command_template):
                         command.extend(["--seed", str(seed)])
                 tasks.append(
-                    TaskCreate(
+                    TaskDraft(
                         name=case_name,
                         working_directory=str(working_directory),
                         command=command,
@@ -267,10 +275,17 @@ class Verification:
                         custom={
                             "_case": case_name,
                             "_run": index + 1,
-                            **({"_runtime_seed": "unix"} if automatic_seed else {"seed": seed}),
+                            **({} if automatic_seed else {"seed": seed}),
                             "_compile_logs": dynamic.resolve(values.get("compile_logs", [])),
                             "_run_logs": dynamic.resolve(values.get("run_logs", [])),
                         },
+                        deferred_values={
+                            "seed": DeferredValue(
+                                source="monotonic_unix", namespace="verification.seed"
+                            )
+                        }
+                        if automatic_seed
+                        else {},
                     )
                 )
         return tasks

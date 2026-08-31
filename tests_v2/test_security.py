@@ -400,7 +400,10 @@ def test_openapi_schema_is_only_available_to_administrator(
     assert schema["info"]["title"] == "LocalFlow"
     assert "/api/v1/tasks" in schema["paths"]
     assert "/api/v1/runs" in schema["paths"]
+    assert "/api/v1/runs/plan" in schema["paths"]
     assert "/api/v1/plugins" in schema["paths"]
+    assert "/api/v1/plugins/{name}" in schema["paths"]
     assert "/api/v1/config/files/{path}" in schema["paths"]
+    assert "/api/v1/config/files/{path}/plan" in schema["paths"]
     assert "/api/v1/config/files/{path}/move" in schema["paths"]
     assert "/api/v1/openapi" not in schema["paths"]

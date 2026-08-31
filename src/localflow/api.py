@@ -35,7 +35,7 @@ from .auth import AuthManager
 from .config_diagnostics import ConfigDiagnosis, diagnose_config
 from .config_repository import ConfigConflict, ConfigRepository
 from .executor import SubprocessExecutor, SystemdExecutor, systemd_user_manager_available
-from .models import BatchCreate, RunCreate, TaskCreate, TaskRecord
+from .models import BatchCreate, RunCreate, TaskCreate, TaskDraft, TaskRecord
 from .plugins import PluginRegistry
 from .service import TaskService
 from .settings import Settings, initialize_root, load_settings
@@ -122,6 +122,34 @@ def _detail(task: TaskRecord, root: Path) -> dict[str, Any]:
     value = task.model_dump(mode="json")
     value["log_path"] = str(root / "logs" / task.id / "output.log")
     return value
+
+
+def _plan(plugin_name: str, drafts: list[TaskCreate]) -> dict[str, Any]:
+    items = []
+    for sequence, draft in enumerate(drafts):
+        deferred = (
+            {name: value.model_dump() for name, value in draft.deferred_values.items()}
+            if isinstance(draft, TaskDraft)
+            else {}
+        )
+        items.append(
+            {
+                "sequence": sequence,
+                "name": draft.name,
+                "working_directory": draft.working_directory,
+                "command": draft.command,
+                "labels": draft.labels,
+                "mutex_keys": draft.mutex_keys,
+                "custom": draft.custom,
+                "deferred_values": deferred,
+            }
+        )
+    return {
+        "plugin": plugin_name,
+        "count": len(items),
+        "immutable_after_submit": True,
+        "items": items,
+    }
 
 
 def _decode_cursor(cursor: str | None) -> tuple[str, str] | None:
@@ -597,6 +625,13 @@ def create_app(
     async def loaded_plugins(_actor: str = Depends(require_submitter)):
         return {"items": plugins.describe(), "diagnostics": plugins.diagnostics}
 
+    @app.get("/api/v1/plugins/{name}")
+    async def loaded_plugin(name: str, _actor: str = Depends(require_submitter)):
+        item = next((item for item in plugins.describe() if item["name"] == name), None)
+        if item is None:
+            raise HTTPException(404, "plugin not found")
+        return item
+
     @app.post("/api/v1/templates/{name}/runs", status_code=202)
     async def run_template(
         name: str, values: dict[str, Any], _actor: str = Depends(require_submitter)
@@ -629,28 +664,48 @@ def create_app(
         idempotency_key: Annotated[str | None, Header()] = None,
     ):
         route = "/api/v1/batches"
-        if idempotency_key:
-            previous = store.idempotency_get(actor, route, idempotency_key)
-            if previous:
-                return previous
         try:
             expanded = plugins.expand(payload.template, payload.values, {"root": str(root)})
         except KeyError:
             raise HTTPException(404, "template not found") from None
-        drafts = []
-        for draft in expanded:
-            data = draft.model_dump()
-            data.update(payload.common)
-            drafts.append(TaskCreate.model_validate(data))
-        batch_id, records = tasks.submit_batch(payload.template, payload.values, drafts)
+        drafts = [draft.model_copy(update=payload.common) for draft in expanded]
+        batch_id, records = tasks.submit_batch(
+            payload.template,
+            payload.values,
+            drafts,
+            (actor, route, idempotency_key) if idempotency_key else None,
+        )
         result = {
             "batch_id": batch_id,
             "task_ids": [record.id for record in records],
             "count": len(records),
         }
-        if idempotency_key:
-            store.idempotency_put(actor, route, idempotency_key, result)
         return result
+
+    @app.post("/api/v1/runs/plan")
+    async def plan_run(payload: RunCreate, _actor: str = Depends(require_submitter)):
+        plugin_name = payload.configuration.get("plugin")
+        if isinstance(plugin_name, str) and plugin_name not in plugins.plugins:
+            raise HTTPException(404, "plugin not found")
+        diagnosis = diagnose_config(payload.configuration, plugins)
+        if not diagnosis.runnable:
+            raise HTTPException(
+                422,
+                {
+                    "message": "configuration is not runnable",
+                    "errors": diagnosis.errors,
+                    "warnings": diagnosis.warnings,
+                },
+            )
+        try:
+            drafts = plugins.expand_config(
+                payload.configuration, payload.inputs, {"root": str(root)}
+            )
+        except KeyError:
+            raise HTTPException(404, "plugin not found") from None
+        except Exception as exc:
+            raise HTTPException(422, f"configuration expansion failed: {exc}") from None
+        return _plan(str(plugin_name), drafts)
 
     @app.post("/api/v1/runs", status_code=202)
     async def create_run(
@@ -661,10 +716,6 @@ def create_app(
         """Validate an inline configuration through its plugin and atomically queue its tasks."""
 
         route = "/api/v1/runs"
-        if idempotency_key:
-            previous = store.idempotency_get(actor, route, idempotency_key)
-            if previous:
-                return previous
         plugin_name = payload.configuration.get("plugin")
         if isinstance(plugin_name, str) and plugin_name not in plugins.plugins:
             raise HTTPException(404, "plugin not found")
@@ -692,14 +743,13 @@ def create_app(
             str(plugin_name),
             {"configuration": payload.configuration, "inputs": payload.inputs},
             drafts,
+            (actor, route, idempotency_key) if idempotency_key else None,
         )
         result = {
             "batch_id": batch_id,
             "task_ids": [record.id for record in records],
             "count": len(records),
         }
-        if idempotency_key:
-            store.idempotency_put(actor, route, idempotency_key, result)
         return result
 
     @app.get("/api/v1/batches/{batch_id}")
@@ -895,8 +945,8 @@ def create_app(
             raise HTTPException(404, str(exc)) from None
         return Response(status_code=204)
 
-    @app.post("/api/v1/config/files/{path:path}/runs", status_code=202)
-    async def config_run(
+    @app.post("/api/v1/config/files/{path:path}/plan")
+    async def config_plan(
         path: str, payload: ConfigRun, _actor: str = Depends(require_submitter)
     ):
         try:
@@ -913,8 +963,42 @@ def create_app(
             raise HTTPException(404, "configuration plugin is not loaded") from None
         except (TypeError, ValueError, FileNotFoundError, yaml.YAMLError) as exc:
             raise HTTPException(422, str(exc)) from None
-        records = [tasks.submit(draft) for draft in drafts]
-        return {"task_ids": [item.id for item in records], "count": len(records)}
+        return _plan(str(document["plugin"]), drafts)
+
+    @app.post("/api/v1/config/files/{path:path}/runs", status_code=202)
+    async def config_run(
+        path: str,
+        payload: ConfigRun,
+        actor: str = Depends(require_submitter),
+        idempotency_key: Annotated[str | None, Header()] = None,
+    ):
+        try:
+            document = config.parse(path)
+            diagnosis = diagnose_config(document, plugins)
+            if not diagnosis.runnable:
+                raise ValueError("; ".join(diagnosis.errors) or "configuration is not runnable")
+            drafts = plugins.expand_config(
+                document,
+                payload.inputs,
+                {"root": str(root), "config_path": path},
+            )
+        except KeyError:
+            raise HTTPException(404, "configuration plugin is not loaded") from None
+        except (TypeError, ValueError, FileNotFoundError, yaml.YAMLError) as exc:
+            raise HTTPException(422, str(exc)) from None
+        route = f"/api/v1/config/files/{path}/runs"
+        batch_id, records = tasks.submit_batch(
+            str(document["plugin"]),
+            {"configuration_path": path, "inputs": payload.inputs},
+            drafts,
+            (actor, route, idempotency_key) if idempotency_key else None,
+        )
+        result = {
+            "batch_id": batch_id,
+            "task_ids": [item.id for item in records],
+            "count": len(records),
+        }
+        return result
 
     @app.post("/api/v1/config/files/{path:path}/discover")
     async def config_discover(

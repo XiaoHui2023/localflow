@@ -162,14 +162,16 @@ def test_agent_skills_are_release_safe_and_packaged() -> None:
         assert f"skills/{name}/SKILL.md" in workflow
 
 
-def test_packaged_verification_plugin_keeps_runtime_seed_contract() -> None:
+def test_packaged_verification_plugin_keeps_enqueue_seed_contract() -> None:
     root = Path(__file__).parents[1]
     source = (
         root / "src" / "localflow" / "builtin_plugins" / "verification.py.example"
     ).read_text(encoding="utf-8")
     assert "import secrets" not in source
     assert 'seed = "${seed}" if automatic_seed' in source
-    assert '"_runtime_seed": "unix"' in source
+    assert "TaskDraft(" in source
+    assert 'source="monotonic_unix"' in source
+    assert 'namespace="verification.seed"' in source
     assert "name=case_name" in source
     assert 'else {"seed": seed}' in source
 

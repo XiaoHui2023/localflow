@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Literal
@@ -175,6 +176,31 @@ class TaskCreate(BaseModel):
         if len(set(normalized)) != len(normalized):
             raise ValueError("items must be unique")
         return normalized
+
+
+class DeferredValue(BaseModel):
+    """A host-owned value that is allocated before a task becomes visible."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source: Literal["monotonic_unix"]
+    namespace: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.:-]+$")
+
+
+class TaskDraft(TaskCreate):
+    """Plugin plan output; the store resolves deferred values in the enqueue transaction."""
+
+    deferred_values: dict[str, DeferredValue] = Field(default_factory=dict, max_length=32)
+
+    @field_validator("deferred_values")
+    @classmethod
+    def valid_deferred_names(
+        cls, value: dict[str, DeferredValue]
+    ) -> dict[str, DeferredValue]:
+        for name in value:
+            if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.-]*", name) is None:
+                raise ValueError("deferred value names must be valid variable names")
+        return value
 
 
 class TaskRecord(TaskCreate):

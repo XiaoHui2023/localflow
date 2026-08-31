@@ -30,17 +30,23 @@ class HelloConfig(BaseModel):
     greeting: str = "你好"
 
 
+class HelloInputs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str
+
+
 @plugin("hello", version="1")
 class Hello:
     title = "问候"
     description = "输出一句问候"
     instructions = "设置 name 后加入队列。"
     config_model = HelloConfig
+    input_model = HelloInputs
     example = {
         "plugin": "hello",
         "name": "问候任务",
         "working_directory": ".",
-        "command": ["echo", "由插件生成"],
+        "command": "echo 由插件生成",
         "greeting": "你好",
     }
     api_inputs = {"name": "world"}
@@ -65,7 +71,7 @@ class Hello:
 
 插件可实现 `discover(values, context)`。选择对应配置时核心先通过 configlib 解析显式 `!include`，再解析变量，最后调用此钩子。验证插件只读取 `case_directory` 的一层子项：目录使用目录名，文件去掉最后一个后缀；隐藏项与更深层内容不显示。钩子必须在 5 秒内返回字符串列表。
 
-`expand()` 只负责校验和生成 `TaskCreate`，不能自行启动主任务或写任务数据库。插件代码没有沙箱，只安装可信文件。
+`expand()` 只负责校验和生成 `TaskCreate`；需要宿主分配的唯一值时生成带 `DeferredValue` 的 `TaskDraft`。核心会在入队事务中完成分配和变量替换，事务提交后参数不可修改。插件不能自行启动主任务、写任务数据库或修改排队任务。插件代码没有沙箱，只安装可信文件。
 
 ## 停止策略
 

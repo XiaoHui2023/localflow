@@ -17,7 +17,6 @@ from .log_files import MIB, append_lifecycle
 from .models import TERMINAL_STATES, StopAction, StopStrategy, TaskCreate, TaskRecord, TaskState
 from .settings import LoggingSettings, RetentionSettings
 from .storage import Store
-from .variables import VariableResolver
 
 logger = logging.getLogger(__name__)
 
@@ -76,11 +75,25 @@ class TaskService:
         return record
 
     def submit_batch(
-        self, template: str, values: dict, drafts: list[TaskCreate]
+        self,
+        template: str,
+        values: dict,
+        drafts: list[TaskCreate],
+        idempotency: tuple[str, str, str] | None = None,
     ) -> tuple[str, list[TaskRecord]]:
         batch_id = new_id()
         task_drafts = [(new_id(), draft) for draft in drafts]
-        records = self.store.create_batch(batch_id, template, values, task_drafts)
+        response = {
+            "batch_id": batch_id,
+            "task_ids": [task_id for task_id, _draft in task_drafts],
+            "count": len(task_drafts),
+        }
+        reservation = (*idempotency, response) if idempotency is not None else None
+        records, previous = self.store.create_batch(
+            batch_id, template, values, task_drafts, reservation
+        )
+        if previous is not None:
+            return str(previous["batch_id"]), records
         for record in records:
             self._log_lifecycle(
                 record,
@@ -291,17 +304,6 @@ class TaskService:
         task = self.store.get_task(task_id)
         self._log_lifecycle(task, "task.starting", backend=type(self.executor).__name__)
         try:
-            if task.custom.get("_runtime_seed") == "unix":
-                seed = int(time.time())
-                resolver = VariableResolver([("runtime", {"seed": seed})])
-                custom = resolver.resolve(task.custom)
-                custom.pop("_runtime_seed", None)
-                custom["seed"] = seed
-                if not self.store.materialize_runtime(
-                    task.id, [str(item) for item in resolver.resolve(task.command)], custom
-                ):
-                    raise RuntimeError("task left starting state before runtime values were frozen")
-                task = self.store.get_task(task_id)
             result = await self.executor.start(task, self.root / "logs" / task.id / "output.log")
         except Exception as exc:
             logger.error("task failed to start task_id=%s", task.id)
