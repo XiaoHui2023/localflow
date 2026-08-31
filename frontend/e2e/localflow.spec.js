@@ -1054,6 +1054,41 @@ test("plugin configuration console remains concise and operable in Edge", async 
   ).toEqual([]);
 
   await runAcceptance(page);
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await page.getByRole("tab", { name: "设置" }).click();
+  const settingsBeforeDialog = await page.locator(".settings-panel").boundingBox();
+  const exitTrigger = page.getByRole("button", { name: "退出", exact: true });
+  await exitTrigger.click();
+  const shutdownDialog = page.getByRole("alertdialog");
+  await expect(shutdownDialog).toBeVisible();
+  await expect(shutdownDialog).toContainText("退出 LocalFlow？");
+  await expect(shutdownDialog.getByRole("button", { name: "取消" })).toBeFocused();
+  expect(await page.locator(".settings-panel").boundingBox()).toEqual(
+    settingsBeforeDialog,
+  );
+  await page.keyboard.press("Escape");
+  await expect(shutdownDialog).toHaveCount(0);
+  await expect(exitTrigger).toBeFocused();
+
+  let shutdownRequests = 0;
+  await page.route("**/api/v1/system/shutdown", async (route) => {
+    shutdownRequests += 1;
+    await route.fulfill({
+      status: 202,
+      contentType: "application/json",
+      body: JSON.stringify({ status: "stopping" }),
+    });
+  });
+  await exitTrigger.click();
+  await shutdownDialog.getByRole("button", { name: "退出", exact: true }).click();
+  await expect(
+    shutdownDialog.getByRole("button", { name: "正在退出", exact: true }),
+  ).toBeDisabled();
+  expect(shutdownRequests).toBe(1);
+  await page.screenshot({
+    path: path.join(evidence, "admin-shutdown-confirmation.png"),
+    fullPage: true,
+  });
   const repository = path.resolve("..");
   const boundFiles = [
     "frontend/index.html",
@@ -1126,6 +1161,10 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "aligned-settings-rows",
           "live-time-calibration-control",
           "single-time-calibration",
+          "shutdown-alert-dialog",
+          "shutdown-cancel-focus-restore",
+          "shutdown-no-layout-shift",
+          "shutdown-single-submit",
           "inline-toggle-detail",
           "dedicated-terminal",
           "xterm-fit-search",

@@ -94,7 +94,11 @@ def run_legacy_browser(
             check=False,
         ).returncode
     finally:
-        subprocess.run([docker, "rm", "-f", name], check=False)
+        cleanup = subprocess.run([docker, "rm", "-f", name], check=False)
+        if cleanup.returncode:
+            raise RuntimeError(
+                f"legacy browser container could not be removed: {name}"
+            )
 
 
 def main() -> int:

@@ -33,7 +33,7 @@ Read the relevant project sources before changing behavior:
 - Treat run acceptance as a transaction: immediate pending state, duplicate-submit lock, 202 confirmation, then bind QA to the returned task identity rather than a non-unique name.
 - Render tooltips through one portal layer and prove clipping, viewport collision, pixel topness, hover, focus and Escape behavior with the shared browser oracle.
 - Make SIGINT the first interrupt stage and test escalation with real processes.
-- Protect the controller with caught no-op SIGINT/SIGTERM/SIGHUP handlers so exec'd tasks regain default dispositions; reserve SIGUSR1 and the packaged `stop-localflow.sh` for explicit, verified fleet shutdown.
+- Protect the controller with caught no-op SIGINT/SIGTERM/SIGHUP handlers so exec'd tasks regain default dispositions; reserve the authenticated settings action and systemd SIGUSR1 for explicit, verified fleet shutdown.
 - Treat `config/` and `plugins/` as a versioned resource workspace. Preserve symlink identity for copy/move/delete, follow links only for read/write, and reconcile external targets on a bounded timer because native watchers do not consistently follow them.
 - Bound terminal output with one application-level ACK per xterm write; browser WebSocket APIs do not provide sufficient receive-side backpressure by themselves.
 - Do not claim Ubuntu production readiness without target systemd evidence.

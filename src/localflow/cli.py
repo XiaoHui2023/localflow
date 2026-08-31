@@ -104,7 +104,13 @@ def _serve(root: Path) -> None:
         user_runtime = f"/run/user/{os.getuid()}"
         os.environ["XDG_RUNTIME_DIR"] = user_runtime
         os.environ["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={user_runtime}/bus"
-    app = create_app(root, settings=settings)
+    server: uvicorn.Server | None = None
+
+    def request_shutdown() -> None:
+        if server is not None:
+            server.should_exit = True
+
+    app = create_app(root, settings=settings, request_shutdown=request_shutdown)
     config = uvicorn.Config(
         app,
         host=settings.server.bind,
@@ -131,8 +137,8 @@ def _serve(root: Path) -> None:
             signal.signal(protected, protect_controller)
         signal.signal(signal.SIGUSR1, lambda _signum, _frame: setattr(server, "should_exit", True))
         logger.info(
-            "Controller signals protected; stop explicitly with stop-localflow.sh "
-            "or systemctl stop localflow"
+            "Controller signals protected; stop from the administrator settings page "
+            "or with systemctl stop localflow"
         )
     original_started = server.startup
 

@@ -36,6 +36,11 @@ try {
   await keyInput.sendKeys(adminKey);
   await driver.findElement(By.xpath("//button[normalize-space()='登录']")).click();
   await driver.wait(async () => (await driver.findElements(By.css("[role='tab']"))).length === 3, 10_000);
+  step = "verify shutdown confirmation";
+  await driver.findElement(By.xpath("//button[normalize-space()='退出']")).click();
+  await driver.wait(until.elementLocated(By.css("[role='alertdialog']")), 10_000);
+  await driver.findElement(By.xpath("//*[@role='alertdialog']//button[normalize-space()='取消']")).click();
+  await driver.wait(async () => (await driver.findElements(By.css("[role='alertdialog']"))).length === 0, 10_000);
   step = "open configuration";
   await driver.findElement(By.xpath("//*[@role='tab' and normalize-space()='任务']")).click();
   await driver.findElement(By.css("button[aria-label='打开运行面板']")).click();

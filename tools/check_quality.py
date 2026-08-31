@@ -85,6 +85,7 @@ REQUIRED_SCREENSHOTS = {
     "admin-run-verification-empty-dark.png",
     "admin-run-verification-scope-dark.png",
     "admin-settings-compact-light.png",
+    "admin-shutdown-confirmation.png",
     "admin-task-inline-dark.png",
     "admin-terminal-dark.png",
 }

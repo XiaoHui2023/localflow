@@ -5,6 +5,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
+import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import "@xterm/xterm/css/xterm.css";
 import {
   Activity,
@@ -29,6 +30,7 @@ import {
   PanelRightOpen,
   Pencil,
   Play,
+  Power,
   Plus,
   Scissors,
   Search,
@@ -1455,20 +1457,23 @@ function Config({ theme }) {
     }
   };
   const remove = async () => {
+    const removedPath = selectedPath;
+    const removesOpenFile =
+      filePathRef.current === removedPath ||
+      filePathRef.current?.startsWith(`${removedPath}/`);
+    inspectionControllerRef.current?.abort();
+    if (removesOpenFile) {
+      setFile(undefined);
+      filePathRef.current = undefined;
+    }
     try {
-      await api.deleteWorkspace(selectedPath);
+      await api.deleteWorkspace(removedPath);
       setDeleting(false);
-      if (
-        filePathRef.current === selectedPath ||
-        filePathRef.current?.startsWith(`${selectedPath}/`)
-      ) {
-        setFile(undefined);
-        filePathRef.current = undefined;
-      }
       await reload();
       setSelectedPath(undefined);
       setNotice("已删除");
     } catch (error) {
+      if (removesOpenFile) await open(removedPath, false).catch(() => undefined);
       setNotice(`删除失败：${error.message}`);
     }
   };
@@ -1855,7 +1860,7 @@ function localInputValue(value) {
     .toISOString()
     .slice(0, 19);
 }
-function SettingsPage({ theme, setTheme, role, onLogin }) {
+function SettingsPage({ theme, setTheme, role, onLogin, activeTaskCount }) {
   const [serverTime, setServerTime] = useState();
   const [referenceTime, setReferenceTime] = useState("");
   const [notice, setNotice] = useState("");
@@ -1865,6 +1870,9 @@ function SettingsPage({ theme, setTheme, role, onLogin }) {
   const [adminKey, setAdminKey] = useState("");
   const [loginNotice, setLoginNotice] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
+  const [shutdownOpen, setShutdownOpen] = useState(false);
+  const [shuttingDown, setShuttingDown] = useState(false);
+  const [shutdownError, setShutdownError] = useState("");
   const loadTime = useCallback(async () => {
     const state = await api.status();
     const value = state.time.wall_clock;
@@ -1916,6 +1924,18 @@ function SettingsPage({ theme, setTheme, role, onLogin }) {
       );
     } finally {
       setLoggingIn(false);
+    }
+  };
+  const shutdown = async (event) => {
+    event.preventDefault();
+    if (shuttingDown) return;
+    setShuttingDown(true);
+    setShutdownError("");
+    try {
+      await api.shutdown();
+    } catch (error) {
+      setShuttingDown(false);
+      setShutdownError(`退出失败：${error.message}`);
     }
   };
   return (
@@ -1988,6 +2008,56 @@ function SettingsPage({ theme, setTheme, role, onLogin }) {
               {notice && <small>{notice}</small>}
             </span>
           </label>
+        )}
+        {role === "admin" && (
+          <div className="setting-row">
+            <span>服务</span>
+            <AlertDialog.Root
+              open={shutdownOpen}
+              onOpenChange={(open) => {
+                if (!shuttingDown) {
+                  setShutdownOpen(open);
+                  setShutdownError("");
+                }
+              }}
+            >
+              <AlertDialog.Trigger asChild>
+                <button className="shutdown-trigger" type="button">
+                  <Power aria-hidden="true" />
+                  退出
+                </button>
+              </AlertDialog.Trigger>
+              <AlertDialog.Portal>
+                <AlertDialog.Overlay className="alert-dialog-overlay" />
+                <AlertDialog.Content className="alert-dialog-content">
+                  <AlertDialog.Title>退出 LocalFlow？</AlertDialog.Title>
+                  <AlertDialog.Description>
+                    {activeTaskCount > 0
+                      ? `将先停止 ${activeTaskCount} 个未结束任务，确认全部退出后关闭。`
+                      : "LocalFlow 将停止服务。"}
+                  </AlertDialog.Description>
+                  {shutdownError && <p role="alert">{shutdownError}</p>}
+                  <footer>
+                    <AlertDialog.Cancel asChild>
+                      <button className="secondary" disabled={shuttingDown}>
+                        取消
+                      </button>
+                    </AlertDialog.Cancel>
+                    <AlertDialog.Action asChild>
+                      <button
+                        className="danger compact"
+                        disabled={shuttingDown}
+                        onClick={shutdown}
+                      >
+                        {shuttingDown && <Activity aria-hidden="true" />}
+                        {shuttingDown ? "正在退出" : "退出"}
+                      </button>
+                    </AlertDialog.Action>
+                  </footer>
+                </AlertDialog.Content>
+              </AlertDialog.Portal>
+            </AlertDialog.Root>
+          </div>
         )}
       </section>
     </div>
@@ -2208,6 +2278,9 @@ export default function App() {
               setTheme={setTheme}
               role={status?.role}
               onLogin={refresh}
+              activeTaskCount={tasks.filter(
+                (task) => !finalStates.has(task.state),
+              ).length}
             />
           )}
         </main>

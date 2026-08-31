@@ -133,6 +133,7 @@
 | `GET` | `/auth/session` | 用有效 cookie 恢复 CSRF 令牌并续期会话 |
 | `GET` | `/system/status` | 身份、执行后端和时钟状态 |
 | `POST` | `/system/time-adjustments` | 管理员请求手工校时 |
+| `POST` | `/system/shutdown` | 管理员请求干净退出；响应 202 后停止接收新工作并清理任务 |
 | `GET` | `/openapi` | 管理员读取网页 API 文档使用的 OpenAPI schema |
 
 程序签名的规范串逐行覆盖：方法、含查询的路径、正文 SHA-256、密钥代次、Unix 秒和随机数。对应请求头为 `X-LocalFlow-Signature`、`X-LocalFlow-Generation`、`X-LocalFlow-Created` 和 `X-LocalFlow-Nonce`。

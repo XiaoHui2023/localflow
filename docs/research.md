@@ -126,3 +126,19 @@ GNU Make 把 `name=value` 作为命令行变量覆盖，`--case` 不是 Make 的
 - [VS Code：Custom Layout](https://code.visualstudio.com/docs/configure/custom-layout)
 - [WAI-ARIA APG：Disclosure Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/)
 - [MDN：CSS Container Queries](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_containment/Container_queries)
+
+## 管理员网页退出与危险操作确认（2026-09-01）
+
+W3C APG 将需要用户明确响应的高影响确认定义为 `alertdialog`：模态层必须真实阻止底层交互，并具备可关联的标题与后果说明。Radix Alert Dialog 在 React 中提供 Portal、焦点圈定、取消按钮初始焦点、Esc 关闭和触发焦点恢复，覆盖了现有手写弹窗缺失的行为；其约 12 kB 组件规模相对 Monaco、xterm 与资源树可控，且项目已经使用同系列 Tooltip。LocalFlow 因此复用现有设计令牌为 Radix 原语着色，不再自写焦点管理。
+
+退出事务分为两个所有者：HTTP 端点只验证管理员、幂等登记退出并返回 202；响应发送完成后的后台回调才设置 Uvicorn `should_exit`。随后原有 lifespan 负责停止新调度、取消队列、按协议清理运行任务并确认进程树消失。这样既不会在响应前断连制造假失败，也不会新增一套直接杀进程路径。设置入口到完成为“直接按钮 + 必要确认”两次点击，界面税为零。
+
+Find Skills 分别检索了 `accessible alert dialog react`、`destructive confirmation ux` 与 `react accessibility e2e dialog testing`。结果以 Syncfusion、shadcn、移动端 HIG 与通用 E2E 技能为主；当前用户根部的现代网页、交互步数和质量闭环技能更贴合本项目，故未安装外部技能。第一次组合检索的第三条在 30 秒总上限内没有返回，单独重试 10.3 秒后成功，不影响资料覆盖或实现。
+
+参考资料：
+
+- [W3C APG：Alert and Message Dialogs](https://www.w3.org/WAI/ARIA/apg/patterns/alertdialog/)
+- [W3C APG：Button focus behavior](https://www.w3.org/WAI/ARIA/apg/patterns/button/)
+- [Radix Primitives：Alert Dialog](https://www.radix-ui.com/primitives/docs/components/alert-dialog)
+- [Radix Primitives：Accessibility](https://www.radix-ui.com/primitives/docs/overview/accessibility)
+- [Atlassian Design System：Modal dialog](https://atlassian.design/components/modal-dialog/examples)

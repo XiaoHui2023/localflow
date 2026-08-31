@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import sys
+from collections.abc import Callable
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -16,6 +17,7 @@ from typing import Annotated, Any, Literal
 
 import yaml
 from fastapi import (
+    BackgroundTasks,
     Depends,
     FastAPI,
     Header,
@@ -210,7 +212,11 @@ def _initial_event_cursor(store: Store, after: int | None, last_event_id: str | 
 
 
 def create_app(
-    root: Path, *, settings: Settings | None = None, start_scheduler: bool = True
+    root: Path,
+    *,
+    settings: Settings | None = None,
+    start_scheduler: bool = True,
+    request_shutdown: Callable[[], None] | None = None,
 ) -> FastAPI:
     root = root.resolve()
     initialize_root(root)
@@ -288,6 +294,7 @@ def create_app(
     app.state.auth, app.state.config, app.state.plugins = auth, config, plugins
     app.state.watcher = watcher
     app.state.time_service = time_service
+    app.state.shutdown_requested = False
 
     def set_admin_cookie(request: Request, response: Response, token: str) -> None:
         response.set_cookie(
@@ -395,6 +402,21 @@ def create_app(
             return await time_service.adjust(payload.reference_time, actor)
         except (RuntimeError, ValueError) as exc:
             raise HTTPException(503, str(exc)) from None
+
+    @app.post("/api/v1/system/shutdown", status_code=202)
+    async def shutdown(
+        background_tasks: BackgroundTasks,
+        _actor: str = Depends(require_admin),
+    ):
+        if request_shutdown is None:
+            raise HTTPException(503, "controller shutdown is unavailable")
+        if not app.state.shutdown_requested:
+            app.state.shutdown_requested = True
+            logger.info("LocalFlow shutdown requested by administrator")
+            # Background tasks run after the response has been sent, so the
+            # browser receives an honest acceptance before Uvicorn exits.
+            background_tasks.add_task(request_shutdown)
+        return {"status": "stopping"}
 
     @app.post("/api/v1/variables/resolve")
     async def resolve_variables(payload: VariablePreview, _actor: str = Depends(require_submitter)):

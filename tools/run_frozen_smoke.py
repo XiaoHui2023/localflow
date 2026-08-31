@@ -220,7 +220,14 @@ def main() -> None:
                     "protected child did not start",
                 )
             )
-            os.kill(controller_pid, signal.SIGUSR1)
+            shutdown_status, shutdown_body = request(
+                opener,
+                endpoint + "/api/v1/system/shutdown",
+                "POST",
+                headers=headers,
+            )
+            if shutdown_status != 202 or json.loads(shutdown_body) != {"status": "stopping"}:
+                raise RuntimeError("administrator shutdown endpoint was not accepted")
             wait_for(
                 lambda: not Path(f"/proc/{controller_pid}").exists(),
                 90,

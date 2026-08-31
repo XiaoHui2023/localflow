@@ -77,6 +77,12 @@
 @keyframes notice-in{from{opacity:0;transform:translate(-50%,5px)}to{opacity:1;transform:translate(-50%,0)}}
 @media(prefers-reduced-motion:reduce){.config-workbench>.notice{animation:none}}
 .dialog-backdrop{z-index:var(--layer-dialog)}
+.alert-dialog-overlay{position:fixed;inset:0;z-index:var(--layer-dialog);background:rgba(0,0,0,.38);animation:dialog-overlay-in .14s ease-out}
+.alert-dialog-content{position:fixed;z-index:calc(var(--layer-dialog) + 1);top:50%;left:50%;width:min(400px,calc(100vw - 32px));padding:22px;border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:0 20px 60px rgba(0,0,0,.28);transform:translate(-50%,-50%);animation:dialog-content-in .16s cubic-bezier(.2,.8,.2,1)}
+.alert-dialog-content h2{margin:0;font-size:17px;line-height:1.35}.alert-dialog-content>p{margin:10px 0 0;color:var(--muted);font-size:13px;line-height:1.55}.alert-dialog-content>p[role="alert"]{color:var(--danger)}.alert-dialog-content footer{display:flex;justify-content:flex-end;gap:8px;margin-top:22px}.alert-dialog-content .danger svg{width:15px;height:15px;animation:run-pulse .8s ease-in-out infinite}
+.shutdown-trigger{min-height:var(--control-height);display:inline-flex;align-items:center;gap:7px;padding:0 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--danger);cursor:pointer;font-weight:600}.shutdown-trigger:hover{border-color:color-mix(in srgb,var(--danger) 45%,var(--border));background:var(--danger-bg)}.shutdown-trigger svg{width:16px;height:16px}
+@keyframes dialog-overlay-in{from{opacity:0}to{opacity:1}}@keyframes dialog-content-in{from{opacity:0;transform:translate(-50%,-48%) scale(.98)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@media(prefers-reduced-motion:reduce){.alert-dialog-overlay,.alert-dialog-content,.alert-dialog-content .danger svg{animation:none}}
 .config-workbench>.notice{z-index:var(--layer-notification)}
 .run-action.accepted{color:var(--success);background:var(--success-bg);border-color:color-mix(in srgb,var(--success) 38%,var(--border))}
 .run-action.submitting svg{animation:run-pulse .8s ease-in-out infinite}

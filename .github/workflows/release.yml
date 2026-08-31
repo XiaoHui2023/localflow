@@ -95,7 +95,7 @@ jobs:
           test -f "$bundle/plugins/command.py"
           test -f "$bundle/plugins/verification.py"
           test -f "$bundle/plugins/README.md"
-          test -x "$bundle/stop-localflow.sh"
+          test ! -e "$bundle/stop-localflow.sh"
           test -f "$bundle/docs/api.md"
           test -f "$bundle/docs/configuration.md"
           test -f "$bundle/docs/plugins.md"

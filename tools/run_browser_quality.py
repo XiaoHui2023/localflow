@@ -103,6 +103,7 @@ def main() -> int:
         "admin-task-detail-dark.png",
         "admin-api-light.png",
         "admin-settings-light.png",
+        "admin-shutdown-confirmation.png",
         "admin-run-dark.png",
         "admin-task-detail.png",
         "admin-template-cases.png",

@@ -147,6 +147,14 @@ test("Ubuntu browser can operate the released web console", async ({
 
   await page.getByRole("tab", { name: "设置" }).click();
   await expect(page.getByLabel("时间校准", { exact: true })).toBeVisible();
+  const exitButton = page.getByRole("button", { name: "退出", exact: true });
+  await exitButton.click();
+  const shutdownDialog = page.getByRole("alertdialog");
+  await expect(shutdownDialog).toContainText("退出 LocalFlow？");
+  await expect(shutdownDialog.getByRole("button", { name: "取消" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(shutdownDialog).toHaveCount(0);
+  await expect(exitButton).toBeFocused();
   expect(eventResponses).toBeGreaterThan(0);
   expect(await page.evaluate(() => window.__localflowBootErrors || [])).toEqual(
     [],

@@ -10,7 +10,7 @@ Read `../../docs/operations.md`. For task exit incidents also read `../../docs/s
 ## Safe operating boundary
 
 - Resolve the actual root, service account, configuration, backend, PID, and active task count before restart or migration.
-- Do not send Ctrl+C, SIGTERM or SIGHUP to stop the controller; they are intentionally ignored. Use the release-root `./stop-localflow.sh` or `systemctl stop localflow`, both of which use SIGUSR1 and wait for task cleanup.
+- Do not send Ctrl+C, SIGTERM or SIGHUP to stop the controller; they are intentionally ignored. An administrator exits from Settings in the web console. Managed installations may use `systemctl stop localflow`, which uses SIGUSR1 and waits for task cleanup.
 - Explicit shutdown cancels queued tasks and drains running task protocols before the controller exits. If cleanup cannot be confirmed, keep the controller alive and report failure instead of orphaning tasks.
 - Treat `stopping` as active. Confirm the complete task process owner is inactive before calling the task cancelled or the machine clean.
 - Keep secrets owner-readable only and never print their contents.
