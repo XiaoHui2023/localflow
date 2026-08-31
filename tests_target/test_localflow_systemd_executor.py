@@ -118,14 +118,16 @@ async def test_real_systemd_executor_sigint_first(tmp_path: Path) -> None:
     ("program", "expected_stage"),
     [
         (
-            "import signal,time; signal.signal(signal.SIGINT, signal.SIG_IGN); "
+            "import pathlib,signal,time; signal.signal(signal.SIGINT, signal.SIG_IGN); "
             "signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(SystemExit(143))); "
+            "pathlib.Path('handler-ready').write_text('1'); "
             "time.sleep(30)",
             "stop:1:signal",
         ),
         (
-            "import signal,time; signal.signal(signal.SIGINT, signal.SIG_IGN); "
-            "signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(30)",
+            "import pathlib,signal,time; signal.signal(signal.SIGINT, signal.SIG_IGN); "
+            "signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+            "pathlib.Path('handler-ready').write_text('1'); time.sleep(30)",
             "sigkill",
         ),
     ],
@@ -147,8 +149,9 @@ async def test_real_systemd_interrupt_escalates(
     await service.start()
     for _ in range(100):
         await asyncio.sleep(0.05)
-        if control_socket_path(root, task.id).exists():
+        if (root / "handler-ready").exists():
             break
+    assert (root / "handler-ready").is_file()
     await service.interrupt(task.id, sigint_grace=0.3, sigterm_grace=0.3)
     for _ in range(100):
         await asyncio.sleep(0.05)
