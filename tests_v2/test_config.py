@@ -94,6 +94,8 @@ def test_config_imports_and_layered_diagnosis(root: Path) -> None:
     task = diagnose_config(repository.parse("command/hello-world.yaml"), plugins)
     assert (task.valid, task.runnable, task.plugin) == (True, True, "command")
     invalid = diagnose_config({"plugin": "verification", "command": ["python3"]}, plugins)
+    assert any("${case}" in item for item in invalid.errors)
+    assert any("${seed}" in item for item in invalid.errors)
     assert not invalid.valid and any("case_directory" in item for item in invalid.errors)
 
 
@@ -119,11 +121,11 @@ def test_config_api_exposes_only_runnable_configuration_tree(admin: TestClient, 
     items = {item["name"]: item for item in inspection.json()["items"]}
     assert items["working_directory"]["severity"] == "ok"
     assert items["case_directory"]["severity"] == "ok"
-    assert items["command_file"]["severity"] == "ok"
+    assert items["command_entry"]["severity"] in {"ok", "warning"}
 
     broken = root / "config" / "verification" / "broken-path.yaml"
     broken.write_text(
-        "plugin: verification\ncase_directory: missing\nworking_directory: nowhere\ncommand: [missing-command]\n",
+        "plugin: verification\ncase_directory: missing\nworking_directory: nowhere\ncommand: [missing-command, '${case}', '${seed}']\n",
         encoding="utf-8",
     )
     failed = admin.post(

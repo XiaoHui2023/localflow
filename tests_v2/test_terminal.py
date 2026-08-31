@@ -42,7 +42,7 @@ async def test_terminal_input_reaches_process(root: Path) -> None:
     assert b"interactive-value" in service.read_log(task.id)[0]
     complete, end = service.read_log(task.id, 0, 1024)
     first, middle = service.read_log(task.id, 0, 5)
-    remainder, resumed_end = service.read_log(task.id, middle, 1024)
+    remainder, resumed_end = service.read_log(task.id, middle, end - middle)
     assert first + remainder == complete
     assert resumed_end == end
     await service.stop()

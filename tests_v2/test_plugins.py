@@ -115,6 +115,47 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     assert task.command[task.command.index("--seed") + 1] == "${seed}"
     assert "tag:nightly" in task.mutex_keys
 
+    make_task = registry.expand_config(
+        {
+            "plugin": "verification",
+            "case_directory": str(root / "cases"),
+            "working_directory": str(root),
+            "command": "make all CASE=${case} SEED=${seed}",
+        },
+        {"cases": ["case-a"], "seed": 41},
+        {"root": str(root)},
+    )[0]
+    assert make_task.command == [
+        "/bin/sh",
+        "-lc",
+        "make all CASE=case-a SEED=41",
+    ]
+    composed = {
+        "plugin": "verification",
+        "case_directory": str(root / "cases"),
+        "command": "${sim_command}",
+        "variables": {"sim_command": "make all CASE=${case} SEED=${seed}"},
+    }
+    assert registry.expand_config(
+        composed, {"cases": ["case-a"], "seed": 42}, {"root": str(root)}
+    )[0].command[-1] == "make all CASE=case-a SEED=42"
+
+
+def test_verification_requires_explicit_case_and_seed_placement(root: Path) -> None:
+    initialize_root(root)
+    registry = PluginRegistry(root / "plugins")
+    registry.load()
+    with pytest.raises(ValueError, match="missing variables: case, seed"):
+        registry.expand_config(
+            {
+                "plugin": "verification",
+                "case_directory": str(root / "cases"),
+                "command": "make all",
+            },
+            {"cases": ["case-a"]},
+            {"root": str(root)},
+        )
+
 
 def test_verification_result_uses_final_uvm_summary_and_existing_logs(root: Path) -> None:
     initialize_root(root)

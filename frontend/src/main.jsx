@@ -12,6 +12,7 @@ import { TooltipProvider } from "./Tooltip.jsx";
 import "./index.css";
 import "./extra.css";
 import "./round6.css";
+import "./round7.css";
 import "./case-picker.css";
 
 self.MonacoEnvironment = {

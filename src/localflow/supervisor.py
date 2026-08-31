@@ -6,6 +6,7 @@ import json
 import os
 import pty
 import selectors
+import shlex
 import signal
 import socket
 import struct
@@ -49,6 +50,8 @@ def supervise(root: Path, task_id: str) -> int:
         int(limits.get("task_log_max_bytes", 100 * 1024 * 1024)),
         int(limits.get("keep_free_bytes", 0)),
     ) as log:
+        shown_command = task["command"][2] if task["command"][:2] == ["/bin/sh", "-lc"] else shlex.join(task["command"])
+        log.write(lifecycle_line("process.command", cwd=task["working_directory"], command=shown_command))
         log.write(lifecycle_line("process.started", pid=child_pid, terminal="pty"))
         while True:
             for key, _ in selector.select(0.25):

@@ -84,6 +84,17 @@ def diagnose_config(document: Any, plugins: PluginRegistry) -> ConfigDiagnosis:
                 config_model.model_validate(plugin_values)
             except ValidationError as error:
                 errors.extend(_validation_errors(error, "plugin."))
+        validate_config = getattr(loaded.instance, "validate_config", None)
+        if callable(validate_config):
+            try:
+                plugin_errors = validate_config(document)
+                if not isinstance(plugin_errors, list) or any(
+                    not isinstance(item, str) for item in plugin_errors
+                ):
+                    raise TypeError("validate_config must return a list of strings")
+                errors.extend(plugin_errors)
+            except (TypeError, ValueError) as error:
+                errors.append(f"plugin: configuration validation failed: {error}")
 
     return ConfigDiagnosis(
         kind="task",

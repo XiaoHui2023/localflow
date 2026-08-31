@@ -57,6 +57,7 @@ async def test_mutex_queue_and_logs(root: Path) -> None:
     task_log = service.read_log(first.id)[0]
     assert b"task.starting" in task_log
     assert b"process.started" in task_log
+    assert b"process.command" in task_log
     assert b"ok" in task_log
     assert b"process.exited" in task_log
     store.close()

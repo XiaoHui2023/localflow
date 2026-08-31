@@ -42,6 +42,43 @@ async def test_real_systemd_executor_success_and_pty_log(tmp_path: Path) -> None
 
 
 @pytest.mark.asyncio
+async def test_real_systemd_executor_runs_make_variables_and_logs_command(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "localflow-make"
+    initialize_root(root)
+    project = tmp_path / "simulation-project"
+    project.mkdir()
+    (project / "Makefile").write_text(
+        ".PHONY: all\nall:\n\t@printf 'cwd=%s case=%s seed=%s' \"$$PWD\" \"$(CASE)\" \"$(SEED)\"\n",
+        encoding="utf-8",
+    )
+    store = Store(root / "runtime" / "localflow.db")
+    service = TaskService(root, store, SystemdExecutor(root), max_concurrency=1)
+    task = service.submit(
+        TaskCreate(
+            name="make-contract",
+            working_directory=str(project),
+            command="make all CASE=case-a SEED=12345",
+        )
+    )
+    await service.start()
+    for _ in range(200):
+        await asyncio.sleep(0.05)
+        if store.get_task(task.id).ended_at:
+            break
+    result = store.get_task(task.id)
+    output = service.read_log(task.id)[0]
+    assert result.state == "succeeded"
+    assert f"cwd='{project}'".encode() in output
+    assert b"command='make all CASE=case-a SEED=12345'" in output
+    assert f"cwd={project}".encode() in output
+    assert b"case=case-a seed=12345" in output
+    await service.stop()
+    store.close()
+
+
+@pytest.mark.asyncio
 async def test_real_systemd_executor_sigint_first(tmp_path: Path) -> None:
     root = tmp_path / "localflow-root"
     initialize_root(root)

@@ -113,3 +113,16 @@ Terraform 的保存计划说明“预演”和“执行已冻结内容”应是�
 - [SQLite `RETURNING` 与 ACID 说明](https://www.sqlite.org/lang_returning.html)
 - [OpenAPI Specification 3.1.1](https://spec.openapis.org/oas/v3.1.1.html)
 - [Terraform 保存执行计划](https://developer.hashicorp.com/terraform/tutorials/cli/plan)
+
+## 任意命令与任务内运行工作区（2026-08-31）
+
+GNU Make 把 `name=value` 作为命令行变量覆盖，`--case` 不是 Make 的通用选项；因此验证插件不能从领域字段猜测目标程序参数语法。LocalFlow 采用显式模板合同：配置必须自己放置 `${case}` 与 `${seed}`，字符串由 Ubuntu shell 执行，列表保持精确 argv，插件只负责逐任务替换和冻结。终端输出在进程启动前记录最终命令与工作目录，使 Make、脚本或原生程序的实际参数可直接核对。
+
+界面比较了独立运行页、永久双栏和可折叠工作区。独立页增加任务与运行之间往返；永久双栏在日常只看任务时浪费空间。最终采用任务为主、运行为按需辅助面板：1440px 并排，阈值以下将运行置于任务上方，初始折叠并保存当前标签页内状态。开关遵循 WAI-ARIA disclosure button 的 `aria-expanded`/`aria-controls`，布局使用 Grid/Flex 与宽度断点降级；不引入仅为分栏存在的新运行时依赖。
+
+参考资料：
+
+- [GNU Make：Overriding Variables](https://www.gnu.org/software/make/manual/html_node/Overriding.html)
+- [VS Code：Custom Layout](https://code.visualstudio.com/docs/configure/custom-layout)
+- [WAI-ARIA APG：Disclosure Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/)
+- [MDN：CSS Container Queries](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_containment/Container_queries)

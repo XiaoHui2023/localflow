@@ -117,6 +117,7 @@ def initialize_root(root: Path) -> None:
     for relative in (
         "config/command/hello-world.yaml",
         "config/verification/demo.yaml",
+        "Makefile",
         "scripts/simulate.py",
         "cases/case-a/README.txt",
         "cases/case-b/README.txt",

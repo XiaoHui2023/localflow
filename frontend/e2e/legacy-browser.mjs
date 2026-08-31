@@ -35,9 +35,10 @@ try {
   const keyInput = await driver.wait(until.elementLocated(By.css("input[aria-label='管理员秘钥']")), 10_000);
   await keyInput.sendKeys(adminKey);
   await driver.findElement(By.xpath("//button[normalize-space()='登录']")).click();
-  await driver.wait(async () => (await driver.findElements(By.css("[role='tab']"))).length === 4, 10_000);
+  await driver.wait(async () => (await driver.findElements(By.css("[role='tab']"))).length === 3, 10_000);
   step = "open configuration";
-  await driver.findElement(By.xpath("//*[@role='tab' and normalize-space()='运行']")).click();
+  await driver.findElement(By.xpath("//*[@role='tab' and normalize-space()='任务']")).click();
+  await driver.findElement(By.css("button[aria-label='打开运行面板']")).click();
   const config = await driver.wait(until.elementLocated(By.css("[data-file='config/command/hello-world.yaml']")), 20_000);
   await config.click();
   await driver.findElement(By.xpath("//button[normalize-space()='编辑']")).click();

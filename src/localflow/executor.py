@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shlex
 import shutil
 import signal
 import socket
@@ -84,6 +85,8 @@ class SubprocessExecutor:
         else:
             kwargs["start_new_session"] = True
         try:
+            shown_command = task.command[2] if task.command[:2] == ["/bin/sh", "-lc"] else shlex.join(task.command)
+            log.write(lifecycle_line("process.command", cwd=str(workdir), command=shown_command))
             process = await asyncio.create_subprocess_exec(
                 *task.command,
                 cwd=workdir,

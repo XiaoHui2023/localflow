@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 import shlex
+import shutil
+import os
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -88,7 +90,7 @@ class Verification:
         "plugin": "verification",
         "case_directory": "cases",
         "working_directory": ".",
-        "command": "python3 -u scripts/simulate.py --case ${case} --seed ${seed}",
+        "command": "make all CASE=${case} SEED=${seed}",
         "mutex_keys": ["simulator:demo"],
     }
     api_inputs = {
@@ -153,6 +155,23 @@ class Verification:
         )
         return self._case_names(root)
 
+    @staticmethod
+    def validate_config(document):
+        command = document.get("command")
+        try:
+            command = VariableResolver(
+                [("config", document.get("variables", {}))],
+                deferred={"case", "seed", "run", "root", "scripts_dir", "cases_dir"},
+            ).resolve(command)
+        except (TypeError, ValueError) as error:
+            return [f"command: {error}"]
+        text = command if isinstance(command, str) else "\n".join(command or [])
+        return [
+            f"command: verification command must contain ${{{name}}}"
+            for name in ("case", "seed")
+            if f"${{{name}}}" not in text
+        ]
+
     def inspect(self, values, context):
         case_root = self._path(
             values.get("case_directory", values.get("case_root", "")), context
@@ -175,21 +194,26 @@ class Verification:
             "message": message,
         }]
         command = values.get("command", [])
-        if isinstance(command, str):
-            command = shlex.split(command)
-        script_value = next((str(part) for part in command[1:] if str(part).endswith(".py")), None)
-        if script_value:
+        try:
+            arguments = shlex.split(command) if isinstance(command, str) else command
+        except ValueError:
+            arguments = []
+        if arguments:
+            executable = str(arguments[0])
             working = self._path(values.get("working_directory", "."), context)
-            script = Path(script_value)
-            script = script if script.is_absolute() else (working / script).resolve()
-            exists = script.is_file()
+            candidate = Path(executable)
+            resolved = (
+                candidate if candidate.is_absolute() else (working / candidate).resolve()
+            )
+            exists = resolved.is_file() if candidate.parent != Path(".") else shutil.which(executable) is not None
+            severity = "ok" if exists else ("warning" if os.name == "nt" else "error")
             items.append({
-                "name": "command_file",
-                "label": "脚本",
-                "value": str(script),
+                "name": "command_entry",
+                "label": "命令入口",
+                "value": executable,
                 "kind": "path",
-                "severity": "ok" if exists else "error",
-                "message": None if exists else "找不到命令脚本",
+                "severity": severity,
+                "message": None if exists else "当前环境找不到命令入口",
             })
         return items
 
@@ -214,6 +238,11 @@ class Verification:
         }
 
     def expand(self, values, context):
+        command_template = values["command"]
+        command_text = command_template if isinstance(command_template, str) else "\n".join(command_template)
+        missing = [name for name in ("case", "seed") if f"${{{name}}}" not in command_text]
+        if missing:
+            raise ValueError(f"verification command is missing variables: {', '.join(missing)}")
         case_root = self._path(
             values.get("case_directory", values.get("case_root", "")), context
         ).resolve()
@@ -252,19 +281,11 @@ class Verification:
                 ]
                 mutex_keys = [str(item) for item in dynamic.resolve(values.get("mutex_keys", []))]
                 mutex_keys.extend(f"tag:{label}" for label in labels)
-                command_template = values["command"]
-                command = dynamic.resolve(command_template)
-                if isinstance(command, str):
-                    if "${case}" not in command_template and case_name not in command_template:
-                        command += f" --case {shlex.quote(case_name)}"
-                    if "${seed}" not in command_template and str(seed) not in command_template:
-                        command += f" --seed {shlex.quote(str(seed))}"
+                if isinstance(command_template, str):
+                    command_source = command_template.replace("${case}", shlex.quote(case_name))
+                    command = dynamic.resolve(command_source)
                 else:
-                    command = [str(item) for item in command]
-                    if not any("${case}" in str(item) or item == case_name for item in command_template):
-                        command.extend(["--case", case_name])
-                    if not any("${seed}" in str(item) or item == str(seed) for item in command_template):
-                        command.extend(["--seed", str(seed)])
+                    command = [str(item) for item in dynamic.resolve(command_template)]
                 tasks.append(
                     TaskDraft(
                         name=case_name,

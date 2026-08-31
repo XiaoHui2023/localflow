@@ -38,7 +38,7 @@ include = ["localflow*"]
 
 [tool.setuptools.package-data]
 "localflow.builtin_plugins" = ["command.py.example", "verification.py.example", "README.md.example"]
-"localflow.starter_root" = ["config/command/*.yaml", "config/verification/*.yaml", "scripts/simulate.py", "cases/*", "cases/*/*.txt"]
+"localflow.starter_root" = ["Makefile", "config/command/*.yaml", "config/verification/*.yaml", "scripts/simulate.py", "cases/*", "cases/*/*.txt"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests_v2"]

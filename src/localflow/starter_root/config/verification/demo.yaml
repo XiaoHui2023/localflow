@@ -1,10 +1,9 @@
-# Choose cases and an optional seed on the Run page. Case and seed are filled by the plugin.
+# Case and seed are inserted into the command template for every task.
 plugin: verification
 case_directory: cases
 working_directory: .
 command: >-
-  python3 -u scripts/simulate.py --case ${case} --seed ${seed}
-  --compile-log artifacts/${case}.compile.log --run-log artifacts/${case}.run.log
+  make all CASE=${case} SEED=${seed}
 labels: [verification]
 compile_logs: ["artifacts/${case}.compile.log"]
 run_logs: ["artifacts/${case}.run.log"]

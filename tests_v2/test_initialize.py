@@ -19,6 +19,7 @@ def test_initialize_installs_only_production_plugins_and_examples(root: Path) ->
     }
     assert configs == {"command/hello-world.yaml", "verification/demo.yaml"}
     assert (root / "scripts" / "simulate.py").is_file()
+    assert "CASE" in (root / "Makefile").read_text(encoding="utf-8")
     assert not (root / "scripts" / "random_number.py").exists()
     assert not (root / "plugins" / "marker.py").exists()
     assert not (root / "plugins" / "interactive.py").exists()

@@ -186,6 +186,7 @@ def main() -> int:
                 "frontend/src/index.css",
                 "frontend/src/extra.css",
                 "frontend/src/round6.css",
+                "frontend/src/round7.css",
                 "frontend/src/case-picker.css",
                 "frontend/e2e/ui-quality.js",
                 "frontend/e2e/localflow.spec.js",
