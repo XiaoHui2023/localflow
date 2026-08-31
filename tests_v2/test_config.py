@@ -133,11 +133,16 @@ def test_config_api_exposes_only_runnable_configuration_tree(admin: TestClient, 
         json={"inputs": {}},
     )
     assert failed.status_code == 200
-    assert {item["name"] for item in failed.json()["items"] if item["severity"] == "error"} == {
+    expected_errors = {
         "working_directory",
         "command",
         "case_directory",
     }
+    if os.name != "nt":
+        expected_errors.add("command_entry")
+    assert {
+        item["name"] for item in failed.json()["items"] if item["severity"] == "error"
+    } == expected_errors
 
 
 def test_config_api_covers_create_read_write_move_and_delete(admin: TestClient) -> None:
