@@ -155,23 +155,6 @@ class Verification:
         )
         return self._case_names(root)
 
-    @staticmethod
-    def validate_config(document):
-        command = document.get("command")
-        try:
-            command = VariableResolver(
-                [("config", document.get("variables", {}))],
-                deferred={"case", "seed", "run", "root", "scripts_dir", "cases_dir"},
-            ).resolve(command)
-        except (TypeError, ValueError) as error:
-            return [f"command: {error}"]
-        text = command if isinstance(command, str) else "\n".join(command or [])
-        return [
-            f"command: verification command must contain ${{{name}}}"
-            for name in ("case", "seed")
-            if f"${{{name}}}" not in text
-        ]
-
     def inspect(self, values, context):
         case_root = self._path(
             values.get("case_directory", values.get("case_root", "")), context
@@ -239,10 +222,6 @@ class Verification:
 
     def expand(self, values, context):
         command_template = values["command"]
-        command_text = command_template if isinstance(command_template, str) else "\n".join(command_template)
-        missing = [name for name in ("case", "seed") if f"${{{name}}}" not in command_text]
-        if missing:
-            raise ValueError(f"verification command is missing variables: {', '.join(missing)}")
         case_root = self._path(
             values.get("case_directory", values.get("case_root", "")), context
         ).resolve()

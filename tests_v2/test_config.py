@@ -94,8 +94,7 @@ def test_config_imports_and_layered_diagnosis(root: Path) -> None:
     task = diagnose_config(repository.parse("command/hello-world.yaml"), plugins)
     assert (task.valid, task.runnable, task.plugin) == (True, True, "command")
     invalid = diagnose_config({"plugin": "verification", "command": ["python3"]}, plugins)
-    assert any("${case}" in item for item in invalid.errors)
-    assert any("${seed}" in item for item in invalid.errors)
+    assert not any("${case}" in item or "${seed}" in item for item in invalid.errors)
     assert not invalid.valid and any("case_directory" in item for item in invalid.errors)
 
 

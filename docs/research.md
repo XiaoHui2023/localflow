@@ -116,7 +116,7 @@ Terraform 的保存计划说明“预演”和“执行已冻结内容”应是�
 
 ## 任意命令与任务内运行工作区（2026-08-31）
 
-GNU Make 把 `name=value` 作为命令行变量覆盖，`--case` 不是 Make 的通用选项；因此验证插件不能从领域字段猜测目标程序参数语法。LocalFlow 采用显式模板合同：配置必须自己放置 `${case}` 与 `${seed}`，字符串由 Ubuntu shell 执行，列表保持精确 argv，插件只负责逐任务替换和冻结。终端输出在进程启动前记录最终命令与工作目录，使 Make、脚本或原生程序的实际参数可直接核对。
+GNU Make 把 `name=value` 作为命令行变量覆盖，`--case` 不是 Make 的通用选项；因此验证插件不能从领域字段猜测目标程序参数语法。LocalFlow 采用按需模板合同：配置只在需要时放置 `${case}`、`${seed}` 或 `${run}`，也可完全不用；字符串由 Ubuntu shell 执行，列表保持精确 argv，插件只负责替换用户实际写出的变量并冻结。终端输出在进程启动前记录最终命令与工作目录，使 Make、脚本或原生程序的实际参数可直接核对。
 
 界面比较了独立运行页、永久双栏和可折叠工作区。独立页增加任务与运行之间往返；永久双栏在日常只看任务时浪费空间。最终采用任务为主、运行为按需辅助面板：1440px 并排，阈值以下将运行置于任务上方，初始折叠并保存当前标签页内状态。开关遵循 WAI-ARIA disclosure button 的 `aria-expanded`/`aria-controls`，布局使用 Grid/Flex 与宽度断点降级；不引入仅为分栏存在的新运行时依赖。
 
@@ -126,6 +126,29 @@ GNU Make 把 `name=value` 作为命令行变量覆盖，`--case` 不是 Make 的
 - [VS Code：Custom Layout](https://code.visualstudio.com/docs/configure/custom-layout)
 - [WAI-ARIA APG：Disclosure Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/)
 - [MDN：CSS Container Queries](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_containment/Container_queries)
+
+### 2026-09-02 修订：按需变量与工作目录副作用
+
+后续真实使用推翻了“验证命令必须同时包含 `${case}` 与 `${seed}`”的假设。Case、seed 与 run 是插件可提供的替换值，不是用户命令必须消费的参数；命令可以使用任意子集或完全不用，插件不得拒绝或猜测参数语法。
+
+工作目录门禁也从文本观察升级为副作用证明。Python `cwd`、systemd `WorkingDirectory` 与 supervisor `chdir` 应传递同一个冻结绝对值；字符串命令使用 `/bin/sh -c`，避免 `-l` 读取 `/etc/profile`/`.profile` 后再次 `cd`。subprocess、systemd Make 与冻结制品分别创建相对 marker，并同时断言目标目录存在、LocalFlow 根不存在。打印 `PWD` 或成功读取 Makefile 不再单独构成通过。
+
+详细研究、Find Skills 结果、失败基线和能力合同见 [2026-09-02 工作目录证据](../quality/evidence/2026-09-02-working-directory.md) 与 [专项合同](../quality/evidence/2026-09-02-working-directory-capability.json)。
+
+## 隔离测试与滚动发布消费门（2026-09-02）
+
+本机 Docker Desktop 的长期状态和项目代码生命周期不一致，不能把修复个人工作站作为 Linux 发布的隐含前置。GitHub-hosted runner 为每个标准 job 提供新的虚拟机；Playwright 官方也建议 CI 安装浏览器与系统依赖并运行完整测试，浏览器缓存通常不带来收益。因此 LocalFlow 按证据所有权分层：Windows 本机负责快速源码、静态、前端构建和当前浏览器反馈；全新 Ubuntu runner 负责 systemd/cgroup/PTY、旧 glibc/CPU、固定旧浏览器与最终 StaticX 制品。
+
+原工作流在上传前已有较强的生产者门禁，但 `publish` 成功仍只说明发布 API 未报错。新增独立消费者 job：从公开 Release 重新下载，与同次 build artifact 和 GitHub API digest 比较，验证远端 tag 精确提交、`SHA256SUMS`、SLSA build provenance、压缩包单根与路径边界，再从解压根运行完整 frozen smoke。滚动 Release 的 `published_at` 是首次创建时间，不用于判定本轮新旧；判定使用 tag SHA、`updated_at`、资产 digest 与消费回执。
+
+Git 历史说明这些现象不是依赖随机消失。`35bf406` 在同一次大范围界面与任意命令改造中引入了右侧运行折叠入口、Case/seed 强制占位假设，并让终端继续只筛选活跃任务；`/bin/sh -lc` 则由更早的 `eb1c15a` 引入。执行器的 subprocess `cwd`、systemd `WorkingDirectory` 和 supervisor `chdir` 一直存在，所以读取 Makefile与打印 `PWD` 的旧测试会通过，却没有证明登录 shell 读取 profile 后的相对副作用位置。根因是一次跨层提交同时改变合同，而门禁只验证了字段、输出文本和活跃路径，没有设置“任意变量子集、目标/根双向副作用、终态再打开、入口左右位置”这些反例。新增专项测试把这些反例分别放回插件、两种执行器、冻结制品和浏览器层。
+
+参考资料：
+
+- [GitHub-hosted runners](https://docs.github.com/en/actions/concepts/runners/github-hosted-runners)
+- [GitHub artifact attestations](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations)
+- [GitHub Releases REST API](https://docs.github.com/en/rest/releases/releases)
+- [Playwright continuous integration](https://playwright.dev/docs/ci)
 
 ## 管理员网页退出与危险操作确认（2026-09-01）
 

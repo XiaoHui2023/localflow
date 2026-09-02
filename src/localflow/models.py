@@ -24,7 +24,7 @@ def normalize_command(value: CommandInput) -> list[str]:
     if isinstance(value, str):
         if not value.strip() or "\x00" in value:
             raise ValueError("command must be non-empty and contain no NUL")
-        return ["/bin/sh", "-lc", value]
+        return ["/bin/sh", "-c", value]
     if not value or any(not isinstance(item, str) or not item or "\x00" in item for item in value):
         raise ValueError("command arguments must be non-empty strings and contain no NUL")
     return value

@@ -127,7 +127,7 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     )[0]
     assert make_task.command == [
         "/bin/sh",
-        "-lc",
+        "-c",
         "make all CASE=case-a SEED=41",
     ]
     composed = {
@@ -141,20 +141,33 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     )[0].command[-1] == "make all CASE=case-a SEED=42"
 
 
-def test_verification_requires_explicit_case_and_seed_placement(root: Path) -> None:
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    [
+        ("make all", ["/bin/sh", "-c", "make all"]),
+        ("make all CASE=${case}", ["/bin/sh", "-c", "make all CASE=case-a"]),
+        (["make", "all", "SEED=${seed}"], ["make", "all", "SEED=${seed}"]),
+        (["make", "all"], ["make", "all"]),
+    ],
+)
+def test_verification_command_uses_only_variables_explicitly_requested(
+    root: Path, command, expected: list[str]
+) -> None:
     initialize_root(root)
     registry = PluginRegistry(root / "plugins")
     registry.load()
-    with pytest.raises(ValueError, match="missing variables: case, seed"):
-        registry.expand_config(
-            {
-                "plugin": "verification",
-                "case_directory": str(root / "cases"),
-                "command": "make all",
-            },
-            {"cases": ["case-a"]},
-            {"root": str(root)},
-        )
+    task = registry.expand_config(
+        {
+            "plugin": "verification",
+            "case_directory": str(root / "cases"),
+            "command": command,
+        },
+        {"cases": ["case-a"]},
+        {"root": str(root)},
+    )[0]
+    assert task.command == expected
+    assert "--case" not in task.command
+    assert "--seed" not in task.command
 
 
 def test_verification_result_uses_final_uvm_summary_and_existing_logs(root: Path) -> None:

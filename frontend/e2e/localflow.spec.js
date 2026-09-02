@@ -241,8 +241,8 @@ async function runAcceptance(page) {
 
 async function openRunPanel(page) {
   await page.getByRole("tab", { name: "任务" }).click();
-  const opener = page.getByRole("button", { name: "打开运行面板" });
-  if (await opener.count()) await opener.click();
+  const toggle = page.getByRole("button", { name: "运行配置" });
+  if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
   await expect(page.locator("#run-panel")).toBeVisible();
 }
 
@@ -250,6 +250,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   page,
   browser,
 }) => {
+  test.setTimeout(180_000);
   fs.mkdirSync(evidence, { recursive: true });
   const consoleErrors = [];
   const validationRejections = [];
@@ -296,7 +297,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(page.getByRole("tab")).toHaveText(["任务", "设置"]);
-  await expect(page.getByRole("button", { name: "打开运行面板" })).toHaveCount(
+  await expect(page.getByRole("button", { name: "运行配置" })).toHaveCount(
     0,
   );
   await page.getByRole("tab", { name: "设置" }).click();
@@ -340,10 +341,16 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(page.getByRole("button", { name: "刷新" })).toHaveCount(0);
   await page.getByRole("tab", { name: "任务" }).click();
   await expect(page.getByText("暂无任务", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "打开运行面板" }))
+  const runPanelToggle = page.getByRole("button", { name: "运行配置" });
+  await expect(runPanelToggle)
     .toHaveAttribute("aria-expanded", "false");
-  await expect(page.getByRole("button", { name: "打开运行面板" }))
+  await expect(runPanelToggle)
     .toHaveAttribute("aria-controls", "run-panel");
+  await expect(runPanelToggle).toHaveText("运行配置");
+  const navigationBox = await page.locator(".top nav").boundingBox();
+  const runToggleBox = await runPanelToggle.boundingBox();
+  expect(runToggleBox.x).toBeLessThan(124);
+  expect(runToggleBox.y).toBeGreaterThanOrEqual(navigationBox.y + navigationBox.height);
   await page.screenshot({
     path: path.join(evidence, "admin-empty-light.png"),
     fullPage: true,
@@ -505,7 +512,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await doneRow.click();
   await expect(page.getByText("qa://finished", { exact: true })).toHaveCount(0);
 
-  const liveCode = `import time; print('qa-terminal-ready', flush=True); time.sleep(30) # ${"long-command-".repeat(36)}`;
+  const liveCode = `import time; print('qa-terminal-ready', flush=True); time.sleep(180) # ${"long-command-".repeat(36)}`;
   const live = await browserApi(page, "/tasks", {
     method: "POST",
     body: {
@@ -642,7 +649,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   ).toBeLessThanOrEqual(12);
   const longValue = page
     .locator(".task-item.open .copy-value")
-    .filter({ hasText: "time.sleep(30)" });
+    .filter({ hasText: "time.sleep(180)" });
   expect(
     await longValue.evaluate((node) => node.scrollWidth > node.clientWidth),
   ).toBeTruthy();
@@ -658,6 +665,31 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await stopAction.click();
   expect((await (await stoppingResponse).json()).state).toBe("stopping");
   await waitForState(page, live.task_id, ["cancelled", "failed"]);
+  await page.locator("#nav-terminal").click();
+  const historyTerminal = page
+    .locator(".terminal-page > aside > button")
+    .filter({ hasText: "qa-terminal" });
+  await expect(historyTerminal).toBeVisible();
+  await historyTerminal.click();
+  await expect(page.getByText("只读历史", { exact: true })).toBeVisible();
+  await expect(page.locator(".terminal-actions")).toHaveCount(0);
+  await expect(page.locator(".terminal-page .xterm-rows")).toContainText(
+    "qa-terminal-ready",
+  );
+  await page.locator(".terminal-page .xterm").click();
+  await page.keyboard.press("Control+f");
+  await expect(page.getByLabel("终端搜索")).toBeFocused();
+  await page.getByLabel("终端搜索").fill("qa-terminal-ready");
+  await expect(page.locator(".terminal-find output")).toContainText(/\d+\/\d+/);
+  await page.getByRole("button", { name: "区分大小写" }).click();
+  await expect(page.getByRole("button", { name: "区分大小写" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByRole("button", { name: "上一个匹配" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "下一个匹配" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "跳到终端开头" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "跳到终端末尾" })).toBeVisible();
 
   const simulation = await browserApi(
     page,
@@ -910,9 +942,12 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(page.locator('[data-case="case-b"] .case-count')).toHaveText(
     "×2",
   );
-  await page.getByRole("button", { name: "收起运行面板" }).click();
+  const persistentRunToggle = page.getByRole("button", { name: "运行配置" });
+  await persistentRunToggle.click();
   await expect(page.locator("#run-panel")).toBeHidden();
-  await page.getByRole("button", { name: "打开运行面板" }).click();
+  await expect(persistentRunToggle).toHaveAttribute("aria-expanded", "false");
+  await persistentRunToggle.click();
+  await expect(persistentRunToggle).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator('[data-case="case-b"] .case-count')).toHaveText("×2");
   await page.getByRole("tab", { name: "设置" }).click();
   await openRunPanel(page);
@@ -1208,6 +1243,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "direct-config-file-actions",
           "terminal-responsive-fit",
           "terminal-fill-layout",
+          "terminal-readonly-history-search",
           "tooltip-portal-clipping-pixel-layer",
           "run-submitting-accepted-duplicate-lock",
           "task-row-state-geometry",

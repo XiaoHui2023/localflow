@@ -69,6 +69,7 @@ BROWSER_ASSERTIONS = {
     "direct-config-file-actions",
     "terminal-responsive-fit",
     "terminal-fill-layout",
+    "terminal-readonly-history-search",
     "tooltip-portal-clipping-pixel-layer",
     "run-submitting-accepted-duplicate-lock",
     "task-row-state-geometry",
@@ -166,7 +167,7 @@ def main() -> int:
             resource_metrics = receipt.get("resource_metrics", {})
             for name, limit in resource_contract["limits"].items():
                 value = resource_metrics.get(name)
-                if not isinstance(value, (int, float)) or isinstance(value, bool):
+                if not isinstance(value, int | float) or isinstance(value, bool):
                     errors.append(f"browser receipt missing resource metric: {name}")
                 elif value > limit:
                     errors.append(f"browser resource budget exceeded: {name}={value} > {limit}")

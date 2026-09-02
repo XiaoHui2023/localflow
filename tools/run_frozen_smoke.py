@@ -158,7 +158,7 @@ def main() -> None:
                 "name": "frozen-release-smoke",
                 "labels": ["release", "frozen"],
                 "working_directory": str(isolated),
-                "command": ["/bin/sh", "-lc", "printf 'LOCALFLOW_FROZEN_OK\\n'"],
+                "command": "mkdir -p frozen-cwd && printf 'LOCALFLOW_FROZEN_OK\\n' > frozen-cwd/marker.txt && cat frozen-cwd/marker.txt",
                 "mutex_keys": ["release-smoke"],
                 "custom": {"artifact": binary.name},
             }
@@ -177,6 +177,10 @@ def main() -> None:
             output = base64.b64decode(json.loads(log_body)["data"])
             if b"LOCALFLOW_FROZEN_OK" not in output:
                 raise RuntimeError("task output marker is missing")
+            if not (isolated / "frozen-cwd" / "marker.txt").is_file():
+                raise RuntimeError("relative task output did not use the configured working directory")
+            if (root / "frozen-cwd").exists():
+                raise RuntimeError("relative task output escaped into the LocalFlow root")
             pid_file = root / "runtime" / "localflow.pid"
             controller_pid = int(pid_file.read_text(encoding="ascii").strip())
             for protected_signal in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
@@ -200,7 +204,7 @@ def main() -> None:
                 "working_directory": str(isolated),
                 "command": [
                     "/bin/sh",
-                    "-lc",
+                    "-c",
                     "trap '' INT TERM; echo $$ > protected-child.pid; while :; do sleep 1; done",
                 ],
                 "stop": {

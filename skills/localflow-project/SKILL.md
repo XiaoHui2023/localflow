@@ -16,6 +16,8 @@ Use this skill when analyzing or modifying the extracted LocalFlow project.
 5. Before declaring a user requirement complete, update `../../docs/requirements.md` and `../../quality/traceability.json`, then verify every applicable surface directly. A stored/API field does not prove it is visible in the browser; a source example does not prove the starter, repository plugin copy, release archive, or running instance uses it.
 6. Treat every accepted source, documentation, example, workflow, quality, or skill modification as unreleased until the complete quality gate passes, `main` is pushed, the rolling GitHub Release succeeds for that exact commit, and freshly downloaded Release assets pass checksum plus extracted-archive smoke verification. Do not report a change as delivered merely because local tests passed or Actions started.
 
+For test-environment selection, release publication, or a suspiciously stale rolling Release, read [`references/release-quality-gates.md`](references/release-quality-gates.md). This topic is intentionally separate from everyday source changes.
+
 ## Invariants
 
 - A task becomes terminal only after the executor confirms its process owner ended.

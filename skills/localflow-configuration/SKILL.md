@@ -16,9 +16,15 @@ Production packages contain only `command/hello-world.yaml` and `verification/de
 - `plugin` present: also validate plugin existence and plugin-specific fields.
 - Invalid or partial task configuration remains visible but cannot run.
 
-Use the supported configlib include syntax for shared values. The selected plugin comes from the merged configuration, not separate UI or client state. Prefer a string `command`; it has Ubuntu `/bin/sh -lc` semantics. Use a string list only when exact argv without shell parsing is required.
+Use the supported configlib include syntax for shared values. The selected plugin comes from the merged configuration, not separate UI or client state. Prefer a string `command`; it has Ubuntu non-login `/bin/sh -c` semantics. Use a string list only when exact argv without shell parsing is required.
 
-Verification commands are tool-independent templates and must place both `${case}` and `${seed}` explicitly. Never append guessed flags. Use the target program's real syntax: GNU Make uses `make all CASE=${case} SEED=${seed}`, while a conventional executable may use `./run_sim --case ${case} --seed ${seed}`. The task output records the final expanded command before process output.
+Verification commands are arbitrary user commands. `${case}`, `${seed}` and `${run}` are optional variables: use any subset or none, and never require placeholders or append guessed flags. A Make example may use `make all CASE=${case} SEED=${seed}`, while another valid command is simply `make all`. The task output records the final expanded command before process output.
+
+## Progressive working-directory disclosure
+
+Treat `working_directory` as execution state, not helper text. Resolve a relative value against the LocalFlow root once, freeze the absolute result in the task, and pass that same value through the subprocess `cwd`, systemd `WorkingDirectory`, and PTY supervisor `chdir` boundaries. String commands use a non-login shell so profile scripts cannot silently change the inherited directory.
+
+Disclose path evidence progressively: the run inspection shows the resolved directory before submission; the task log records the frozen directory and final command before process output; deeper diagnosis inspects the task snapshot, systemd unit and filesystem only when the visible values disagree with effects. Prove behavior with relative `mkdir`/file side effects in an external project and assert both that the target appears there and that no same-name artifact appears in the LocalFlow root. A printed `pwd`, successful `make`, or configured field alone is not proof.
 
 When changing a file through the API, preserve its version token. When editing directly, use an atomic save so the watcher never consumes a half-written document.
 

@@ -64,6 +64,42 @@ async def test_mutex_queue_and_logs(root: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_subprocess_relative_side_effect_stays_in_configured_workdir(
+    root: Path,
+) -> None:
+    root.mkdir()
+    project = root.parent / "external-project"
+    project.mkdir()
+    store = Store(root / "runtime" / "localflow.db")
+    service = TaskService(root, store, SubprocessExecutor(), max_concurrency=1)
+    task = service.submit(
+        TaskCreate(
+            name="cwd-side-effect",
+            working_directory=str(project),
+            command=[
+                sys.executable,
+                "-c",
+                "from pathlib import Path; Path('generated').mkdir(); "
+                "Path('generated/marker.txt').write_text(str(Path.cwd()))",
+            ],
+        )
+    )
+    await service.start()
+    try:
+        for _ in range(100):
+            await asyncio.sleep(0.02)
+            if store.get_task(task.id).ended_at:
+                break
+        assert store.get_task(task.id).state == "succeeded"
+        marker = project / "generated" / "marker.txt"
+        assert marker.read_text(encoding="utf-8") == str(project)
+        assert not (root / "generated").exists()
+    finally:
+        await service.stop()
+        store.close()
+
+
+@pytest.mark.asyncio
 async def test_start_failure_keeps_time_and_complete_diagnostic_log(root: Path) -> None:
     root.mkdir()
     store = Store(root / "runtime" / "localflow.db")

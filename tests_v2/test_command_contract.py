@@ -9,7 +9,7 @@ def test_command_string_uses_ubuntu_shell_and_list_remains_exact_argv() -> None:
     assert isinstance(common.command, str)
     shell = TaskCreate(name="shell", working_directory=".", command=common.command)
     exact = TaskCreate(name="exact", working_directory=".", command=["printf", "%s", "ok"])
-    assert shell.command == ["/bin/sh", "-lc", "printf 'hello world\\n' > result.txt"]
+    assert shell.command == ["/bin/sh", "-c", "printf 'hello world\\n' > result.txt"]
     assert exact.command == ["printf", "%s", "ok"]
 
 

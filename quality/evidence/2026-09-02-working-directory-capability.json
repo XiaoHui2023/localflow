@@ -1,0 +1,146 @@
+{
+  "capability_id": "localflow-working-directory-integrity",
+  "owner": "command-contract-and-executors",
+  "problem": "A configured working directory can appear correct in logs while a login shell or an untested executor boundary writes relative artifacts under another directory.",
+  "scope": "verification expansion, string command normalization, subprocess execution, systemd/PTY execution, frozen smoke verification, and progressive operator evidence",
+  "baseline": "String commands use /bin/sh -lc; verification requires case and seed; cwd tests assert printed PWD but do not assert positive and negative filesystem effects.",
+  "benchmarks": [
+    "Python subprocess cwd changes directory before child execution",
+    "systemd WorkingDirectory sets the directory for executed processes",
+    "GNU Make CURDIR reports the directory after -C processing",
+    "W3C disclosure keeps secondary controls explicit and stateful"
+  ],
+  "advantages": [
+    "The task snapshot already freezes an absolute working directory",
+    "Both executors already have explicit cwd boundaries",
+    "Lifecycle logs already expose the frozen command and cwd"
+  ],
+  "disadvantages": [
+    "The login-shell flag permits startup files to change process context",
+    "Existing systemd coverage observes text rather than durable relative side effects",
+    "Runtime and packaged verification plugin copies had divergent command behavior"
+  ],
+  "limitations": [
+    "Windows development tests cannot prove Linux /bin/sh profile behavior",
+    "Real systemd and frozen binary gates require the Ubuntu quality environment",
+    "A user command may intentionally change directory after LocalFlow starts it"
+  ],
+  "defects": [
+    "verification rejects commands without case and seed placeholders",
+    "tracked runtime verification plugin invents --case and --seed",
+    "string commands invoke a login shell",
+    "cwd oracle lacks negative root-artifact assertion"
+  ],
+  "bottlenecks": [
+    "Linux target environment availability",
+    "release binary rebuild duration",
+    "browser evidence must be regenerated after UI source changes"
+  ],
+  "metrics": [
+    {
+      "name": "known command-form acceptance",
+      "unit": "percent",
+      "direction": "higher",
+      "threshold": "100",
+      "measurement": "parameterized plugin expansion for no variables, case only, seed only, and both",
+      "evidence": "tests_v2/test_plugins.py"
+    },
+    {
+      "name": "configured-directory side-effect accuracy",
+      "unit": "percent",
+      "direction": "higher",
+      "threshold": "100",
+      "measurement": "target marker exists and same-name LocalFlow-root marker is absent",
+      "evidence": "tests_v2/test_scheduler.py; tests_target/test_localflow_systemd_executor.py; tools/run_frozen_smoke.py"
+    },
+    {
+      "name": "login-profile exposure",
+      "unit": "shell flags",
+      "direction": "lower",
+      "threshold": "0 occurrences of normalized -lc",
+      "measurement": "command contract assertion and repository search",
+      "evidence": "tests_v2/test_command_contract.py"
+    }
+  ],
+  "hypotheses": [
+    "Removing login-shell startup files preserves the executor-provided cwd",
+    "Filesystem side-effect assertions detect cwd failures that printed PWD assertions can miss",
+    "Optional placeholder substitution preserves generic verification commands without guessed arguments"
+  ],
+  "allowed_variables": [
+    "shell invocation flag",
+    "verification placeholder validation and substitution",
+    "cwd test fixtures and progressive diagnostic documentation",
+    "left-side run-panel disclosure presentation"
+  ],
+  "stages": [
+    {
+      "id": "contract",
+      "input": "user requirements and existing command/plugin contracts",
+      "output": "optional placeholder and non-login shell specification",
+      "checker": "unit tests and requirement trace",
+      "rollback": "command-contract stage",
+      "allowed_variables": ["requirements", "normalization", "plugin validation"]
+    },
+    {
+      "id": "executor-effects",
+      "input": "frozen absolute task working directory",
+      "output": "relative marker only under target directory",
+      "checker": "subprocess, systemd Make, and frozen smoke tests",
+      "rollback": "executor boundary stage",
+      "allowed_variables": ["fixtures", "cwd propagation", "shell mode"]
+    },
+    {
+      "id": "operator-disclosure",
+      "input": "resolved cwd, command, and diagnostic depth",
+      "output": "progressive path evidence without routine low-level noise",
+      "checker": "skill text, browser inspection, and task log assertions",
+      "rollback": "information-hierarchy stage",
+      "allowed_variables": ["visible labels", "evidence ordering", "diagnostic routing"]
+    }
+  ],
+  "hard_gates": [
+    "known success fixtures accepted and known failure mutants rejected",
+    "no plugin-enforced case or seed placeholder",
+    "no plugin-invented --case or --seed",
+    "target marker exists and LocalFlow-root marker is absent",
+    "quality trace and relevant browser geometry remain current"
+  ],
+  "failure_fixtures": [
+    "make all rejected for missing case and seed",
+    "plugin silently appends --case and --seed",
+    "relative marker appears below LocalFlow root",
+    "right-edge icon-only run-panel toggle"
+  ],
+  "success_fixtures": [
+    "make all with no placeholders remains exact",
+    "case-only and seed-only commands substitute only requested variables",
+    "relative mkdir and marker writes occur only in the external project",
+    "visible Run Configuration action remains below left navigation tabs"
+  ],
+  "fault_injections": [
+    "replace /bin/sh -c with /bin/sh -lc",
+    "restore missing-variable validation",
+    "restore guessed flag appending",
+    "change executor cwd to LocalFlow root",
+    "move disclosure button into task content"
+  ],
+  "rollback": "Return to the earliest failing contract, executor, or UI hierarchy stage and rerun all dependent gates.",
+  "iteration_budget": {
+    "max_rounds": 2,
+    "max_time": "4h",
+    "review_trigger": "second same-direction failure or unavailable Ubuntu/browser target"
+  },
+  "stop_conditions": [
+    "all local unit/integration/build/browser gates pass",
+    "Ubuntu systemd and frozen artifact side-effect gates pass before release claim",
+    "project skill writeback and quality trace validation pass"
+  ],
+  "promotion_decision": {
+    "destination": "skills/localflow-configuration/SKILL.md",
+    "reason": "The rule is reusable across LocalFlow configurations but depends on LocalFlow executor and UI contracts.",
+    "independent_trigger": false,
+    "repeatable_validation": true
+  },
+  "writeback": "Add a progressive working-directory disclosure section to the project configuration skill and update project research and quality evidence."
+}

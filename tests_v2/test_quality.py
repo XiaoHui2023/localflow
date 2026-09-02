@@ -68,6 +68,28 @@ def test_release_keeps_staticx_inside_the_compatibility_baseline() -> None:
         assert cpu in compatibility
 
 
+def test_release_has_an_independent_published_asset_consumer_gate() -> None:
+    root = Path(__file__).parents[1]
+    workflow = (root / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    verifier = (root / "tools" / "verify_published_release.py").read_text(
+        encoding="utf-8"
+    )
+    assert "uses: actions/attest@v4" in workflow
+    assert "verify-published-release:" in workflow
+    assert "needs: [build, publish]" in workflow
+    assert "tools/verify_published_release.py" in workflow
+    assert 'expected-commit "$GITHUB_SHA"' in workflow
+    assert "gh attestation verify" in workflow
+    assert "tools/run_frozen_smoke.py" in workflow
+    assert "published-release-receipt.json" in workflow
+    assert "release_published_at" in verifier
+    assert "release_updated_at" in verifier
+    assert "tag_commit" in verifier
+    assert "unsafe release archive member" in verifier
+
+
 def test_release_runs_final_binary_in_ubuntu_chrome_and_firefox() -> None:
     root = Path(__file__).parents[1]
     workflow = (root / ".github" / "workflows" / "release.yml").read_text(
@@ -177,6 +199,24 @@ def test_packaged_verification_plugin_keeps_enqueue_seed_contract() -> None:
     assert 'namespace="verification.seed"' in source
     assert "name=case_name" in source
     assert 'else {"seed": seed}' in source
+
+
+def test_production_verification_plugins_keep_command_variables_optional() -> None:
+    root = Path(__file__).parents[1]
+    sources = [
+        root / "plugins" / "verification.py",
+        root / "src" / "localflow" / "builtin_plugins" / "verification.py.example",
+    ]
+    forbidden = (
+        "verification command must contain",
+        "verification command is missing variables",
+        'command.extend(["--case"',
+        'command.extend(["--seed"',
+    )
+    for source in sources:
+        text = source.read_text(encoding="utf-8")
+        for fragment in forbidden:
+            assert fragment not in text, f"{source} invents a verification command contract"
 
 
 def test_quality_trace_and_mutant(tmp_path: Path) -> None:

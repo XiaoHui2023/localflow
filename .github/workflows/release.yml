@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: rolling-release-${{ github.ref }}
@@ -15,6 +15,11 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -123,6 +128,13 @@ jobs:
         run: npm --prefix frontend exec -- playwright install --with-deps chrome firefox
       - name: Run Chrome and Firefox against final release executable
         run: python3 tools/run_linux_browser_quality.py --binary dist/localflow
+      - name: Attest release asset provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            dist/localflow
+            dist/localflow-*-linux-x86_64.tar.gz
+            dist/SHA256SUMS
       - uses: actions/upload-artifact@v7
         with:
           name: ubuntu-browser-evidence
@@ -140,6 +152,11 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -172,7 +189,51 @@ jobs:
             `localflow` is the directly executable Linux x86_64 staticx artifact. The archive also contains the systemd deployment files. Verify downloads with `SHA256SUMS`.
           prerelease: false
           make_latest: true
+          fail_on_unmatched_files: true
           files: |
             dist/localflow
             dist/localflow-*-linux-x86_64.tar.gz
             dist/SHA256SUMS
+
+  verify-published-release:
+    needs: [build, publish]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-assets
+          path: expected-assets
+      - name: Download and verify the public rolling release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 tools/verify_published_release.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --tag "${{ needs.publish.outputs.tag }}" \
+            --expected-commit "$GITHUB_SHA" \
+            --expected-assets expected-assets \
+            --download-directory published-assets \
+            --extract-directory published-extract \
+            --receipt published-release-receipt.json
+      - name: Verify build provenance attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for asset in published-assets/*; do
+            gh attestation verify "$asset" --repo "$GITHUB_REPOSITORY"
+          done
+      - name: Run the freshly downloaded and extracted release
+        run: |
+          bundle="$(python3 -c 'import json; print(json.load(open("published-release-receipt.json"))["extracted_root"])')"
+          python3 tools/run_frozen_smoke.py \
+            --binary "$bundle/localflow" \
+            --bundle-root "$bundle"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: published-release-receipt
+          path: published-release-receipt.json
+          if-no-files-found: error

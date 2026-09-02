@@ -113,3 +113,12 @@ def test_terminal_http_api_controls_and_fresh_offset_log(root: Path) -> None:
         detail = client.get(f"/api/v1/tasks/{task_id}")
         assert detail.status_code == 200
         assert detail.json()["name"] == "terminal-api"
+        assert detail.json()["state"] == "succeeded"
+        rejected = client.post(
+            f"/api/v1/tasks/{task_id}/terminal/input", json={"data": "late\n"}
+        )
+        assert rejected.status_code == 409
+        history = client.get(
+            f"/api/v1/tasks/{task_id}/logs?offset=0&limit=65536"
+        ).json()
+        assert b"ready" in base64.b64decode(history["data"])

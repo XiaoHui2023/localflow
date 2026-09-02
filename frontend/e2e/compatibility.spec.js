@@ -86,7 +86,10 @@ test("Ubuntu browser can operate the released web console", async ({
   ]);
 
   await page.getByRole("tab", { name: "任务" }).click();
-  await page.getByRole("button", { name: "打开运行面板" }).click();
+  const runPanelToggle = page.getByRole("button", { name: "运行配置" });
+  await expect(runPanelToggle).toHaveAttribute("aria-expanded", "false");
+  await runPanelToggle.click();
+  await expect(runPanelToggle).toHaveAttribute("aria-expanded", "true");
   await expect(
     page.locator('[data-file="config/command/hello-world.yaml"]'),
   ).toBeVisible();
@@ -144,6 +147,17 @@ test("Ubuntu browser can operate the released web console", async ({
   );
   await api(page, `/tasks/${live.task_id}/interrupt`, { method: "POST" });
   await waitForState(page, live.task_id, ["cancelled", "failed"]);
+  await page.getByRole("tab", { name: "终端" }).click();
+  const historyTerminal = page
+    .locator(".terminal-page > aside > button")
+    .filter({ hasText: `${browserName}-compat-terminal` });
+  await expect(historyTerminal).toBeVisible();
+  await historyTerminal.click();
+  await expect(page.getByText("只读历史", { exact: true })).toBeVisible();
+  await expect(page.locator(".terminal-actions")).toHaveCount(0);
+  await expect(page.locator(".terminal-page .xterm-rows")).toContainText(
+    "terminal-compat-ready",
+  );
 
   await page.getByRole("tab", { name: "设置" }).click();
   await expect(page.getByLabel("时间校准", { exact: true })).toBeVisible();

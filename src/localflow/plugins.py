@@ -464,7 +464,7 @@ class PluginRegistry:
                 "value": command,
                 "kind": "command",
                 "severity": "ok",
-                "message": "由 /bin/sh -lc 执行",
+                "message": "由非登录 /bin/sh -c 执行",
             })
         elif isinstance(command, list) and command:
             executable = str(command[0])

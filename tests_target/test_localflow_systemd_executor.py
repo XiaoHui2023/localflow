@@ -50,7 +50,11 @@ async def test_real_systemd_executor_runs_make_variables_and_logs_command(
     project = tmp_path / "simulation-project"
     project.mkdir()
     (project / "Makefile").write_text(
-        ".PHONY: all\nall:\n\t@printf 'cwd=%s case=%s seed=%s' \"$$PWD\" \"$(CASE)\" \"$(SEED)\"\n",
+        ".PHONY: all\n"
+        "all:\n"
+        "\t@mkdir -p generated\n"
+        "\t@printf 'cwd=%s case=%s seed=%s' \"$$PWD\" \"$(CASE)\" \"$(SEED)\"\n"
+        "\t@printf '%s' \"$$PWD\" > generated/marker.txt\n",
         encoding="utf-8",
     )
     store = Store(root / "runtime" / "localflow.db")
@@ -74,6 +78,10 @@ async def test_real_systemd_executor_runs_make_variables_and_logs_command(
     assert b"command='make all CASE=case-a SEED=12345'" in output
     assert f"cwd={project}".encode() in output
     assert b"case=case-a seed=12345" in output
+    assert (project / "generated" / "marker.txt").read_text(encoding="utf-8") == str(
+        project
+    )
+    assert not (root / "generated").exists()
     await service.stop()
     store.close()
 

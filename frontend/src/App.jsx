@@ -9,9 +9,13 @@ import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import "@xterm/xterm/css/xterm.css";
 import {
   Activity,
+  ArrowDownToLine,
+  ArrowUpToLine,
+  CaseSensitive,
   Check,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   ClipboardPaste,
   Clock3,
   Copy,
@@ -32,6 +36,7 @@ import {
   Play,
   Power,
   Plus,
+  Regex,
   Scissors,
   Search,
   Send,
@@ -40,6 +45,7 @@ import {
   TerminalSquare,
   Trash2,
   TriangleAlert,
+  WholeWord,
   X,
 } from "lucide-react";
 import { api } from "./api";
@@ -75,6 +81,32 @@ const taskTone = (task) =>
     : ["failed", "lost"].includes(task.state)
       ? "danger"
       : "neutral");
+const escapeRegularExpression = (value) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function countTerminalMatches(term, query, options) {
+  if (!term || !query) return { count: 0, invalid: false };
+  try {
+    const source = options.regex ? query : escapeRegularExpression(query);
+    const expression = new RegExp(source, `g${options.caseSensitive ? "" : "i"}`);
+    let count = 0;
+    for (let index = 0; index < term.buffer.active.length; index += 1) {
+      const line = term.buffer.active.getLine(index)?.translateToString() || "";
+      for (const match of line.matchAll(expression)) {
+        if (
+          !options.wholeWord ||
+          ((!match.index || /\W/.test(line[match.index - 1])) &&
+            (match.index + match[0].length === line.length ||
+              /\W/.test(line[match.index + match[0].length])))
+        )
+          count += 1;
+        if (!match[0]) expression.lastIndex += 1;
+      }
+    }
+    return { count, invalid: false };
+  } catch {
+    return { count: 0, invalid: true };
+  }
+}
 const QUEUE_FOLD_THRESHOLD = 20;
 const tagKey = (task) => [...(task.labels || [])].sort().join("\u001f");
 const compactQueued = (tasks) => {
@@ -127,8 +159,58 @@ function useUiRevision() {
 function TaskTerminal({ task, interactive, theme }) {
   const host = useRef();
   const finder = useRef();
+  const terminal = useRef();
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
+  const [searchOptions, setSearchOptions] = useState({
+    caseSensitive: false,
+    wholeWord: false,
+    regex: false,
+  });
+  const [searchResult, setSearchResult] = useState({
+    resultIndex: -1,
+    resultCount: 0,
+    invalid: false,
+  });
+  const search = (direction = "next", incremental = false, options = searchOptions) => {
+    if (!query || !finder.current) return;
+    const summary = countTerminalMatches(terminal.current, query, options);
+    if (summary.invalid) {
+      setSearchResult({ resultIndex: -1, resultCount: 0, invalid: true });
+      return;
+    }
+    const method = direction === "previous" ? "findPrevious" : "findNext";
+    finder.current[method](query, {
+      ...options,
+      incremental,
+    });
+    setSearchResult((current) => ({
+      resultCount: summary.count,
+      invalid: false,
+      resultIndex:
+        summary.count === 0
+          ? -1
+          : incremental
+            ? direction === "previous"
+              ? summary.count - 1
+              : 0
+            : direction === "previous"
+              ? (current.resultIndex - 1 + summary.count) % summary.count
+              : (current.resultIndex + 1) % summary.count,
+    }));
+  };
+  const toggleSearchOption = (name) => {
+    const next = { ...searchOptions, [name]: !searchOptions[name] };
+    setSearchOptions(next);
+    search("next", false, next);
+  };
+  useEffect(() => {
+    if (searching && query) search("next", true);
+    else if (!query) {
+      finder.current?.clearDecorations();
+      setSearchResult({ resultIndex: -1, resultCount: 0, invalid: false });
+    }
+  }, [query, searching]);
   useEffect(() => {
     const element = host.current;
     const dark = theme === "dark";
@@ -154,6 +236,18 @@ function TaskTerminal({ task, interactive, theme }) {
     );
     term.open(element);
     finder.current = search;
+    terminal.current = term;
+    term.attachCustomKeyEventHandler((event) => {
+      if (
+        event.type === "keydown" &&
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "f"
+      ) {
+        setSearching(true);
+        return false;
+      }
+      return true;
+    });
     let frame;
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(frame);
@@ -217,6 +311,7 @@ function TaskTerminal({ task, interactive, theme }) {
       socket.onclose = null;
       socket.close();
       finder.current = undefined;
+      terminal.current = undefined;
       term.dispose();
     };
   }, [task.id, interactive, theme]);
@@ -224,21 +319,91 @@ function TaskTerminal({ task, interactive, theme }) {
     <div className="terminal-shell">
       <div className="terminal-tools">
         {searching && (
-          <input
-            autoFocus
-            aria-label="终端搜索"
-            placeholder="查找"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              finder.current?.findNext(event.target.value);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") finder.current?.findNext(query);
-              if (event.key === "Escape") setSearching(false);
-            }}
-          />
+          <div className="terminal-find" role="search">
+            <input
+              autoFocus
+              aria-label="终端搜索"
+              placeholder="查找"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter")
+                  search(event.shiftKey ? "previous" : "next");
+                if (event.key === "Escape") setSearching(false);
+              }}
+            />
+            <output aria-live="polite">
+              {query
+                ? searchResult.invalid
+                  ? "表达式有误"
+                  : searchResult.resultCount
+                  ? `${searchResult.resultIndex + 1}/${searchResult.resultCount}`
+                  : "无结果"
+                : ""}
+            </output>
+            {[
+              ["caseSensitive", CaseSensitive, "区分大小写"],
+              ["wholeWord", WholeWord, "全词匹配"],
+              ["regex", Regex, "使用正则表达式"],
+            ].map(([name, Icon, label]) => (
+              <Hint label={label} key={name}>
+                <button
+                  className="icon"
+                  aria-label={label}
+                  aria-pressed={searchOptions[name]}
+                  onClick={() => toggleSearchOption(name)}
+                >
+                  <Icon />
+                </button>
+              </Hint>
+            ))}
+            <Hint label="上一个匹配">
+              <button
+                className="icon"
+                aria-label="上一个匹配"
+                disabled={!query}
+                onClick={() => search("previous")}
+              >
+                <ChevronUp />
+              </button>
+            </Hint>
+            <Hint label="下一个匹配">
+              <button
+                className="icon"
+                aria-label="下一个匹配"
+                disabled={!query}
+                onClick={() => search("next")}
+              >
+                <ChevronDown />
+              </button>
+            </Hint>
+            <button
+              className="icon"
+              aria-label="关闭查找"
+              onClick={() => setSearching(false)}
+            >
+              <X />
+            </button>
+          </div>
         )}
+        <Hint label="跳到终端开头">
+          <button
+            className="icon"
+            aria-label="跳到终端开头"
+            onClick={() => terminal.current?.scrollToTop()}
+          >
+            <ArrowUpToLine />
+          </button>
+        </Hint>
+        <Hint label="跳到终端末尾">
+          <button
+            className="icon"
+            aria-label="跳到终端末尾"
+            onClick={() => terminal.current?.scrollToBottom()}
+          >
+            <ArrowDownToLine />
+          </button>
+        </Hint>
         <button
           className="icon"
           aria-label="在终端中查找"
@@ -467,17 +632,28 @@ function QueueTasks({ tasks, renderTask }) {
 }
 
 function TerminalPage({ tasks, role, theme }) {
-  const available = tasks.filter((task) =>
+  const active = tasks.filter((task) =>
     ["starting", "running", "stopping"].includes(task.state),
   );
+  const available = [
+    ...active,
+    ...tasks.filter((task) => finalStates.has(task.state)),
+  ];
   const [selectedId, setSelectedId] = useState();
+  const manualSelection = useRef(false);
   const [input, setInput] = useState("");
   const [notice, setNotice] = useState("");
   useEffect(() => {
-    if (!available.some((task) => task.id === selectedId))
-      setSelectedId(available[0]?.id);
+    if (!available.some((task) => task.id === selectedId)) {
+      manualSelection.current = false;
+      setSelectedId(active[0]?.id || available[0]?.id);
+    } else if (!manualSelection.current && active.length) {
+      setSelectedId(active[0].id);
+    }
   }, [tasks, selectedId]);
   const selected = available.find((task) => task.id === selectedId);
+  const interactive =
+    role === "admin" && selected && !finalStates.has(selected.state);
   const send = async () => {
     if (!selected || !input) return;
     try {
@@ -503,7 +679,10 @@ function TerminalPage({ tasks, role, theme }) {
           <button
             className={task.id === selectedId ? "active" : ""}
             key={task.id}
-            onClick={() => setSelectedId(task.id)}
+            onClick={() => {
+              manualSelection.current = true;
+              setSelectedId(task.id);
+            }}
           >
             <i className={`tone-${taskTone(task)}`} />
             <span>
@@ -522,7 +701,7 @@ function TerminalPage({ tasks, role, theme }) {
                 <TerminalSquare />
                 <b>{selected.name}</b>
               </div>
-              {role === "admin" && (
+              {interactive ? (
                 <div className="terminal-actions">
                   <button
                     className="terminal-key"
@@ -553,6 +732,8 @@ function TerminalPage({ tasks, role, theme }) {
                     </button>
                   </span>
                 </div>
+              ) : (
+                <span className="terminal-readonly">只读历史</span>
               )}
             </header>
             <span className="terminal-status" role="status">
@@ -560,14 +741,14 @@ function TerminalPage({ tasks, role, theme }) {
             </span>
             <TaskTerminal
               task={selected}
-              interactive={role === "admin"}
+              interactive={interactive}
               theme={theme}
             />
           </>
         ) : (
           <div className="tasks-empty">
             <TerminalSquare />
-            <p>启动任务后可在这里交互</p>
+            <p>暂无可查看的终端</p>
           </div>
         )}
       </section>
@@ -2195,6 +2376,19 @@ export default function App() {
             </button>
           ))}
         </nav>
+        {status?.role === "admin" && page === "tasks" && (
+          <div className="nav-actions">
+            <button
+              className={`run-panel-toggle ${runOpen ? "active" : ""}`}
+              aria-expanded={runOpen}
+              aria-controls="run-panel"
+              onClick={() => setRunOpen((open) => !open)}
+            >
+              {runOpen ? <PanelRightClose /> : <PanelRightOpen />}
+              <span>运行配置</span>
+            </button>
+          </div>
+        )}
       </aside>
       <div className="app-content">
         {error && <p className="global-error">{error}</p>}
@@ -2207,19 +2401,6 @@ export default function App() {
           {page === "tasks" && (
             <section className={`task-workspace ${runOpen ? "run-open" : ""}`}>
               <div className="task-pane">
-                {status?.role === "admin" && !runOpen && (
-                  <Hint label="打开运行面板">
-                    <button
-                      className="run-panel-toggle"
-                      aria-label="打开运行面板"
-                      aria-expanded="false"
-                      aria-controls="run-panel"
-                      onClick={() => setRunOpen(true)}
-                    >
-                      <PanelRightOpen />
-                    </button>
-                  </Hint>
-                )}
                 <section className="workspace">
                   {definitions.length === 0 ? (
                     <div className="tasks-empty">
@@ -2253,17 +2434,6 @@ export default function App() {
               </div>
               {status?.role === "admin" && (
                 <aside id="run-panel" className="run-panel" hidden={!runOpen}>
-                  <Hint label="收起运行面板">
-                    <button
-                      className="run-panel-toggle close"
-                      aria-label="收起运行面板"
-                      aria-expanded="true"
-                      aria-controls="run-panel"
-                      onClick={() => setRunOpen(false)}
-                    >
-                      <PanelRightClose />
-                    </button>
-                  </Hint>
                   <Config theme={theme} />
                 </aside>
               )}

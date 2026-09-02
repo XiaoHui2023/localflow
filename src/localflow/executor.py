@@ -85,7 +85,13 @@ class SubprocessExecutor:
         else:
             kwargs["start_new_session"] = True
         try:
-            shown_command = task.command[2] if task.command[:2] == ["/bin/sh", "-lc"] else shlex.join(task.command)
+            shown_command = (
+                task.command[2]
+                if len(task.command) >= 3
+                and task.command[0] == "/bin/sh"
+                and task.command[1] in {"-c", "-lc"}
+                else shlex.join(task.command)
+            )
             log.write(lifecycle_line("process.command", cwd=str(workdir), command=shown_command))
             process = await asyncio.create_subprocess_exec(
                 *task.command,

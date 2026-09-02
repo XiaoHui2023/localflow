@@ -68,7 +68,7 @@ class VariableResolver:
 
         def replace(reference: re.Match[str]) -> str:
             resolved = self.variable(reference.group(1), stack)
-            if isinstance(resolved, (dict, list)):
+            if isinstance(resolved, dict | list):
                 raise VariableError(
                     f"structured variable cannot be embedded in text: {reference.group(1)}"
                 )
