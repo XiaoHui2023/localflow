@@ -232,6 +232,15 @@ jobs:
           python3 tools/run_frozen_smoke.py \
             --binary "$bundle/localflow" \
             --bundle-root "$bundle"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("published-release-receipt.json")
+          receipt = json.loads(path.read_text(encoding="utf-8"))
+          receipt["frozen_smoke"] = "passed"
+          path.write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
       - uses: actions/upload-artifact@v7
         with:
           name: published-release-receipt

@@ -112,6 +112,17 @@ def inspect_archive(path: Path) -> str:
     return next(iter(roots))
 
 
+def safe_member_filter(member: tarfile.TarInfo, destination: str) -> tarfile.TarInfo:
+    """Apply Python's data filter while retaining sanitized directory modes."""
+    filtered = tarfile.data_filter(member, destination)
+    if filtered.isdir() and member.mode is not None:
+        # data_filter deliberately ignores directory modes. Release roots need
+        # 0750 and secrets needs 0700, so restore only ordinary rwx bits after
+        # removing group/other writes and all special bits.
+        filtered = filtered.replace(mode=member.mode & 0o755)
+    return filtered
+
+
 def extract_archive(path: Path, destination: Path) -> Path:
     root = inspect_archive(path)
     destination.mkdir(parents=True, exist_ok=True)
@@ -119,7 +130,7 @@ def extract_archive(path: Path, destination: Path) -> Path:
         raise ValueError("extract destination must be empty")
     with tarfile.open(path, "r:gz") as archive:
         if hasattr(tarfile, "data_filter"):
-            archive.extractall(destination, filter="data")
+            archive.extractall(destination, filter=safe_member_filter)
         else:
             archive.extractall(destination)
     extracted_root = destination / root

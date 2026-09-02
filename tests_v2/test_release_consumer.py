@@ -1,5 +1,6 @@
 import importlib.util
 import io
+import os
 import tarfile
 from pathlib import Path
 
@@ -14,12 +15,24 @@ _SPEC.loader.exec_module(_MODULE)
 expected_assets = _MODULE.expected_assets
 extract_archive = _MODULE.extract_archive
 inspect_archive = _MODULE.inspect_archive
+safe_member_filter = _MODULE.safe_member_filter
 sha256_file = _MODULE.sha256_file
 validate_release_metadata = _MODULE.validate_release_metadata
 
 
-def _write_tar(path: Path, members: dict[str, bytes], *, symlink: tuple[str, str] | None = None):
+def _write_tar(
+    path: Path,
+    members: dict[str, bytes],
+    *,
+    directories: dict[str, int] | None = None,
+    symlink: tuple[str, str] | None = None,
+):
     with tarfile.open(path, "w:gz") as archive:
+        for name, mode in (directories or {}).items():
+            info = tarfile.TarInfo(name)
+            info.type = tarfile.DIRTYPE
+            info.mode = mode
+            archive.addfile(info)
         for name, data in members.items():
             info = tarfile.TarInfo(name)
             info.size = len(data)
@@ -53,6 +66,31 @@ def test_release_consumer_validates_metadata_checksums_and_safe_archive(tmp_path
     validate_release_metadata(release, commit, commit, expected)
     assert inspect_archive(bundle) == "localflow-0.1.0-linux-x86_64"
     assert (extract_archive(bundle, tmp_path / "extract") / "localflow").read_bytes() == b"binary"
+
+
+def test_release_consumer_preserves_only_safe_directory_permissions(tmp_path: Path):
+    archive = tmp_path / "permissions.tar.gz"
+    _write_tar(
+        archive,
+        {"bundle/localflow": b"binary"},
+        directories={"bundle": 0o750, "bundle/secrets": 0o2777},
+    )
+    root = extract_archive(archive, tmp_path / "extract")
+    if os.name != "nt":
+        assert root.stat().st_mode & 0o7777 == 0o750
+        assert (root / "secrets").stat().st_mode & 0o7777 == 0o755
+
+
+def test_safe_member_filter_keeps_private_directory_mode_without_ownership(tmp_path: Path):
+    member = tarfile.TarInfo("bundle/secrets")
+    member.type = tarfile.DIRTYPE
+    member.mode = 0o700
+    member.uid = 123
+    member.gid = 456
+    filtered = safe_member_filter(member, str(tmp_path))
+    assert filtered.mode == 0o700
+    assert filtered.uid is None
+    assert filtered.gid is None
 
 
 @pytest.mark.parametrize(
