@@ -110,7 +110,14 @@ def test_terminal_http_api_controls_and_fresh_offset_log(root: Path) -> None:
                 break
             time.sleep(0.02)
         assert b"control-3" in combined
-        detail = client.get(f"/api/v1/tasks/{task_id}")
+        deadline = time.monotonic() + 5
+        detail = None
+        while time.monotonic() < deadline:
+            detail = client.get(f"/api/v1/tasks/{task_id}")
+            if detail.json()["state"] == "succeeded":
+                break
+            time.sleep(0.02)
+        assert detail is not None
         assert detail.status_code == 200
         assert detail.json()["name"] == "terminal-api"
         assert detail.json()["state"] == "succeeded"
