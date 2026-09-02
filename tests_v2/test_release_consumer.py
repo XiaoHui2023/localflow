@@ -1,16 +1,21 @@
+import importlib.util
 import io
 import tarfile
 from pathlib import Path
 
 import pytest
 
-from tools.verify_published_release import (
-    expected_assets,
-    extract_archive,
-    inspect_archive,
-    sha256_file,
-    validate_release_metadata,
-)
+_SCRIPT = Path(__file__).parents[1] / "tools" / "verify_published_release.py"
+_SPEC = importlib.util.spec_from_file_location("verify_published_release", _SCRIPT)
+if _SPEC is None or _SPEC.loader is None:
+    raise RuntimeError(f"cannot load release verifier: {_SCRIPT}")
+_MODULE = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(_MODULE)
+expected_assets = _MODULE.expected_assets
+extract_archive = _MODULE.extract_archive
+inspect_archive = _MODULE.inspect_archive
+sha256_file = _MODULE.sha256_file
+validate_release_metadata = _MODULE.validate_release_metadata
 
 
 def _write_tar(path: Path, members: dict[str, bytes], *, symlink: tuple[str, str] | None = None):

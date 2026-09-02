@@ -32,3 +32,4 @@ For a rolling Release, `published_at` is its original creation time and normally
 - A publish failure means no new delivery.
 - A consumer failure means the upload cannot be called delivered, even if the publish job is green.
 - Network and registry operations use bounded retries. After exhaustion, report the exact external failure and preserve the last verified layer; do not weaken a gate or reuse checkout `dist/` as downloaded evidence.
+- Repository `tools/` is intentionally not a runtime package. Tests for a standalone tool load its absolute file path with `importlib.util`; do not rely on the Windows `pytest` launcher placing the checkout root on `sys.path`, and do not add `PYTHONPATH` in CI to hide that boundary.
