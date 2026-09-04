@@ -10,6 +10,7 @@ import pytest
 from localflow.control import control_socket_path
 from localflow.executor import SystemdExecutor
 from localflow.models import StopAction, StopStrategy, TaskCreate
+from localflow.plugins import PluginRegistry
 from localflow.service import TaskService
 from localflow.settings import initialize_root
 from localflow.storage import Store
@@ -49,23 +50,33 @@ async def test_real_systemd_executor_runs_make_variables_and_logs_command(
     initialize_root(root)
     project = tmp_path / "simulation-project"
     project.mkdir()
+    (project / "required.txt").write_text("PROJECT", encoding="utf-8")
     (project / "Makefile").write_text(
         ".PHONY: all\n"
+        "all: required.txt\n"
         "all:\n"
         "\t@mkdir -p generated\n"
         "\t@printf 'cwd=%s case=%s seed=%s' \"$$PWD\" \"$(CASE)\" \"$(SEED)\"\n"
-        "\t@printf '%s' \"$$PWD\" > generated/marker.txt\n",
+        "\t@printf '%s' \"$$PWD\" > generated/marker.txt\n"
+        "\t@cp required.txt generated/copied.txt\n",
         encoding="utf-8",
     )
+    registry = PluginRegistry(root / "plugins")
+    registry.load()
+    draft = registry.expand_config(
+        {
+            "plugin": "verification",
+            "case_directory": "cases",
+            "working_directory": "../simulation-project",
+            "command": "make all CASE=${case} SEED=${seed}",
+        },
+        {"cases": ["case-a"], "seed": 12345},
+        {"root": str(root)},
+    )[0]
+    assert draft.working_directory == str(project.resolve())
     store = Store(root / "runtime" / "localflow.db")
     service = TaskService(root, store, SystemdExecutor(root), max_concurrency=1)
-    task = service.submit(
-        TaskCreate(
-            name="make-contract",
-            working_directory=str(project),
-            command="make all CASE=case-a SEED=12345",
-        )
-    )
+    task = service.submit(draft)
     await service.start()
     for _ in range(200):
         await asyncio.sleep(0.05)
@@ -81,6 +92,7 @@ async def test_real_systemd_executor_runs_make_variables_and_logs_command(
     assert (project / "generated" / "marker.txt").read_text(encoding="utf-8") == str(
         project
     )
+    assert (project / "generated" / "copied.txt").read_text(encoding="utf-8") == "PROJECT"
     assert not (root / "generated").exists()
     await service.stop()
     store.close()

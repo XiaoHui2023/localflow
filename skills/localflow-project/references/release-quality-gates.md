@@ -5,9 +5,11 @@ Use this topic only when changing test infrastructure, publishing, or diagnosing
 ## Environment ownership
 
 - Windows development runs deterministic Python tests, static analysis, the frontend build, quality-trace mutants, and current locally installed browsers. These are fast feedback, not Linux evidence.
+- The browser runner replaces `frontend/dist` while building. Run API/Python tests that mount that directory only after the browser runner finishes; those gates are not safe to parallelize across the build boundary.
 - A fresh GitHub-hosted Ubuntu VM owns Linux-only acceptance. Inside it, a privileged systemd test container owns PID 1, user-manager, PTY and cgroup behavior; an Ubuntu 16.04 container owns the glibc 2.23 PyInstaller and StaticX lineage.
 - The final StaticX artifact, not source Python, owns legacy CPU, current Ubuntu Chrome/Firefox, fixed Chrome 84/Firefox 78, frozen task, shutdown and extracted-bundle claims.
 - A broken or stale local Docker Desktop is an environment incident. Do not repair it merely to reproduce checks already owned by a fresh hosted runner, and never convert its failure into product evidence.
+- A partial local browser pass may be retained as fast feedback, but it is not a complete receipt. Only the hosted final-binary matrix may close fixed Chrome/Firefox claims when the local Docker owner is unavailable.
 
 ## Producer and consumer boundary
 

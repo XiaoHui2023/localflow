@@ -163,11 +163,15 @@ async function runAcceptance(page) {
   await helloConfig.click();
 
   let delayed = false;
+  let releaseRunRequest;
+  const runRequestGate = new Promise((resolve) => {
+    releaseRunRequest = resolve;
+  });
   await page.route(
     "**/api/v1/config/files/command/hello-world.yaml/runs",
     async (route) => {
       delayed = true;
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await runRequestGate;
       await route.continue();
     },
     { times: 1 },
@@ -179,16 +183,18 @@ async function runAcceptance(page) {
         .endsWith("/api/v1/config/files/command/hello-world.yaml/runs") &&
       response.request().method() === "POST",
   );
-  const runButton = page.getByRole("button", { name: "运行", exact: true });
+  const runButton = page.locator("button.run-action");
+  await expect(runButton).toHaveAccessibleName("运行");
   await runButton.click();
   await expect.poll(() => delayed).toBeTruthy();
   await expect(runButton).toHaveAttribute("data-run-state", "submitting");
+  await expect(runButton).toHaveAccessibleName("提交中");
   await expect(runButton).toBeDisabled();
+  releaseRunRequest();
   const response = await responsePromise;
   const accepted = await response.json();
-  await expect(
-    page.getByRole("button", { name: "任务已创建" }),
-  ).toHaveAttribute("data-run-state", "accepted");
+  await expect(runButton).toHaveAttribute("data-run-state", "accepted");
+  await expect(runButton).toHaveAccessibleName("已创建");
   await expect(page.getByRole("status")).toHaveText(
     `已加入 ${accepted.count} 个任务`,
   );
@@ -241,7 +247,7 @@ async function runAcceptance(page) {
 
 async function openRunPanel(page) {
   await page.getByRole("tab", { name: "任务" }).click();
-  const toggle = page.getByRole("button", { name: "运行配置" });
+  const toggle = page.getByRole("button", { name: "配置" });
   if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
   await expect(page.locator("#run-panel")).toBeVisible();
 }
@@ -297,7 +303,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(page.getByRole("tab")).toHaveText(["任务", "设置"]);
-  await expect(page.getByRole("button", { name: "运行配置" })).toHaveCount(
+  await expect(page.getByRole("button", { name: "配置" })).toHaveCount(
     0,
   );
   await page.getByRole("tab", { name: "设置" }).click();
@@ -341,12 +347,12 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(page.getByRole("button", { name: "刷新" })).toHaveCount(0);
   await page.getByRole("tab", { name: "任务" }).click();
   await expect(page.getByText("暂无任务", { exact: true })).toBeVisible();
-  const runPanelToggle = page.getByRole("button", { name: "运行配置" });
+  const runPanelToggle = page.getByRole("button", { name: "配置" });
   await expect(runPanelToggle)
     .toHaveAttribute("aria-expanded", "false");
   await expect(runPanelToggle)
     .toHaveAttribute("aria-controls", "run-panel");
-  await expect(runPanelToggle).toHaveText("运行配置");
+  await expect(runPanelToggle).toHaveText("配置");
   const navigationBox = await page.locator(".top nav").boundingBox();
   const runToggleBox = await runPanelToggle.boundingBox();
   expect(runToggleBox.x).toBeLessThan(124);
@@ -529,6 +535,9 @@ test("plugin configuration console remains concise and operable in Edge", async 
     "qa-terminal-ready",
   );
   await expect(page.locator(".terminal-page .xterm-rows")).not.toContainText(
+    "[终端已连接]",
+  );
+  await expect(page.locator(".terminal-page .xterm-rows")).not.toContainText(
     "terminal resize rejected",
   );
   await expect.poll(() => terminalAcks).toBeGreaterThan(0);
@@ -676,6 +685,9 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(page.locator(".terminal-page .xterm-rows")).toContainText(
     "qa-terminal-ready",
   );
+  await expect(page.locator(".terminal-page .xterm-rows")).not.toContainText(
+    "[只读回放已连接]",
+  );
   await page.locator(".terminal-page .xterm").click();
   await page.keyboard.press("Control+f");
   await expect(page.getByLabel("终端搜索")).toBeFocused();
@@ -730,8 +742,13 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(page.locator(".config-workbench")).toBeVisible();
   const wideTasks = await page.locator(".task-pane").boundingBox();
   const wideRun = await page.locator("#run-panel").boundingBox();
-  expect(wideTasks.x + wideTasks.width).toBeLessThanOrEqual(wideRun.x + 1);
+  expect(wideRun.x + wideRun.width).toBeLessThanOrEqual(wideTasks.x + 1);
   expect(Math.abs(wideTasks.y - wideRun.y)).toBeLessThanOrEqual(1);
+  const workbenchName = await page.locator(".workbench-context > span").boundingBox();
+  const workbenchActions = await page.locator(".workbench-actions").boundingBox();
+  expect(workbenchActions.x - (workbenchName.x + workbenchName.width)).toBeLessThanOrEqual(32);
+  await expect(page.locator(".workbench-actions")).toContainText("编辑");
+  await expect(page.locator(".workbench-actions")).toContainText("运行");
   await page.setViewportSize({ width: 760, height: 900 });
   const mediumTasks = await page.locator(".task-pane").boundingBox();
   const mediumRun = await page.locator("#run-panel").boundingBox();
@@ -942,7 +959,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(page.locator('[data-case="case-b"] .case-count')).toHaveText(
     "×2",
   );
-  const persistentRunToggle = page.getByRole("button", { name: "运行配置" });
+  const persistentRunToggle = page.getByRole("button", { name: "配置" });
   await persistentRunToggle.click();
   await expect(page.locator("#run-panel")).toBeHidden();
   await expect(persistentRunToggle).toHaveAttribute("aria-expanded", "false");
@@ -1003,10 +1020,11 @@ test("plugin configuration console remains concise and operable in Edge", async 
   expect(
     actionHeights.every((height) => height >= 34 && height <= 38),
   ).toBeTruthy();
-  const runBox = await page
-    .getByRole("button", { name: "运行", exact: true })
-    .boundingBox();
-  expect(Math.abs(runBox.width - runBox.height)).toBeLessThanOrEqual(1);
+  const runButton = page.getByRole("button", { name: "运行", exact: true });
+  await expect(runButton).toBeVisible();
+  await expect(runButton).toContainText("运行");
+  const runBox = await runButton.boundingBox();
+  expect(runBox.width).toBeGreaterThan(runBox.height);
   await page.locator('[data-file="config/generic-picker/demo.yaml"]').click();
   await expect(page.locator("#run-panel").getByText("case-a", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "case-a，未运行" }).click();

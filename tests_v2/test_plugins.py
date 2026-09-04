@@ -58,7 +58,7 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     assert verification["api"]["configuration_schema"] is not None
     schema = verification["api"]["configuration_schema"]
     assert {"plugin", "command", "case_directory"}.issubset(schema["properties"])
-    assert {"plugin", "command"}.issubset(schema["required"])
+    assert {"plugin", "working_directory", "command"}.issubset(schema["required"])
     assert schema["additionalProperties"] is False
     assert {
         "variables",
@@ -85,6 +85,7 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     document = {
         "plugin": "verification",
         "case_directory": "${cases_dir}",
+        "working_directory": ".",
         "command": [
             "python3",
             "-u",
@@ -133,6 +134,7 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     composed = {
         "plugin": "verification",
         "case_directory": str(root / "cases"),
+        "working_directory": ".",
         "command": "${sim_command}",
         "variables": {"sim_command": "make all CASE=${case} SEED=${seed}"},
     }
@@ -160,14 +162,32 @@ def test_verification_command_uses_only_variables_explicitly_requested(
         {
             "plugin": "verification",
             "case_directory": str(root / "cases"),
+            "working_directory": ".",
             "command": command,
         },
         {"cases": ["case-a"]},
         {"root": str(root)},
     )[0]
     assert task.command == expected
+    assert task.working_directory == str(root.resolve())
     assert "--case" not in task.command
     assert "--seed" not in task.command
+
+
+def test_verification_rejects_an_implicit_controller_working_directory(root: Path) -> None:
+    initialize_root(root)
+    registry = PluginRegistry(root / "plugins")
+    registry.load()
+    with pytest.raises(ValueError, match="working_directory"):
+        registry.expand_config(
+            {
+                "plugin": "verification",
+                "case_directory": str(root / "cases"),
+                "command": "make all",
+            },
+            {"cases": ["case-a"]},
+            {"root": str(root)},
+        )
 
 
 def test_verification_result_uses_final_uvm_summary_and_existing_logs(root: Path) -> None:
@@ -262,6 +282,7 @@ def test_command_task_resolves_config_variables(root: Path) -> None:
         {"root": str(root)},
     )[0]
     assert task.name == "configured-job"
+    assert task.working_directory == str(root.resolve())
     assert task.command == ["echo", "hello"]
     assert task.labels == ["nightly"]
     assert task.mutex_keys == ["license:nightly"]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import ipaddress
 import json
 import os
@@ -75,6 +76,50 @@ class Settings(BaseModel):
         return self
 
 
+_KNOWN_BUNDLED_PLUGIN_DIGESTS = {
+    "verification.py": {
+        # The two v2 copies shipped by cef4941: the tracked starter root and
+        # the package resource. They differed slightly but had the same contract.
+        "feefbb2dc3de11ab4eb9779b363a0d273d0ccad50ded0ee327d87dd3a90010aa",
+        "130aa8f639de371deac43dfb1aae6c0518b57bf6f7fbbdc1a7881cfddce8d239",
+        "7fe5ffde7af4efd2c8157c33a127a24763f899d9243dfca8ab7837d9d8f58dc8",
+        "49b5e857c257efb1de3af37e4674c80fa35ce268b06906f7cc92ad0b4b4a2ffd",
+        "995bbe2050d0c5c16cc0c336e9927b7d077d8ded09a06ccb01429494f23f2975",
+        "f7b013dfea1c62f2d37577c4f5425aa91e99c83eb320a40da7a9ab4f120f9b6d",
+        "3d88a1c66203733a44934b74651b918142a1718b592d23844365cb359e860856",
+        "e521bd377614f9b9a330829726b65b2cf37f5f0a59b033a094a536179319139a",
+        "354cdb8005c131eb8c3d8db4677784be32e6850d27fb0e1d96748f8303956005",
+        "4fc099555f0f03457ffd670cdf10f36c0b714b20fe13795fcfa3c02fa02464e9",
+    },
+    "command.py": {
+        "e73ad6a653f86af6bc3c9e55d0588cfda18f74b870978c226ad3dc0d39fc79a9",
+        "0a80e82a3178b4271127b818ee551221398df3c2d63f04aaca7a30203c101ee6",
+        "b0708115a37c6f00b766cac504e1199ea619eb2221146de5f15d9885721b9d43",
+    },
+}
+
+
+def _normalized_text_digest(text: str) -> str:
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n").rstrip("\n") + "\n"
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _install_or_upgrade_builtin_plugin(destination: Path, source_text: str) -> None:
+    if destination.is_symlink():
+        return
+    if destination.exists():
+        existing = destination.read_text(encoding="utf-8")
+        if _normalized_text_digest(existing) == _normalized_text_digest(source_text):
+            return
+        if _normalized_text_digest(existing) not in _KNOWN_BUNDLED_PLUGIN_DIGESTS[destination.name]:
+            return
+    temporary = destination.with_name(f".{destination.name}.localflow-update")
+    temporary.write_text(source_text, encoding="utf-8")
+    if os.name != "nt":
+        os.chmod(temporary, 0o640)
+    os.replace(temporary, destination)
+
+
 def initialize_root(root: Path) -> None:
     for relative, mode in (
         ("config", 0o750),
@@ -132,11 +177,8 @@ def initialize_root(root: Path) -> None:
                 os.chmod(destination, 0o750)
     for name in ("verification.py", "command.py"):
         example = root / "plugins" / name
-        if not example.exists():
-            source = files("localflow.builtin_plugins").joinpath(f"{name}.example")
-            example.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
-            if os.name != "nt":
-                os.chmod(example, 0o640)
+        source = files("localflow.builtin_plugins").joinpath(f"{name}.example")
+        _install_or_upgrade_builtin_plugin(example, source.read_text(encoding="utf-8"))
     plugin_readme = root / "plugins" / "README.md"
     if not plugin_readme.exists():
         source = files("localflow.builtin_plugins").joinpath("README.md.example")

@@ -54,13 +54,13 @@ working_directory: .
 command: "printf 'hello world\\n' > hello-world.txt"
 ```
 
-运行后在 LocalFlow 根目录生成 `hello-world.txt`。把 `working_directory` 和 `command` 改成自己的目录与命令即可。`command` 优先使用字符串，Ubuntu 明确以非登录 `/bin/sh -c` 执行，管道、重定向和 shell 变量均可直接使用，同时不会读取登录 profile 改写工作目录；需要完全绕过 shell 解析时仍可写参数列表，例如 `command: [python3, -u, script.py]`。任务快照最终统一保存为参数数组。
+运行后在 LocalFlow 根目录生成 `hello-world.txt`。把 `working_directory` 和 `command` 改成自己的目录与命令即可。所有可运行配置都必须显式给出工作目录；绝对路径原样使用，相对路径统一以 LocalFlow 运行根为基准，并在预演和入队前冻结成绝对路径。`command` 优先使用字符串，Ubuntu 明确以非登录 `/bin/sh -c` 执行，管道、重定向和 shell 变量均可直接使用，同时不会读取登录 profile 改写工作目录；需要完全绕过 shell 解析时仍可写参数列表，例如 `command: [python3, -u, script.py]`。任务快照最终统一保存为参数数组。
 
 ## 验证仿真
 
 `config/verification/demo.yaml` 保存稳定内容：Case 目录、工作目录、命令、标签与日志模板。`${case}`、`${seed}` 和 `${run}` 是验证插件为每个任务提供的按需变量；命令可以使用任意子集，也可以完全不用。插件只替换配置中实际出现的变量，不会强制占位符、猜测或追加参数。首启示例演示 GNU Make 命令行变量 `make all CASE=${case} SEED=${seed}`，但它只是示例而非验证合同。其它工具可按自身语法写，或直接使用不带 Case/seed 的任意命令。本次要运行的 Case、各自次数和可选 seed 只在使用界面或 API `inputs` 中提供。
 
-字符串命令支持 Make、Shell、可执行文件以及管道、重定向等任意 Ubuntu shell 命令；参数列表用于完全绕过 shell。任务启动前，输出日志会记录解析后的工作目录和最终命令，自动 seed 也已替换，便于直接核对实际执行内容。
+字符串命令支持 Make、Shell、可执行文件以及管道、重定向等任意 Ubuntu shell 命令；参数列表用于完全绕过 shell。GNU Make 的 `-f` 只选择 Makefile，不会切换目录；要在项目目录运行，应设置 `working_directory`，或在命令中明确使用 `make -C <目录>`，LocalFlow 不从任意命令文本猜测目录。任务启动前，输出日志会记录解析后的工作目录和最终命令，自动 seed 也已替换，便于直接核对实际执行内容。
 
 进入使用界面后，顶部只读检查区显示已经解析的工作目录、命令、Case 目录和命令入口。检查项由宿主与插件共同返回：正常为勾选，警告或错误为感叹号；悬浮或键盘聚焦图标可读原因。首次打开、保存成功、外部同步和相关运行输入变化都会重新检查。检查使用有界超时和旧请求取消，不能阻塞编辑器，也不能把旧结果覆盖到新配置上。
 

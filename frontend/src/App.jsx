@@ -30,8 +30,8 @@ import {
   Link,
   ListChecks,
   Moon,
-  PanelRightClose,
-  PanelRightOpen,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pencil,
   Play,
   Power,
@@ -265,7 +265,6 @@ function TaskTerminal({ task, interactive, theme }) {
     );
     socket.onopen = () => {
       element.dataset.connection = "open";
-      term.writeln(interactive ? "[终端已连接]" : "[只读回放已连接]");
     };
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data);
@@ -1830,47 +1829,35 @@ function Config({ theme }) {
         {file ? (
           <>
             <header className="workbench-header">
-              <div>
+              <div className="workbench-context">
                 <FileCode2 />
                 <span>{visibleConfigName(pathLeaf(file.path))}</span>
               </div>
-              <div className="workbench-actions">
-                {mode === "edit" && file.diagnosis?.runnable && (
-                  <button
-                    className="secondary"
-                    onClick={() => {
-                      setContent(file.content);
-                      setMode("use");
-                    }}
-                  >
-                    取消
-                  </button>
-                )}
-                {mode === "use" && (
-                  <button className="secondary" onClick={() => setMode("edit")}>
-                    <FilePenLine />
-                    编辑
-                  </button>
-                )}
-                {mode === "edit" ? (
-                  <button className="primary" onClick={save}>
-                    保存
-                  </button>
-                ) : (
-                  <Hint
-                    content={
-                      runStatus === "submitting"
-                        ? "正在创建任务"
-                        : runStatus === "accepted"
-                          ? "任务已创建"
-                          : "运行"
-                    }
-                  >
+              <div className="workbench-actions" role="group" aria-label="配置操作">
+                  {mode === "edit" && file.diagnosis?.runnable && (
                     <button
-                      className={`primary icon-only run-action ${runStatus}`}
-                      aria-label={
-                        runStatus === "accepted" ? "任务已创建" : "运行"
-                      }
+                      className="secondary"
+                      onClick={() => {
+                        setContent(file.content);
+                        setMode("use");
+                      }}
+                    >
+                      取消
+                    </button>
+                  )}
+                  {mode === "use" && (
+                    <button className="secondary" onClick={() => setMode("edit")}>
+                      <FilePenLine />
+                      编辑
+                    </button>
+                  )}
+                  {mode === "edit" ? (
+                    <button className="primary" onClick={save}>
+                      保存
+                    </button>
+                  ) : (
+                    <button
+                      className={`primary run-action ${runStatus}`}
                       data-run-state={runStatus}
                       disabled={runDisabled || runStatus === "submitting"}
                       onClick={run}
@@ -1882,9 +1869,15 @@ function Config({ theme }) {
                       ) : (
                         <Play />
                       )}
+                      <span>
+                        {runStatus === "accepted"
+                          ? "已创建"
+                          : runStatus === "submitting"
+                            ? "提交中"
+                            : "运行"}
+                      </span>
                     </button>
-                  </Hint>
-                )}
+                  )}
               </div>
             </header>
             {file.diagnosis?.errors?.length > 0 && (
@@ -2384,8 +2377,8 @@ export default function App() {
               aria-controls="run-panel"
               onClick={() => setRunOpen((open) => !open)}
             >
-              {runOpen ? <PanelRightClose /> : <PanelRightOpen />}
-              <span>运行配置</span>
+              {runOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
+              <span>配置</span>
             </button>
           </div>
         )}

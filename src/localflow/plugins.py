@@ -335,10 +335,23 @@ class PluginRegistry:
             },
             "interrupt_status": getattr(loaded.instance, "interrupt_status", "cancelled"),
         }
-        return [
-            draft.model_copy(update={"plugin_snapshot": snapshot, "template": name, "stop": stop})
-            for draft in drafts
-        ]
+        root = Path(context["root"])
+        prepared = []
+        for draft in drafts:
+            working_directory = Path(draft.working_directory)
+            if not working_directory.is_absolute():
+                working_directory = root / working_directory
+            prepared.append(
+                draft.model_copy(
+                    update={
+                        "working_directory": str(working_directory.resolve()),
+                        "plugin_snapshot": snapshot,
+                        "template": name,
+                        "stop": stop,
+                    }
+                )
+            )
+        return prepared
 
     def expand_config(
         self,

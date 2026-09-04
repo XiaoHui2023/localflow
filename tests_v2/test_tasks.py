@@ -43,6 +43,21 @@ def test_task_snapshot_is_immutable(admin: TestClient, root: Path) -> None:
     assert admin.get(f"/api/v1/tasks/{task_id}").json()["command"] == ["echo", "one"]
 
 
+def test_direct_task_freezes_relative_working_directory_against_runtime_root(
+    admin: TestClient, root: Path
+) -> None:
+    task_id = admin.post(
+        "/api/v1/tasks",
+        json={
+            "name": "relative-cwd",
+            "working_directory": "external-project",
+            "command": ["true"],
+        },
+    ).json()["task_id"]
+    task = admin.get(f"/api/v1/tasks/{task_id}").json()
+    assert task["working_directory"] == str((root / "external-project").resolve())
+
+
 def test_one_request_inline_configuration_uses_plugin_and_creates_batch(
     admin: TestClient, root: Path
 ) -> None:
@@ -74,6 +89,27 @@ def test_one_request_inline_configuration_uses_plugin_and_creates_batch(
     task = admin.get(f"/api/v1/tasks/{created.json()['task_ids'][0]}").json()
     assert task["name"] == "inline-api"
     assert task["plugin_snapshot"]["name"] == "command"
+
+
+def test_configuration_plan_and_task_share_absolute_relative_cwd_snapshot(
+    admin: TestClient, root: Path
+) -> None:
+    payload = {
+        "configuration": {
+            "plugin": "command",
+            "name": "relative-config-cwd",
+            "working_directory": "external-project",
+            "command": ["true"],
+        },
+        "inputs": {},
+    }
+    expected = str((root / "external-project").resolve())
+    plan = admin.post("/api/v1/runs/plan", json=payload)
+    assert plan.status_code == 200
+    assert plan.json()["items"][0]["working_directory"] == expected
+    created = admin.post("/api/v1/runs", json=payload)
+    task = admin.get(f"/api/v1/tasks/{created.json()['task_ids'][0]}").json()
+    assert task["working_directory"] == expected
 
 
 def test_inline_configuration_rejects_missing_or_unknown_plugin(admin: TestClient) -> None:

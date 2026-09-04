@@ -1,4 +1,4 @@
-# Case and seed are inserted into the command template for every task.
+# Case and seed are substituted only where this command explicitly references them.
 plugin: verification
 case_directory: cases
 working_directory: .

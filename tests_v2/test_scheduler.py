@@ -268,6 +268,7 @@ async def test_verification_result_is_frozen_from_run_log(root: Path) -> None:
     document = {
         "plugin": "verification",
         "case_directory": str(root / "cases"),
+        "working_directory": ".",
         "command": [
             sys.executable,
             "-u",
@@ -321,6 +322,7 @@ async def test_automatic_verification_seeds_are_frozen_unique_and_persistent(
     document = {
         "plugin": "verification",
         "case_directory": str(root / "cases"),
+        "working_directory": ".",
         "command": [
             sys.executable,
             "-c",

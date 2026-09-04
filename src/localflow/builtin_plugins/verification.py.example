@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import os
 import re
 import shlex
 import shutil
-import os
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -77,11 +77,11 @@ class VerificationInputs(BaseModel):
         return self
 
 
-@plugin("verification", version="2")
+@plugin("verification", version="3")
 class Verification:
     config_model = VerificationConfig
     input_model = VerificationInputs
-    required_common_fields = {"command"}
+    required_common_fields = {"working_directory", "command"}
     deferred_variables = {"case", "seed", "run"}
     title = "验证仿真"
     description = "选择 Case、次数和随机种子"
@@ -183,7 +183,7 @@ class Verification:
             arguments = []
         if arguments:
             executable = str(arguments[0])
-            working = self._path(values.get("working_directory", "."), context)
+            working = self._path(values["working_directory"], context)
             candidate = Path(executable)
             resolved = (
                 candidate if candidate.is_absolute() else (working / candidate).resolve()
@@ -222,10 +222,12 @@ class Verification:
 
     def expand(self, values, context):
         command_template = values["command"]
+        if not values.get("working_directory"):
+            raise ValueError("working_directory is required")
         case_root = self._path(
             values.get("case_directory", values.get("case_root", "")), context
         ).resolve()
-        working_directory = self._path(values.get("working_directory", "."), context).resolve()
+        working_directory = self._path(values["working_directory"], context).resolve()
         available = set(self._case_names(case_root))
         if not values.get("cases"):
             raise ValueError("at least one case is required")

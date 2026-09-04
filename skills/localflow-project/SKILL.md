@@ -18,6 +18,8 @@ Use this skill when analyzing or modifying the extracted LocalFlow project.
 
 For test-environment selection, release publication, or a suspiciously stale rolling Release, read [`references/release-quality-gates.md`](references/release-quality-gates.md). This topic is intentionally separate from everyday source changes.
 
+For task-page configuration disclosure, contextual edit/run controls, or terminal stream presentation, read [`references/configuration-workbench.md`](references/configuration-workbench.md). For any task working-directory symptom, Makefile invocation, relative path, or built-in plugin upgrade, read [`references/working-directory-integrity.md`](references/working-directory-integrity.md) before changing production code.
+
 ## Invariants
 
 - A task becomes terminal only after the executor confirms its process owner ended.

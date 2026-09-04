@@ -1,0 +1,42 @@
+{
+  "error_id": "localflow-make-working-directory-recurrence",
+  "fingerprint": "A Makefile is successfully loaded and its recipe starts, but relative inputs or mkdir outputs resolve below the LocalFlow runtime root instead of the intended external project.",
+  "owner": "accepted task working-directory snapshot and make invocation semantics",
+  "earliest_stage": "normal user configuration expansion and plan output before enqueue",
+  "failure_baseline": {
+    "artifact": "current cef4941 product exercised through the normal run API with an external Makefile and relative prerequisite/output",
+    "expected": "naturally reproduce the reported LocalFlow-root path or keep the product owner frozen if the normal entry cannot reproduce it"
+  },
+  "success_baseline": {
+    "artifact": "explicit external working_directory with plain make, plus GNU make -C external-project",
+    "expected": "CURDIR and all relative read/write side effects stay under the external project and no marker appears under LocalFlow root"
+  },
+  "steps": [
+    "Capture plan snapshot, task snapshot, lifecycle cwd line, GNU make entering-directory output and filesystem effects from one run ID",
+    "Compare plain make in explicit cwd, make -C, and make -f without inferring intent from the command string",
+    "Locate the earliest divergence among configuration resolution, task persistence, executor cwd, Make CURDIR and recipe child cwd",
+    "Change only the proven owner, then rerun subprocess, systemd, frozen and public-release long chains"
+  ],
+  "hard_gates": [
+    "a normal product entry naturally reproduces every claimed failure baseline",
+    "plan working_directory equals immutable task snapshot and lifecycle cwd",
+    "Make CURDIR, recipe child pwd, prerequisite lookup and mkdir output agree",
+    "target marker exists and same-name LocalFlow-root marker is absent",
+    "a makefile selected with -f is not falsely described as changing cwd",
+    "current and deliberately mutated cwd implementations receive opposite verdicts"
+  ],
+  "rollback": "Do not modify executor or plugin cwd behavior until the normal entry reproduces a divergence; on failure return to the earliest observable owner.",
+  "exit_criteria": [
+    "known failure rejection and known success acceptance are both 100 percent",
+    "current implementation passes two consecutive comparable Make long-chain runs",
+    "Hosted Ubuntu systemd and extracted frozen release both pass",
+    "user-root and project Skill rules are updated without claiming that Makefile location implies cwd"
+  ],
+  "known_issue_regressions": [
+    "login shell startup changes cwd",
+    "verification plugin appends guessed make flags",
+    "executor receives LocalFlow root despite an external resolved working_directory",
+    "make -f external/Makefile is mistaken for make -C external",
+    "test checks printed PWD but not prerequisite lookup and positive/negative filesystem effects"
+  ]
+}

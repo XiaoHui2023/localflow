@@ -1,0 +1,154 @@
+{
+  "capability_id": "localflow-config-workbench-disclosure",
+  "owner": "task-workspace-layout-and-config-workbench",
+  "problem": "The configuration toggle is understandable only after reading a long label, while the disclosed workbench opens on the opposite edge and separates the selected configuration from its edit/run actions.",
+  "scope": "task-page disclosure control, left/right workbench geometry, selected-file action placement, responsive layout, keyboard access, and terminal presentation copy",
+  "baseline": "A left navigation action named 运行配置 opens a 48vw panel on the right; edit and icon-only run actions sit at the far edge of a wide workbench header; xterm receives synthetic connection lines.",
+  "benchmarks": [
+    "WAI-ARIA disclosure button with synchronized aria-expanded and aria-controls",
+    "VS Code primary sidebar view container with short names and contextual view-title actions",
+    "Material supplementary side sheet and persistent drawer patterns",
+    "xterm as a renderer of process byte streams with surrounding state owned by application chrome"
+  ],
+  "advantages": [
+    "The existing semantic button, state persistence, resource tree, Monaco editor, xterm and mature addons can be retained",
+    "The config workbench is already one cohesive component",
+    "Server and plugin contracts do not depend on panel placement"
+  ],
+  "disadvantages": [
+    "The control label duplicates the already-understood task context",
+    "The panel expands from the right despite its trigger living on the left",
+    "An icon-only run action is less explicit than the secondary edit action",
+    "Synthetic connection copy pollutes searchable terminal history"
+  ],
+  "limitations": [
+    "A persistent side-by-side panel is viable only at wide widths",
+    "Phone layouts must stack rather than compress a resource tree and editor side by side",
+    "No new component runtime is justified unless native semantic controls cannot meet the measured interaction contract"
+  ],
+  "defects": [
+    "disclosure direction and panel edge disagree",
+    "frequent selected-object actions are visually remote and asymmetric",
+    "terminal presentation state is written into the emulated byte stream"
+  ],
+  "bottlenecks": [
+    "visual geometry must be checked in real browsers at three widths",
+    "configuration resource and edit/run states must remain preserved during disclosure",
+    "fixed legacy browsers constrain CSS and JavaScript choices"
+  ],
+  "metrics": [
+    {
+      "name": "configuration discoverability",
+      "unit": "visible semantics",
+      "direction": "higher",
+      "threshold": "button text 配置 plus directional state indicator in both states",
+      "measurement": "DOM/accessibility assertions and same-viewport screenshots",
+      "evidence": "frontend/e2e/config-workbench.spec.js"
+    },
+    {
+      "name": "wide-screen ownership geometry",
+      "unit": "pixels and order",
+      "direction": "lower",
+      "threshold": "configuration panel left edge precedes task pane left edge and page overflow equals zero",
+      "measurement": "Playwright bounding boxes at 1440px",
+      "evidence": "frontend/e2e/config-workbench.spec.js"
+    },
+    {
+      "name": "selected-config primary actions",
+      "unit": "interface-tax operations",
+      "direction": "lower",
+      "threshold": "zero menu or navigation operations before edit or run",
+      "measurement": "rendered pointer and keyboard task paths",
+      "evidence": "frontend/e2e/config-workbench.spec.js"
+    },
+    {
+      "name": "synthetic terminal lines",
+      "unit": "lines",
+      "direction": "lower",
+      "threshold": "0",
+      "measurement": "xterm write spy and browser terminal text",
+      "evidence": "frontend/e2e/terminal-workspace.spec.js"
+    }
+  ],
+  "hypotheses": [
+    "A left primary workbench aligned with its disclosure control forms a clearer spatial model than a right secondary panel",
+    "A compact labeled action cluster beside the selected configuration reduces ambiguity without adding a mode menu",
+    "Connection and read-only state belong in the terminal header, never in the byte buffer"
+  ],
+  "allowed_variables": [
+    "task workspace grid areas and borders",
+    "configuration disclosure label and directional icon",
+    "selected configuration header action composition",
+    "terminal presentation-only copy"
+  ],
+  "stages": [
+    {
+      "id": "oracle",
+      "input": "current rendered task and terminal pages",
+      "output": "tests that reject right-side configuration, remote/ambiguous actions and synthetic terminal lines",
+      "checker": "Playwright baseline run",
+      "rollback": "research and ownership model",
+      "allowed_variables": ["test fixtures", "geometry assertions", "text assertions"]
+    },
+    {
+      "id": "layout",
+      "input": "accepted interaction contract",
+      "output": "left configuration workbench and responsive stack",
+      "checker": "browser geometry, screenshots and accessibility",
+      "rollback": "task workspace CSS owner",
+      "allowed_variables": ["grid areas", "panel dimensions", "disclosure affordance"]
+    },
+    {
+      "id": "actions-and-terminal",
+      "input": "selected config state and process byte stream",
+      "output": "nearby explicit edit/run actions and unpolluted terminal history",
+      "checker": "pointer/keyboard flows and xterm write spy",
+      "rollback": "workbench header or terminal presentation owner",
+      "allowed_variables": ["action labels", "action group placement", "synthetic xterm writes"]
+    }
+  ],
+  "hard_gates": [
+    "known right-side baseline is rejected and left-side success fixture is accepted",
+    "configuration state survives close and reopen",
+    "edit and run remain direct actions with accessible names",
+    "no connection or read-only UI status is appended to xterm",
+    "1440px, intermediate and 390px layouts have zero page overflow"
+  ],
+  "failure_fixtures": [
+    "configuration panel bounding box lies to the right of task pane",
+    "toggle says 运行配置 and uses a right-opening icon for a left owner",
+    "run is icon-only while edit is text and both sit at the remote header edge",
+    "terminal buffer begins with bracketed connection prose"
+  ],
+  "success_fixtures": [
+    "配置 disclosure opens a left-side primary workbench",
+    "selected configuration has an adjacent compact 编辑/运行 action cluster",
+    "narrow layout stacks configuration before tasks without overflow",
+    "terminal buffer contains only bytes read from the task log/WebSocket"
+  ],
+  "fault_injections": [
+    "swap grid areas back to tasks then run",
+    "restore 运行配置 label",
+    "replace the run label with an icon-only button",
+    "restore term.writeln connection copy"
+  ],
+  "rollback": "Return to the earliest failing oracle, layout, action, or terminal owner and invalidate dependent browser evidence.",
+  "iteration_budget": {
+    "max_rounds": 3,
+    "max_time": "4h",
+    "review_trigger": "second failure of the same ownership model or any legacy-browser regression"
+  },
+  "stop_conditions": [
+    "failure baseline rejected and current UI accepted",
+    "all interaction, accessibility, responsive and resource gates pass",
+    "project and user-root Skill writebacks validate",
+    "exact release artifact passes browser and consumer gates"
+  ],
+  "promotion_decision": {
+    "destination": "modern-web-interface-design/references/local-operator-console.md",
+    "reason": "Spatially aligned disclosure, contextual actions and terminal stream purity recur across operator consoles.",
+    "independent_trigger": false,
+    "repeatable_validation": true
+  },
+  "writeback": "Keep LocalFlow-specific geometry in the project Skill and add the generic terminal-stream anti-pattern plus aligned primary-sidebar rule to the user-root modern web interface references."
+}

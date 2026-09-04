@@ -61,6 +61,7 @@ class TaskService:
         self._last_cleanup = 0.0
 
     def submit(self, draft: TaskCreate) -> TaskRecord:
+        draft = self._prepare_draft(draft)
         record = self.store.create_task(new_id(), draft)
         self._log_lifecycle(
             record,
@@ -81,6 +82,7 @@ class TaskService:
         drafts: list[TaskCreate],
         idempotency: tuple[str, str, str] | None = None,
     ) -> tuple[str, list[TaskRecord]]:
+        drafts = [self._prepare_draft(draft) for draft in drafts]
         batch_id = new_id()
         task_drafts = [(new_id(), draft) for draft in drafts]
         response = {
@@ -106,6 +108,15 @@ class TaskService:
         logger.info("batch queued batch_id=%s tasks=%s template=%s", batch_id, len(records), template)
         self._wake.set()
         return batch_id, records
+
+    def _prepare_draft(self, draft: TaskCreate) -> TaskCreate:
+        """Freeze a controller-root-relative cwd as an absolute task snapshot."""
+        working_directory = Path(draft.working_directory)
+        if not working_directory.is_absolute():
+            working_directory = self.root / working_directory
+        return draft.model_copy(
+            update={"working_directory": str(working_directory.resolve())}
+        )
 
     def _terminal(self) -> None:
         if self._on_terminal:

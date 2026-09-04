@@ -181,6 +181,59 @@ def main() -> None:
                 raise RuntimeError("relative task output did not use the configured working directory")
             if (root / "frozen-cwd").exists():
                 raise RuntimeError("relative task output escaped into the LocalFlow root")
+
+            make_project = isolated / "external-make-project"
+            make_project.mkdir()
+            (make_project / "required.txt").write_text("PROJECT", encoding="utf-8")
+            (make_project / "Makefile").write_text(
+                ".PHONY: all\n"
+                "all: required.txt\n"
+                "\t@mkdir -p generated\n"
+                "\t@printf '%s' \"$$PWD\" > generated/cwd.txt\n"
+                "\t@cp required.txt generated/copied.txt\n",
+                encoding="utf-8",
+            )
+            relative_make_project = os.path.relpath(make_project, root)
+            run_payload = {
+                "configuration": {
+                    "plugin": "verification",
+                    "case_directory": "cases",
+                    "working_directory": relative_make_project,
+                    "command": "make all",
+                },
+                "inputs": {"cases": ["case-a"], "seed": 7},
+            }
+            _, plan_body = request(
+                opener, endpoint + "/api/v1/runs/plan", "POST", run_payload, headers
+            )
+            make_plan = json.loads(plan_body)
+            if make_plan["items"][0]["working_directory"] != str(make_project.resolve()):
+                raise RuntimeError("relative Make cwd was not frozen in the plan")
+            _, run_body = request(
+                opener, endpoint + "/api/v1/runs", "POST", run_payload, headers
+            )
+            make_task_id = json.loads(run_body)["task_ids"][0]
+
+            def make_completed():
+                _, value = request(opener, endpoint + f"/api/v1/tasks/{make_task_id}")
+                task = json.loads(value)
+                if task["state"] in {"failed", "cancelled", "lost"}:
+                    raise RuntimeError(f"frozen Make task ended as {task['state']}")
+                return task if task["state"] == "succeeded" else None
+
+            make_task = wait_for(make_completed, 30, "frozen Make task did not succeed")
+            if make_task["working_directory"] != str(make_project.resolve()):
+                raise RuntimeError("Make task snapshot differs from its plan")
+            if (make_project / "generated" / "cwd.txt").read_text(
+                encoding="utf-8"
+            ) != str(make_project.resolve()):
+                raise RuntimeError("GNU Make CURDIR differs from the configured directory")
+            if (make_project / "generated" / "copied.txt").read_text(
+                encoding="utf-8"
+            ) != "PROJECT":
+                raise RuntimeError("GNU Make prerequisite resolved outside the project")
+            if (root / "generated").exists():
+                raise RuntimeError("GNU Make side effect escaped into the LocalFlow root")
             pid_file = root / "runtime" / "localflow.pid"
             controller_pid = int(pid_file.read_text(encoding="ascii").strip())
             for protected_signal in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):

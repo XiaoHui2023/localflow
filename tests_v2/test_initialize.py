@@ -1,7 +1,9 @@
+from importlib.resources import files
 from pathlib import Path
 
 import pytest
 
+from localflow import settings
 from localflow.plugins import PluginRegistry
 from localflow.settings import initialize_root, load_settings
 
@@ -71,3 +73,43 @@ def test_initialize_never_overwrites_current_startup_config(root: Path) -> None:
     assert load_settings(root).server.port == 9000
     assert previous.is_file()
     assert legacy.is_file()
+
+
+def test_initialize_upgrades_only_an_unmodified_known_builtin(
+    root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    initialize_root(root)
+    verification = root / "plugins" / "verification.py"
+    current = files("localflow.builtin_plugins").joinpath(
+        "verification.py.example"
+    ).read_text(encoding="utf-8")
+    previous = current.replace('version="3"', 'version="2"').replace(
+        '{"working_directory", "command"}', '{"command"}'
+    )
+    verification.write_text(previous, encoding="utf-8")
+    known = dict(settings._KNOWN_BUNDLED_PLUGIN_DIGESTS)
+    known["verification.py"] = {
+        *known["verification.py"],
+        settings._normalized_text_digest(previous),
+    }
+    monkeypatch.setattr(settings, "_KNOWN_BUNDLED_PLUGIN_DIGESTS", known)
+
+    initialize_root(root)
+
+    assert verification.read_text(encoding="utf-8") == current
+
+
+def test_initialize_preserves_builtin_plugin_symlink(root: Path) -> None:
+    target = root.parent / "verification-custom.py"
+    target.write_text("# linked user plugin\n", encoding="utf-8")
+    plugin = root / "plugins" / "verification.py"
+    plugin.parent.mkdir(parents=True)
+    try:
+        plugin.symlink_to(target)
+    except OSError as error:
+        pytest.skip(f"symlink unavailable: {error}")
+
+    initialize_root(root)
+
+    assert plugin.is_symlink()
+    assert target.read_text(encoding="utf-8") == "# linked user plugin\n"

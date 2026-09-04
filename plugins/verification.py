@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 import re
 import shlex
+import shutil
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -75,11 +77,11 @@ class VerificationInputs(BaseModel):
         return self
 
 
-@plugin("verification", version="2")
+@plugin("verification", version="3")
 class Verification:
     config_model = VerificationConfig
     input_model = VerificationInputs
-    required_common_fields = {"command"}
+    required_common_fields = {"working_directory", "command"}
     deferred_variables = {"case", "seed", "run"}
     title = "验证仿真"
     description = "选择 Case、次数和随机种子"
@@ -88,7 +90,7 @@ class Verification:
         "plugin": "verification",
         "case_directory": "cases",
         "working_directory": ".",
-        "command": "python3 -u scripts/simulate.py --case ${case} --seed ${seed}",
+        "command": "make all CASE=${case} SEED=${seed}",
         "mutex_keys": ["simulator:demo"],
     }
     api_inputs = {
@@ -159,28 +161,42 @@ class Verification:
         ).resolve()
         if case_root.is_dir():
             count = len(self._case_names(case_root))
-            severity = "ok" if count else "warning"
+            severity = "ok"
             message = f"已发现 {count} 个 Case" if count else "目录存在，但没有可用 Case"
+            if count == 0:
+                severity = "warning"
         else:
             severity = "error"
             message = "找不到 Case 目录"
         items = [{
-            "name": "case_directory", "label": "Case 目录", "value": str(case_root),
-            "kind": "path", "severity": severity, "message": message,
+            "name": "case_directory",
+            "label": "Case 目录",
+            "value": str(case_root),
+            "kind": "path",
+            "severity": severity,
+            "message": message,
         }]
         command = values.get("command", [])
-        if isinstance(command, str):
-            command = shlex.split(command)
-        script_value = next((str(part) for part in command[1:] if str(part).endswith(".py")), None)
-        if script_value:
-            working = self._path(values.get("working_directory", "."), context)
-            script = Path(script_value)
-            script = script if script.is_absolute() else (working / script).resolve()
-            exists = script.is_file()
+        try:
+            arguments = shlex.split(command) if isinstance(command, str) else command
+        except ValueError:
+            arguments = []
+        if arguments:
+            executable = str(arguments[0])
+            working = self._path(values["working_directory"], context)
+            candidate = Path(executable)
+            resolved = (
+                candidate if candidate.is_absolute() else (working / candidate).resolve()
+            )
+            exists = resolved.is_file() if candidate.parent != Path(".") else shutil.which(executable) is not None
+            severity = "ok" if exists else ("warning" if os.name == "nt" else "error")
             items.append({
-                "name": "command_file", "label": "脚本", "value": str(script),
-                "kind": "path", "severity": "ok" if exists else "error",
-                "message": None if exists else "找不到命令脚本",
+                "name": "command_entry",
+                "label": "命令入口",
+                "value": executable,
+                "kind": "path",
+                "severity": severity,
+                "message": None if exists else "当前环境找不到命令入口",
             })
         return items
 
@@ -205,10 +221,13 @@ class Verification:
         }
 
     def expand(self, values, context):
+        command_template = values["command"]
+        if not values.get("working_directory"):
+            raise ValueError("working_directory is required")
         case_root = self._path(
             values.get("case_directory", values.get("case_root", "")), context
         ).resolve()
-        working_directory = self._path(values.get("working_directory", "."), context).resolve()
+        working_directory = self._path(values["working_directory"], context).resolve()
         available = set(self._case_names(case_root))
         if not values.get("cases"):
             raise ValueError("at least one case is required")
@@ -243,7 +262,6 @@ class Verification:
                 ]
                 mutex_keys = [str(item) for item in dynamic.resolve(values.get("mutex_keys", []))]
                 mutex_keys.extend(f"tag:{label}" for label in labels)
-                command_template = values["command"]
                 if isinstance(command_template, str):
                     command_source = command_template.replace("${case}", shlex.quote(case_name))
                     command = dynamic.resolve(command_source)
