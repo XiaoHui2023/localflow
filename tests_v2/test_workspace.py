@@ -13,31 +13,29 @@ from localflow.workspace_repository import WorkspaceConflict, WorkspaceRepositor
 def test_workspace_directory_file_copy_move_delete_and_validation(root: Path) -> None:
     initialize_root(root)
     repository = WorkspaceRepository(root, ConfigRepository(root))
-    roots = {item["path"] for item in repository.entries() if item.get("readonly")}
-    assert roots == {"config", "plugins"}
+    assert not any(item.get("readonly") for item in repository.entries())
 
-    repository.create_directory("plugins/helpers")
-    (root / "plugins" / "__pycache__").mkdir()
-    (root / "plugins" / "__pycache__" / "tool.py").write_text("generated\n", encoding="utf-8")
+    repository.create_directory("config/helpers")
+    (root / "config" / "__pycache__").mkdir()
+    (root / "config" / "__pycache__" / "tool.yaml").write_text("generated\n", encoding="utf-8")
     assert not any("__pycache__" in str(item["path"]) for item in repository.entries())
-    plugin = repository.write("plugins/helpers/tool.py", "VALUE = 1\n", "*")
+    plugin = repository.write("config/helpers/tool.yaml", "free: edit\n", "*")
     with pytest.raises(WorkspaceConflict):
-        repository.write(plugin.path, "VALUE = 2\n", "stale")
-    with pytest.raises(SyntaxError):
-        repository.write(plugin.path, "if:\n", plugin.version)
-    assert repository.read(plugin.path).content == "VALUE = 1\n"
+        repository.write(plugin.path, "free: change\n", "stale")
+    repository.write(plugin.path, "if:\n", plugin.version)
+    assert repository.read(plugin.path).content == "if:\n"
 
-    repository.copy("plugins/helpers/tool.py", "plugins/helpers/copy.py")
-    repository.move("plugins/helpers/copy.py", "plugins/moved.py")
-    repository.delete("plugins/moved.py")
-    assert not (root / "plugins" / "moved.py").exists()
+    repository.copy("config/helpers/tool.yaml", "config/helpers/copy.yaml")
+    repository.move("config/helpers/copy.yaml", "config/moved.yaml")
+    repository.delete("config/moved.yaml")
+    assert not (root / "config" / "moved.yaml").exists()
     with pytest.raises(ValueError, match="unsupported"):
-        repository.copy("plugins/helpers/tool.py", "plugins/helpers/tool.txt")
+        repository.copy("config/helpers/tool.yaml", "config/helpers/tool.txt")
     with pytest.raises(ValueError, match="inside itself"):
-        repository.copy("plugins/helpers", "plugins/helpers/nested")
+        repository.copy("config/helpers", "config/helpers/nested")
 
 
-def test_workspace_rolls_back_move_that_breaks_config_import(root: Path) -> None:
+def test_workspace_move_is_independent_from_config_diagnosis(root: Path) -> None:
     initialize_root(root)
     config = ConfigRepository(root)
     config.write("shared/value.yaml", "labels: [shared]\n", None)
@@ -47,28 +45,28 @@ def test_workspace_rolls_back_move_that_breaks_config_import(root: Path) -> None
         None,
     )
     repository = WorkspaceRepository(root, config)
-    with pytest.raises(ValueError, match="breaks configuration imports"):
-        repository.move("config/shared/value.yaml", "config/shared/renamed.yaml")
-    assert (root / "config" / "shared" / "value.yaml").is_file()
-    assert config.parse("command/imported.yaml")["labels"] == ["shared"]
+    repository.move("config/shared/value.yaml", "config/shared/renamed.yaml")
+    assert (root / "config" / "shared" / "renamed.yaml").is_file()
+    with pytest.raises(ValueError, match="does not exist"):
+        config.parse("command/imported.yaml")
 
 
 @pytest.mark.skipif(os.name == "nt", reason="Linux release symlink semantics")
 def test_workspace_preserves_symlink_copy_edit_move_and_delete(root: Path, tmp_path: Path) -> None:
     initialize_root(root)
-    target = tmp_path / "external.py"
-    target.write_text("VALUE = 1\n", encoding="utf-8")
-    link = root / "plugins" / "external.py"
+    target = tmp_path / "external.yaml"
+    target.write_text("value: 1\n", encoding="utf-8")
+    link = root / "config" / "external.yaml"
     link.symlink_to(target)
     repository = WorkspaceRepository(root, ConfigRepository(root))
 
-    item = repository.read("plugins/external.py")
-    repository.write(item.path, "VALUE = 2\n", item.version)
-    repository.copy(item.path, "plugins/copy.py")
-    assert link.is_symlink() and (root / "plugins" / "copy.py").is_symlink()
-    repository.move(item.path, "plugins/moved.py")
-    repository.delete("plugins/moved.py")
-    assert target.read_text(encoding="utf-8") == "VALUE = 2\n"
+    item = repository.read("config/external.yaml")
+    repository.write(item.path, "value: 2\n", item.version)
+    repository.copy(item.path, "config/copy.yaml")
+    assert link.is_symlink() and (root / "config" / "copy.yaml").is_symlink()
+    repository.move(item.path, "config/moved.yaml")
+    repository.delete("config/moved.yaml")
+    assert target.read_text(encoding="utf-8") == "value: 2\n"
 
 
 @pytest.mark.skipif(os.name == "nt", reason="Linux release symlink semantics")
@@ -88,30 +86,25 @@ def test_workspace_supports_entire_linked_roots_without_flattening(
 
     repository.create_directory("config/command")
     repository.write("config/command/demo.yaml", "value: 1\n", "*")
-    repository.write("plugins/demo.py", "VALUE = 1\n", "*")
-
-    roots = {item["path"]: item for item in repository.entries() if item.get("readonly")}
-    assert roots["config"]["symlink"] is True
-    assert roots["plugins"]["symlink"] is True
+    assert all(str(item["path"]).startswith("config/") for item in repository.entries())
     assert (root / "config").is_symlink() and (root / "plugins").is_symlink()
     assert (external_config / "command" / "demo.yaml").is_file()
-    assert (external_plugins / "demo.py").is_file()
 
 
 def test_workspace_api_round_trip(admin: TestClient) -> None:
     listing = admin.get("/api/v1/workspace")
     assert listing.status_code == 200
-    assert {item["path"] for item in listing.json()["items"]}.issuperset({"config", "plugins"})
-    assert admin.post("/api/v1/workspace/directories", json={"path": "plugins/helpers"}).status_code == 201
+    assert all(item["path"].startswith("config/") for item in listing.json()["items"])
+    assert admin.post("/api/v1/workspace/directories", json={"path": "config/helpers"}).status_code == 201
     created = admin.put(
-        "/api/v1/workspace/files/plugins/helpers/tool.py",
+        "/api/v1/workspace/files/config/helpers/tool.yaml",
         headers={"If-Match": "*"},
-        json={"content": "VALUE = 1\n"},
+        json={"content": "value: 1\n"},
     )
     assert created.status_code == 200
     copied = admin.post(
         "/api/v1/workspace/copies",
-        json={"source": "plugins/helpers/tool.py", "target": "plugins/helpers/copy.py"},
+        json={"source": "config/helpers/tool.yaml", "target": "config/helpers/copy.yaml"},
     )
     assert copied.status_code == 201
-    assert admin.delete("/api/v1/workspace/entries/plugins/helpers/copy.py").status_code == 204
+    assert admin.delete("/api/v1/workspace/entries/config/helpers/copy.yaml").status_code == 204

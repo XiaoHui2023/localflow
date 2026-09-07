@@ -32,6 +32,7 @@
 | `POST` | `/tasks/{task_id}/terminal/input` | 写 UTF-8 或 Base64 终端字节 | signed-client 或 admin |
 | `POST` | `/tasks/{task_id}/terminal/controls` | 写 Ctrl+C、Ctrl+D、Enter、Escape 或 Tab | signed-client 或 admin |
 | `POST` | `/tasks/{task_id}/terminal/resize` | 调整 PTY 行列 | signed-client 或 admin |
+| `GET` | `/tasks/{task_id}/logs/search` | 流式检索完整保留日志 | readonly、signed-client 或 admin |
 | `GET` | `/events` | 从事件 ID 之后订阅 SSE | signed-client、admin 或按匿名设置 |
 | `WS` | `/tasks/{task_id}/terminal` | 终端输出；管理员可输入和调尺寸 | readonly 或 admin |
 
@@ -105,6 +106,7 @@
 | `DELETE` | `/config/files/{path}` | 按 `If-Match` 删除配置 | signed-client 或 admin |
 | `POST` | `/config/files/{path}/discover` | 用该配置调用插件发现钩子 | signed-client 或 admin |
 | `POST` | `/config/files/{path}/inspection` | 解析目录、命令和插件只读检查项 | signed-client 或 admin |
+| `POST` | `/config/files/{path}/diagnosis` | 对尚未保存的内容做语法与导入诊断 | signed-client 或 admin |
 | `POST` | `/config/files/{path}/plan` | 无副作用预演该配置将创建的任务 | signed-client 或 admin |
 | `POST` | `/config/files/{path}/runs` | 运行诊断通过的配置 | signed-client 或 admin |
 
@@ -112,15 +114,15 @@
 
 | 方法 | 路径 | 用途 | 最低身份 |
 | --- | --- | --- | --- |
-| `GET` | `/workspace` | 目录、文件、软链接和配置诊断清单 | signed-client 或 admin |
-| `GET` | `/workspace/files/{path}` | 读取配置或插件源文件 | signed-client 或 admin |
+| `GET` | `/workspace` | `config/` 内容的目录、文件、软链接和语法诊断清单 | signed-client 或 admin |
+| `GET` | `/workspace/files/{path}` | 读取普通配置文件 | signed-client 或 admin |
 | `PUT` | `/workspace/files/{path}` | 条件创建或原子保存文件 | signed-client 或 admin |
 | `POST` | `/workspace/directories` | 新建目录 | signed-client 或 admin |
 | `POST` | `/workspace/moves` | 移动或重命名文件、目录、软链接 | signed-client 或 admin |
 | `POST` | `/workspace/copies` | 复制文件、目录或软链接 | signed-client 或 admin |
 | `DELETE` | `/workspace/entries/{path}` | 删除文件、目录或软链接 | signed-client 或 admin |
 
-配置读取的 `diagnosis` 返回 `kind`（`generic`、`fragment` 或 `task`）、`valid`、`runnable`、`plugin`、已出现的公共字段、错误和警告。插件名只取自配置顶层 `plugin`。保存先验证语法、受限导入和分层字段，随后同目录写临时文件、`fsync` 并原子替换。版本不符返回 `412`，无效配置返回 `422`。外部写入的无效文件仍可由 GET 读取原文和诊断。`POST /api/v1/config/files/{path}/inspection` 接受与运行相同的 `inputs`，返回只读检查项 `{name,label,value,kind,severity,message}`；它与发现钩子一样有五秒上限，不创建任务。
+配置读取的 `diagnosis` 只描述 YAML/TOML/JSON 语法和受限导入是否可解析；`run_diagnosis` 才描述插件运行合同。保存不受两类诊断阻断，始终按 `If-Match` 做同目录临时文件、`fsync` 与原子替换；版本不符返回 `412`。外部写入和编辑中的无效文件均可保留原文并在编辑区内联显示错误。`POST /api/v1/config/files/{path}/inspection` 接受与运行相同的 `inputs`，由插件返回只读审查项 `{name,label,value,kind,severity,message}`；它与发现钩子一样有五秒上限，不创建任务。
 
 这些接口覆盖配置的创建、读取、保存、移动、重命名、删除、诊断、发现、检查、预演与运行。AI Agent 的最短可靠链路是：读取 `/plugins/{name}` 的两个 JSON Schema → 列出并读取配置 → 调用 `discover` 取得动态 Case → 用目标 `inputs` 调用 `plan` → 使用新的 `Idempotency-Key` 正式提交。无需保存文件时使用 `/runs`；需要长期复用时调用配置文件的 `/runs`。两条正式路径都原子创建批次并返回相同响应形状。
 
@@ -213,8 +215,10 @@ with urllib.request.urlopen(request) as response:
 
 SSE 使用 `after` 查询参数从指定事件 ID 后续传，并在空闲时发送 keepalive。摘要访问者的事件数据同样经过字段投影。
 
-终端 WebSocket 输出消息为 `output`，包含 Base64 数据和下一字节偏移；浏览器必须在 xterm 完成该块写入后回复 `{type:"ack",offset}`，服务器才读取下一块。输入与尺寸消息为 `input`、`resize`，拒绝结果为 `error`。单次块上限 64 KiB；这个应用层确认弥补浏览器 WebSocket API 缺少可靠背压的问题。输入同时执行大小、Base64 和尺寸范围校验，断线后的完整回放使用日志接口的字节偏移完成。
+终端 WebSocket 输出消息为 `output`，包含 Base64 数据和下一字节偏移；浏览器必须在 xterm 完成该块写入后回复 `{type:"ack",offset}`，服务器才读取下一块。可用 `offset` 与可选 `end` 查询参数限定回放字节窗，服务到达当前窗口后发送 `caught_up`。输入与尺寸消息为 `input`、`resize`，拒绝结果为 `error`。单次块上限 64 KiB；这个应用层确认弥补浏览器 WebSocket API 缺少可靠背压的问题。
 
 HTTP 日志响应的 `next_offset` 是下一次读取起点；正文 `data` 为 Base64。输出文件由监督程序以无缓冲二进制追加写入，因此接口不等待任务结束。HTTP 终端接口适合脚本控制，WebSocket/xterm 适合人在环；两者使用同一 PTY，调用方必须避免同时发送相互冲突的输入。
+
+完整日志检索接口接受 `query`、`case_sensitive`、`whole_word` 和 `regex`，返回最多 200 个 `{offset,line,preview}`。实现按固定 1 MiB 块读取并保留小型边界重叠区，不把整份日志载入内存；浏览器点击结果后只装载命中附近至多 4 MiB 的 xterm 窗口。
 
 签名客户端可以使用完整任务查询、日志、HTTP 终端控制、配置、变量和插件合同接口；每个请求都必须重新取 challenge、重新读取密钥并按实际方法、含查询字符串的路径和精确正文重签。浏览器 WebSocket、时间校准和受保护 OpenAPI 仍使用管理员会话，不接受程序密钥替代网页登录。

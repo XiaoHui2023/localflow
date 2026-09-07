@@ -53,8 +53,8 @@ def test_config_rejects_escape_invalid_content_and_preserves_atomic_write(
     repository = ConfigRepository(root)
     with pytest.raises(ValueError):
         repository.write("../outside.yaml", "x: 1", None)
-    with pytest.raises(ValueError):
-        repository.write("broken.json", "{", None)
+    broken = repository.write("broken.json", "{", None)
+    assert broken.content == "{"
     before = repository.read("command/hello-world.yaml")
 
     def fail_replace(_source, _target) -> None:
@@ -101,11 +101,13 @@ def test_config_imports_and_layered_diagnosis(root: Path) -> None:
 
 def test_config_api_exposes_only_runnable_configuration_tree(admin: TestClient, root: Path) -> None:
     valid = admin.get("/api/v1/config/files/command/hello-world.yaml")
-    assert valid.status_code == 200 and valid.json()["diagnosis"]["runnable"]
+    assert valid.status_code == 200 and valid.json()["diagnosis"]["valid"]
+    assert valid.json()["run_diagnosis"]["runnable"]
     invalid_path = root / "config" / "command" / "invalid.yaml"
     invalid_path.write_text("plugin: command\nlabels: wrong\n", encoding="utf-8")
     invalid = admin.get("/api/v1/config/files/command/invalid.yaml")
-    assert invalid.status_code == 200 and not invalid.json()["diagnosis"]["valid"]
+    assert invalid.status_code == 200 and invalid.json()["diagnosis"]["valid"]
+    assert not invalid.json()["run_diagnosis"]["valid"]
     listing = admin.get("/api/v1/config/files").json()
     assert "server.yaml" not in listing["items"]
     assert set(listing["items"]) == {

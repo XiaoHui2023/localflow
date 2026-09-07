@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import shutil
 import signal
 import time
@@ -631,6 +632,67 @@ class TaskService:
             stream.seek(max(offset, 0))
             data = stream.read(min(max(limit, 1), 1048576))
             return data, stream.tell()
+
+    def search_log(
+        self,
+        task_id: str,
+        query: str,
+        *,
+        case_sensitive: bool = False,
+        whole_word: bool = False,
+        regex: bool = False,
+        max_results: int = 200,
+        timeout_seconds: float = 14.0,
+    ) -> dict[str, object]:
+        self.store.get_task(task_id)
+        if not query:
+            return {"items": [], "truncated": False}
+        expression = query if regex else re.escape(query)
+        if whole_word:
+            expression = rf"\b(?:{expression})\b"
+        pattern = re.compile(expression, 0 if case_sensitive else re.IGNORECASE)
+        path = self.root / "logs" / task_id / "output.log"
+        if not path.exists():
+            return {"items": [], "truncated": False}
+        items: list[dict[str, object]] = []
+        overlap = b""
+        absolute = 0
+        lines_seen = 0
+        deadline = time.monotonic() + timeout_seconds
+        with path.open("rb") as stream:
+            while raw := stream.read(1024 * 1024):
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("log search timed out")
+                combined = overlap + raw
+                text = combined.decode("utf-8", errors="replace")
+                overlap_lines = overlap.count(b"\n")
+                for match in pattern.finditer(text):
+                    before = text[:match.start()]
+                    through = text[:match.end()]
+                    relative = len(before.encode("utf-8", errors="replace")) - len(overlap)
+                    relative_end = len(through.encode("utf-8", errors="replace")) - len(overlap)
+                    # A hit wholly inside the overlap was already reported. A hit
+                    # crossing the block boundary belongs to this block and must
+                    # not be discarded.
+                    if relative_end <= 0:
+                        continue
+                    if len(items) >= max_results:
+                        return {"items": items, "truncated": True}
+                    left = max(text.rfind("\n", 0, match.start()) + 1, match.start() - 160)
+                    right_break = text.find("\n", match.end())
+                    right = min(
+                        len(text) if right_break < 0 else right_break,
+                        match.end() + 240,
+                    )
+                    items.append({
+                        "offset": max(0, absolute + relative),
+                        "line": lines_seen - overlap_lines + before.count("\n") + 1,
+                        "preview": text[left:right].rstrip("\r")[:400],
+                    })
+                lines_seen += raw.count(b"\n")
+                absolute += len(raw)
+                overlap = combined[-4096:]
+        return {"items": items, "truncated": False}
 
     async def write_terminal(self, task_id: str, data: bytes) -> bool:
         task = self.store.get_task(task_id)

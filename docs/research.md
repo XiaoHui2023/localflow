@@ -83,7 +83,7 @@ HTTP Message Signatures 的组件覆盖、随机数和创建时间模型用于�
 
 ### Case 单列、焦点与性能（2026-08-28）
 
-Case 的点击语义是增加运行次数，框选只建立临时批量作用域，因此不冒充标准 ListBox selection。W3C APG 与 React Aria 的垂直堆叠、focus/hover/selected 分离用于状态设计；React Aria Virtualizer 的可见行复用适合数千项，但会与当前依赖完整行几何的框选冲突。本轮采用原生按钮、单列全宽 flex、单个委托 wheel listener 和局部 CSS containment：不增加依赖，同时把列数、占宽、≤100ms 状态反馈、焦点不改次数与资源预算交给真实浏览器门。
+Case 名称只负责建立临时批量作用域，次数由具名增减按钮调整，因此不冒充标准 ListBox selection。W3C APG spinbutton 与 React Aria NumberField 的明确步进语义用于状态设计；按住 550 ms 后才开始有上限地加速，短按始终只改变一次，滚轮不会改变次数。React Aria Virtualizer 的可见行复用适合数千项，但会与当前依赖完整行几何的框选冲突。本轮继续采用单列全宽行与原生 Pointer Events，并把零值、隐藏减号、延迟连发、滚轮无副作用和释放清理交给真实浏览器门。
 
 详细检索、候选比较与失败基线见 [Round 15 研究记录](../quality/evidence/web-design-2026-08-25/round-15-case-list-sources.md)，反例见 [用户要求顺序扫描后仍保留多列](ui-counterexamples/multi-column-case-picker-after-rejection.md)。
 

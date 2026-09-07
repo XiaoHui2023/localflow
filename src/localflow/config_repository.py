@@ -138,7 +138,6 @@ class ConfigRepository:
                 raise ConfigConflict(current.version)
         elif expected not in {None, "*"}:
             raise ConfigConflict("missing")
-        self.validate(relative, content)
         path.parent.mkdir(parents=True, exist_ok=True)
         descriptor, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
         try:
@@ -181,7 +180,6 @@ class ConfigRepository:
                 return "!include " + " ".join(rewritten)
 
             content = self._include_pattern.sub(relocate, content)
-        self.validate(target, content)
         target_path.parent.mkdir(parents=True, exist_ok=True)
         descriptor, temp_name = tempfile.mkstemp(prefix=f".{target_path.name}.", dir=target_path.parent)
         try:

@@ -199,7 +199,8 @@ def test_signed_client_can_manage_config_and_use_plugin_run_contract(
     assert created.status_code == 201
     read = request("GET", "/api/v1/config/files/command/signed.yaml")
     assert read.status_code == 200
-    assert read.json()["diagnosis"]["runnable"] is True
+    assert read.json()["diagnosis"]["valid"] is True
+    assert read.json()["run_diagnosis"]["runnable"] is True
 
     content = read.json()["content"].replace("hello-world", "signed-command")
     updated = request(

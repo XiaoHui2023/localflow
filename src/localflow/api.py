@@ -69,7 +69,7 @@ class ConfigRun(BaseModel):
 
 class ConfigCreate(BaseModel):
     path: str
-    plugin: str
+    plugin: str | None = None
 
 
 class WorkspaceCreateDirectory(BaseModel):
@@ -550,6 +550,37 @@ def create_app(
             "data": base64.b64encode(data).decode(),
         }
 
+    @app.get("/api/v1/tasks/{task_id}/logs/search")
+    async def search_logs(
+        task_id: str,
+        request: Request,
+        query: str = Query(min_length=1, max_length=512),
+        case_sensitive: bool = False,
+        whole_word: bool = False,
+        regex: bool = False,
+    ):
+        role = await can_read(request)
+        if role == "summary":
+            raise HTTPException(403, "logs require full read access")
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(
+                    tasks.search_log,
+                    task_id,
+                    query,
+                    case_sensitive=case_sensitive,
+                    whole_word=whole_word,
+                    regex=regex,
+                ),
+                timeout=15,
+            )
+        except re.error as error:
+            raise HTTPException(422, f"invalid regular expression: {error}") from None
+        except TimeoutError:
+            raise HTTPException(504, "log search timed out") from None
+        except KeyError:
+            raise HTTPException(404, "task not found") from None
+
     @app.post("/api/v1/tasks/{task_id}/terminal/input")
     async def terminal_input(
         task_id: str, payload: TerminalInput, _actor: str = Depends(require_submitter)
@@ -788,7 +819,8 @@ def create_app(
         diagnostics: dict[str, dict[str, Any]] = {}
         for path in items:
             try:
-                diagnosis = diagnose_config(config.parse(path), plugins)
+                config.parse(path)
+                diagnosis = ConfigDiagnosis(kind="generic", valid=True, runnable=False)
             except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
                 diagnosis = ConfigDiagnosis(
                     kind="generic",
@@ -809,7 +841,8 @@ def create_app(
                 continue
             relative = path.split("/", 1)[1]
             try:
-                diagnosis = diagnose_config(config.parse(relative), plugins)
+                config.parse(relative)
+                diagnosis = ConfigDiagnosis(kind="generic", valid=True, runnable=False)
             except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
                 diagnosis = ConfigDiagnosis(kind="generic", valid=False, runnable=False, errors=[f"syntax or import error: {error}"])
             diagnostics[path] = diagnosis.model_dump()
@@ -824,11 +857,18 @@ def create_app(
                 relative = path.split("/", 1)[1]
                 try:
                     document = config.parse(relative)
-                    diagnosis = diagnose_config(document, plugins)
+                    diagnosis = ConfigDiagnosis(kind="generic", valid=True, runnable=False)
+                    run_diagnosis = diagnose_config(document, plugins)
                 except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
                     document = None
                     diagnosis = ConfigDiagnosis(kind="generic", valid=False, runnable=False, errors=[f"syntax or import error: {error}"])
-                result.update(document=document, plugin=document.get("plugin") if isinstance(document, dict) else None, diagnosis=diagnosis.model_dump())
+                    run_diagnosis = diagnosis
+                result.update(
+                    document=document,
+                    plugin=document.get("plugin") if isinstance(document, dict) else None,
+                    diagnosis=diagnosis.model_dump(),
+                    run_diagnosis=run_diagnosis.model_dump(),
+                )
             return result
         except (ValueError, FileNotFoundError) as exc:
             raise HTTPException(404, str(exc)) from None
@@ -887,9 +927,12 @@ def create_app(
         payload: ConfigCreate, _actor: str = Depends(require_submitter)
     ):
         try:
-            example = plugins.example(payload.plugin)
-            example = {**example, "plugin": payload.plugin}
-            content = yaml.safe_dump(example, allow_unicode=True, sort_keys=False)
+            if payload.plugin is None:
+                content = ""
+            else:
+                example = plugins.example(payload.plugin)
+                example = {**example, "plugin": payload.plugin}
+                content = yaml.safe_dump(example, allow_unicode=True, sort_keys=False)
             return config.write(payload.path, content, None).__dict__
         except KeyError:
             raise HTTPException(404, "configuration plugin is not loaded") from None
@@ -904,7 +947,8 @@ def create_app(
             item = config.read(path)
             try:
                 document = config.parse(path)
-                diagnosis = diagnose_config(document, plugins)
+                diagnosis = ConfigDiagnosis(kind="generic", valid=True, runnable=False)
+                run_diagnosis = diagnose_config(document, plugins)
             except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
                 document = None
                 diagnosis = ConfigDiagnosis(
@@ -913,6 +957,7 @@ def create_app(
                     runnable=False,
                     errors=[f"syntax or import error: {error}"],
                 )
+                run_diagnosis = diagnosis
             plugin_name = document.get("plugin") if isinstance(document, dict) else None
             return {
                 **item.__dict__,
@@ -920,6 +965,7 @@ def create_app(
                 "plugin": plugin_name,
                 "plugin_loaded": plugin_name in plugins.plugins if plugin_name else False,
                 "diagnosis": diagnosis.model_dump(),
+                "run_diagnosis": run_diagnosis.model_dump(),
             }
         except (ValueError, FileNotFoundError) as exc:
             raise HTTPException(404, str(exc)) from None
@@ -937,6 +983,24 @@ def create_app(
             raise HTTPException(412, {"current_version": str(exc)}) from None
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
+
+    @app.post("/api/v1/config/files/{path:path}/diagnosis")
+    async def config_syntax_diagnosis(
+        path: str,
+        payload: ConfigWrite,
+        _actor: str = Depends(require_submitter),
+    ):
+        try:
+            config.parse(path, payload.content)
+            diagnosis = ConfigDiagnosis(kind="generic", valid=True, runnable=False)
+        except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
+            diagnosis = ConfigDiagnosis(
+                kind="generic",
+                valid=False,
+                runnable=False,
+                errors=[f"syntax or import error: {error}"],
+            )
+        return {"diagnosis": diagnosis.model_dump()}
 
     @app.post("/api/v1/config/files/{path:path}/move")
     async def config_move(
@@ -1052,7 +1116,7 @@ def create_app(
             document = config.parse(path)
             diagnosis = diagnose_config(document, plugins)
             if not diagnosis.runnable:
-                raise ValueError("; ".join(diagnosis.errors) or "configuration is not runnable")
+                return {"items": [], "errors": diagnosis.errors}
             items = await plugins.inspect_config(
                 document,
                 payload.inputs,
@@ -1064,7 +1128,7 @@ def create_app(
             raise HTTPException(504, "plugin inspection timed out") from None
         except (TypeError, ValueError, FileNotFoundError, OSError, yaml.YAMLError) as exc:
             raise HTTPException(422, f"plugin inspection failed: {exc}") from None
-        return {"items": items}
+        return {"items": items, "errors": []}
 
     @app.websocket("/api/v1/tasks/{task_id}/terminal")
     async def terminal(websocket: WebSocket, task_id: str):
@@ -1076,13 +1140,21 @@ def create_app(
             await websocket.close(code=4403)
             return
         await websocket.accept()
-        offset = 0
+        try:
+            offset = max(0, int(websocket.query_params.get("offset", "0")))
+            end_value = websocket.query_params.get("end")
+            end_offset = max(offset, int(end_value)) if end_value is not None else None
+        except ValueError:
+            await websocket.close(code=4400)
+            return
         awaiting_ack = False
+        caught_up = False
         try:
             while True:
                 data = b""
-                if not awaiting_ack:
-                    data, offset = tasks.read_log(task_id, offset, 65536)
+                if not awaiting_ack and (end_offset is None or offset < end_offset):
+                    limit = 65536 if end_offset is None else min(65536, end_offset - offset)
+                    data, offset = tasks.read_log(task_id, offset, limit)
                 if data:
                     await websocket.send_json(
                         {
@@ -1092,6 +1164,9 @@ def create_app(
                         }
                     )
                     awaiting_ack = True
+                elif not caught_up:
+                    await websocket.send_json({"type": "caught_up", "offset": offset})
+                    caught_up = True
                 try:
                     message = await asyncio.wait_for(websocket.receive_json(), 0.1)
                     message_type = message.get("type")

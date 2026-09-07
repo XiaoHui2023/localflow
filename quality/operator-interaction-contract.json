@@ -1,0 +1,34 @@
+{
+  "files": [
+    {
+      "path": "../frontend/src/App.jsx",
+      "required": [
+        "label=\"终端输出\"",
+        "className=\"case-step increase\"",
+        "setTimeout\\(repeat, 550\\)",
+        "api\\.searchLog",
+        "message\\.type === \"caught_up\"",
+        "onMove=\\{onMove\\}"
+      ],
+      "forbidden": [
+        "onWheel",
+        "addEventListener\\(\"wheel\"",
+        "term\\.writeln",
+        "只读回放已连接"
+      ]
+    },
+    {
+      "path": "../src/localflow/workspace_repository.py",
+      "required": ["parts\\[0\\] != \"config\""],
+      "forbidden": ["for scope in \\(\"config\", \"plugins\"\\)", "breaks configuration imports"]
+    },
+    {
+      "path": "../src/localflow/api.py",
+      "required": ["/logs/search", "\"type\": \"caught_up\"", "run_diagnosis"]
+    },
+    {
+      "path": "../plugins/verification.py",
+      "required": ["compile_logs", "run_logs", "working_directory / path"]
+    }
+  ]
+}

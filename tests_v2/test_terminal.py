@@ -4,6 +4,7 @@ import asyncio
 import base64
 import sys
 import time
+import tracemalloc
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,36 @@ from localflow.models import TaskCreate
 from localflow.service import TaskService
 from localflow.settings import ExecutionSettings, ServerSettings, Settings
 from localflow.storage import Store
+
+
+def test_log_search_crosses_blocks_with_bounded_memory(root: Path) -> None:
+    root.mkdir()
+    store = Store(root / "runtime" / "localflow.db")
+    service = TaskService(root, store, SubprocessExecutor(), max_concurrency=1)
+    task = service.submit(
+        TaskCreate(name="large-log", working_directory=str(root), command=["true"])
+    )
+    log = root / "logs" / task.id / "output.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    block = 1024 * 1024
+    with log.open("wb") as stream:
+        stream.write(b"x" * (block - 5))
+        stream.write(b"BOUNDARY-MATCH\n")
+        payload = b"ordinary terminal output\n" * 4096
+        for _ in range(256):
+            stream.write(payload)
+        stream.write(b"final unique needle\n")
+
+    tracemalloc.start()
+    boundary = service.search_log(task.id, "BOUNDARY-MATCH")
+    final = service.search_log(task.id, "final unique needle")
+    _, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+
+    assert boundary["items"][0]["offset"] == block - 5
+    assert final["items"][0]["line"] == 256 * 4096 + 2
+    assert peak < 32 * 1024 * 1024
+    store.close()
 
 
 @pytest.mark.asyncio
@@ -129,3 +160,22 @@ def test_terminal_http_api_controls_and_fresh_offset_log(root: Path) -> None:
             f"/api/v1/tasks/{task_id}/logs?offset=0&limit=65536"
         ).json()
         assert b"ready" in base64.b64decode(history["data"])
+        searched = client.get(
+            f"/api/v1/tasks/{task_id}/logs/search",
+            params={"query": "CONTROL-3", "case_sensitive": "false"},
+        )
+        assert searched.status_code == 200
+        assert any("control-3" in item["preview"] for item in searched.json()["items"])
+        with client.websocket_connect(
+            f"ws://127.0.0.1/api/v1/tasks/{task_id}/terminal?offset=0&end={history['next_offset']}",
+            headers={"Origin": "http://127.0.0.1"},
+        ) as websocket:
+            received = b""
+            while True:
+                message = websocket.receive_json()
+                if message["type"] == "caught_up":
+                    break
+                assert message["type"] == "output"
+                received += base64.b64decode(message["data"])
+                websocket.send_json({"type": "ack", "offset": message["offset"]})
+            assert received == base64.b64decode(history["data"])

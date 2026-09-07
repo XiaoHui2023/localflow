@@ -243,6 +243,9 @@ async function runAcceptance(page) {
       .locator(".task-item.open .copy-value")
       .filter({ hasText: task.log_path }),
   ).toBeVisible();
+  await expect(
+    page.locator(".task-item.open").getByText("终端输出", { exact: true }),
+  ).toBeVisible();
 }
 
 async function openRunPanel(page) {
@@ -693,6 +696,8 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(page.getByLabel("终端搜索")).toBeFocused();
   await page.getByLabel("终端搜索").fill("qa-terminal-ready");
   await expect(page.locator(".terminal-find output")).toContainText(/\d+\/\d+/);
+  await page.getByRole("button", { name: "检索全部日志" }).click();
+  await expect(page.locator(".terminal-search-results")).toContainText("qa-terminal-ready");
   await page.getByRole("button", { name: "区分大小写" }).click();
   await expect(page.getByRole("button", { name: "区分大小写" })).toHaveAttribute(
     "aria-pressed",
@@ -772,34 +777,32 @@ test("plugin configuration console remains concise and operable in Edge", async 
     terminal_ack_frames: terminalAcks,
   };
   assertResourceBudget(resourceMetrics);
-  await expect(
-    page.locator('[data-file="config/shared/qa-defaults.yaml"]'),
-  ).toHaveAttribute("data-config-state", "fragment");
+  await expect(page.locator('[data-file="folder:config"]')).toHaveCount(0);
+  await expect(page.locator('[data-file="folder:plugins"]')).toHaveCount(0);
+  await expect(page.locator('[data-file^="plugins/"]')).toHaveCount(0);
   await expect(
     page.locator('[data-file="config/command/hello-world.yaml"]'),
-  ).toHaveAttribute("data-config-state", "task");
+  ).toHaveAttribute("data-config-state", "file");
   await expect(
-    page.locator('[data-file="config/shared/qa-defaults.yaml"]'),
-  ).toHaveAttribute("aria-label", /共享片段/);
-  await expect(
-    page.locator('[data-file="config/command/qa-invalid.yaml"]'),
-  ).toHaveAttribute("data-config-state", "invalid");
-  await expect(
-    page.locator('[data-file="config/command/qa-invalid.yaml"]'),
-  ).toHaveAttribute("aria-label", /配置有误/);
-  const filenameColors = await page
-    .locator(
-      '[data-file="config/shared/qa-defaults.yaml"]>span:last-child, [data-file="config/command/hello-world.yaml"]>span:last-child, [data-file="config/command/qa-invalid.yaml"]>span:last-child',
-    )
-    .evaluateAll((items) => items.map((item) => getComputedStyle(item).color));
-  expect(new Set(filenameColors).size).toBe(1);
+    page.locator('[data-file="config/command/hello-world.yaml"]'),
+  ).toHaveAttribute("aria-label", /配置文件/);
+  await page.locator('[data-file="folder:config/command"]').click();
   await page.getByRole("button", { name: "新建文件" }).click();
   await page.getByLabel("名称").fill("qa-command");
-  await page.getByRole("dialog").locator("select").selectOption("command");
+  await expect(page.getByRole("dialog").locator("select")).toHaveCount(0);
   await page.getByRole("button", { name: "创建" }).click();
   await expect(
     page.locator('[data-file="config/command/qa-command.yaml"]'),
   ).toBeVisible();
+  expect(fs.readFileSync(path.join(qaRoot, "config", "command", "qa-command.yaml"), "utf8")).toBe("");
+  const blankEditor = page.locator(".monaco-editor").first();
+  await blankEditor.locator(".view-lines").click({ position: { x: 24, y: 12 } });
+  await page.keyboard.insertText("broken: *missing");
+  await expect(blankEditor.locator(".view-lines")).toContainText("broken: *missing");
+  await expect(page.locator(".config-diagnosis")).toBeVisible();
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("已保存");
+  expect(fs.readFileSync(path.join(qaRoot, "config", "command", "qa-command.yaml"), "utf8")).toContain("broken: *missing");
   await page.getByRole("button", { name: "重命名" }).click();
   const rename = page.locator(".tree-node input");
   await expect(rename).toBeVisible();
@@ -815,74 +818,12 @@ test("plugin configuration console remains concise and operable in Edge", async 
     .getByRole("button", { name: "删除" })
     .click();
   await expect(page.getByText("qa-renamed", { exact: true })).toHaveCount(0);
-  await page.locator('[data-file="folder:plugins"]').click();
-  await page.getByRole("button", { name: "新建目录" }).click();
-  await page.getByLabel("名称").fill("qa-tools");
-  await page.getByRole("button", { name: "创建" }).click();
-  expect(
-    fs.statSync(path.join(qaRoot, "plugins", "qa-tools")).isDirectory(),
-  ).toBeTruthy();
-  await expect(
-    page.locator('[data-file="plugins/command.py"]'),
-  ).toHaveAttribute("data-config-state", "plugin");
-  await expect(
-    page.locator('[data-file="plugins/command.py"]'),
-  ).toHaveAttribute("aria-label", /插件文件/);
-  await expect(
-    page.locator('[data-file="folder:plugins/__pycache__"]'),
-  ).toHaveCount(0);
-  await page.locator('[data-file="folder:plugins"]').click();
-  await page.getByRole("button", { name: "新建目录" }).click();
-  await page.getByLabel("名称").fill("qa-dest");
-  await page.getByRole("button", { name: "创建" }).click();
-  await page.locator('[data-file="folder:plugins/qa-tools"]').click();
-  await page.getByRole("button", { name: "新建文件" }).click();
-  await page.getByLabel("名称").fill("qa-agent");
-  await page.getByRole("button", { name: "创建" }).click();
-  await page.waitForTimeout(1200);
-  const pluginEditor = page.locator(".monaco-editor").first();
-  await pluginEditor.click({ position: { x: 80, y: 60 } });
-  await page.keyboard.insertText("VALUE = 1");
-  await expect(pluginEditor.locator(".view-lines")).toContainText("VALUE = 1");
-  await page.getByRole("button", { name: "保存", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("已保存");
-  expect(
-    fs.readFileSync(
-      path.join(qaRoot, "plugins", "qa-tools", "qa-agent.py"),
-      "utf8",
-    ),
-  ).toContain("VALUE = 1");
-  await page.getByRole("button", { name: "复制", exact: true }).click();
-  await page.locator('[data-file="folder:plugins"]').click();
-  await page.getByRole("button", { name: "粘贴", exact: true }).click();
-  await expect(page.locator('[data-file="plugins/qa-agent.py"]')).toBeVisible();
-  await page.locator('[data-file="plugins/qa-agent.py"]').click();
-  await page.locator(".config-explorer").press("ControlOrMeta+x");
-  await page.locator('[data-file="folder:plugins/qa-dest"]').click();
-  await page.locator(".config-explorer").press("ControlOrMeta+v");
-  await expect(
-    page.locator('[data-file="plugins/qa-dest/qa-agent.py"]'),
-  ).toBeVisible();
-  await expect(page.locator('[data-file="plugins/qa-agent.py"]')).toHaveCount(
-    0,
-  );
-  fs.writeFileSync(
-    path.join(qaRoot, "plugins", "qa-dest", "qa-agent.py"),
-    "VALUE = 2\n",
-    "utf8",
-  );
-  await page.locator('[data-file="plugins/qa-dest/qa-agent.py"]').click();
-  await expect(page.getByRole("status")).toContainText("已同步外部修改", {
-    timeout: 5_000,
-  });
-  await expect(page.locator(".monaco-editor .view-lines")).toContainText(
-    "VALUE = 2",
-  );
   await page.locator('[data-file="config/command/qa-invalid.yaml"]').click();
+  await expect(page.locator(".config-diagnosis")).toHaveCount(0);
+  await page.getByRole("button", { name: "运行", exact: true }).click();
   await expect(page.locator(".config-diagnosis")).toContainText("labels");
-  await expect(
-    page.getByRole("button", { name: "运行", exact: true }),
-  ).toHaveCount(0);
+  await expect(page.locator("button.run-action")).toBeDisabled();
+  await page.getByRole("button", { name: "编辑", exact: true }).click();
   await page.locator('[data-file="config/shared/qa-defaults.yaml"]').click();
   await expect(
     page.getByRole("button", { name: "运行", exact: true }),
@@ -895,15 +836,19 @@ test("plugin configuration console remains concise and operable in Edge", async 
     "命令",
     "Case 目录",
     "命令入口",
+    "编译日志",
+    "运行日志",
+    "标签",
   ]);
   await expect(page.locator(".inspection-item.severity-error")).toHaveCount(0);
   await expect(page.getByLabel("搜索 Case")).toHaveCount(0);
-  await expect(page.locator(".case-count")).toHaveCount(0);
+  await expect(page.locator(".case-count output")).toHaveText(["0", "0", "0"]);
+  await expect(page.locator(".case-step.decrease")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "运行", exact: true }),
   ).toBeDisabled();
   await expect(page.getByLabel("随机种子")).toHaveValue("");
-  await expect(page.getByText(/\.ya?ml|\.json|\.toml/i)).toHaveCount(0);
+  await expect(page.locator(".workbench-context").getByText("demo.yaml", { exact: true })).toBeVisible();
   const caseListBox = await page.locator(".case-list").boundingBox();
   const caseBoxes = await page.locator(".case-item").evaluateAll((nodes) =>
     nodes.map((node) => {
@@ -931,7 +876,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
     .first()
     .evaluate((node) => getComputedStyle(node).borderColor);
   expect(focusedCaseBorder).not.toBe(idleCaseBorder);
-  await expect(page.locator(".case-count")).toHaveCount(0);
+  await expect(page.locator(".case-count output").first()).toHaveText("0");
   const caseTransitions = await page
     .locator(".case-item")
     .first()
@@ -951,33 +896,42 @@ test("plugin configuration console remains concise and operable in Edge", async 
   const caseA = page.locator('[data-case="case-a"]');
   await caseA.hover();
   await page.mouse.wheel(0, -100);
-  await expect(caseA.locator(".case-count")).toHaveText("×1");
+  await expect(caseA.locator(".case-count output")).toHaveText("0");
   await page.mouse.wheel(0, 100);
-  await expect(caseA.locator(".case-count")).toHaveCount(0);
-  await page.getByRole("button", { name: "case-b，未运行" }).click();
-  await page.getByRole("button", { name: "case-b，1 次" }).click();
-  await expect(page.locator('[data-case="case-b"] .case-count')).toHaveText(
-    "×2",
+  await expect(caseA.locator(".case-count output")).toHaveText("0");
+  const caseB = page.locator('[data-case="case-b"]');
+  const increaseB = caseB.getByRole("button", { name: "增加 case-b 次数" });
+  await increaseB.click();
+  await expect(caseB.locator(".case-count output")).toHaveText("1");
+  await expect(caseB.getByRole("button", { name: "减少 case-b 次数" })).toBeVisible();
+  const increaseBBox = await increaseB.boundingBox();
+  await page.mouse.move(
+    increaseBBox.x + increaseBBox.width / 2,
+    increaseBBox.y + increaseBBox.height / 2,
   );
+  await page.mouse.down();
+  await page.waitForTimeout(780);
+  await page.mouse.up();
+  const heldCount = Number(await caseB.locator(".case-count output").textContent());
+  expect(heldCount).toBeGreaterThanOrEqual(3);
+  expect(heldCount).toBeLessThanOrEqual(6);
   const persistentRunToggle = page.getByRole("button", { name: "配置" });
   await persistentRunToggle.click();
   await expect(page.locator("#run-panel")).toBeHidden();
   await expect(persistentRunToggle).toHaveAttribute("aria-expanded", "false");
   await persistentRunToggle.click();
   await expect(persistentRunToggle).toHaveAttribute("aria-expanded", "true");
-  await expect(page.locator('[data-case="case-b"] .case-count')).toHaveText("×2");
+  await expect(page.locator('[data-case="case-b"] .case-count output')).toHaveText(String(heldCount));
   await page.getByRole("tab", { name: "设置" }).click();
   await openRunPanel(page);
   await expect(
     page.locator('[data-file="config/verification/demo.yaml"]'),
   ).toHaveClass(/selected/);
-  await expect(page.locator('[data-case="case-b"] .case-count')).toHaveText(
-    "×2",
-  );
-  await page.locator('[data-case="case-b"] .case-count').click();
-  await page.getByLabel("case-b 运行次数").fill("0");
-  await page.getByLabel("case-b 运行次数").press("Enter");
-  await expect(page.locator(".case-count")).toHaveCount(0);
+  await expect(page.locator('[data-case="case-b"] .case-count output')).toHaveText(String(heldCount));
+  for (let index = 0; index < heldCount; index += 1)
+    await page.getByRole("button", { name: "减少 case-b 次数" }).click();
+  await expect(page.locator(".case-count output")).toHaveText(["0", "0", "0"]);
+  await expect(page.locator(".case-step.decrease")).toHaveCount(0);
   const caseGrid = await page.locator(".case-list").boundingBox();
   await page.mouse.move(caseGrid.x + 4, caseGrid.y + 4);
   await page.mouse.down();
@@ -988,19 +942,13 @@ test("plugin configuration console remains concise and operable in Edge", async 
   );
   await page.mouse.up();
   await expect(page.locator('.case-main[aria-pressed="true"]')).toHaveCount(3);
-  await expect(page.locator(".case-count")).toHaveCount(0);
-  await page.locator('[data-case="case-b"]').hover();
-  await page.mouse.wheel(0, -100);
-  await expect(page.locator(".case-count")).toHaveText(["×1", "×1", "×1"]);
-  await page.getByRole("button", { name: "case-b，1 次，已框选" }).click();
-  await expect(page.locator(".case-count")).toHaveText(["×2", "×2", "×2"]);
-  await page.locator('[data-case="case-b"] .case-count').click();
-  const groupCount = page.getByRole("spinbutton", {
-    name: "设置所选 3 个 Case 运行次数",
-  });
-  await groupCount.fill("4");
-  await groupCount.press("Enter");
-  await expect(page.locator(".case-count")).toHaveText(["×4", "×4", "×4"]);
+  await expect(page.locator(".case-count output")).toHaveText(["0", "0", "0"]);
+  const groupIncrease = page.getByRole("button", { name: "增加所选 3 个 Case 次数" }).first();
+  await groupIncrease.click();
+  await groupIncrease.click();
+  await groupIncrease.click();
+  await groupIncrease.click();
+  await expect(page.locator(".case-count output")).toHaveText(["4", "4", "4"]);
   await page.screenshot({
     path: path.join(evidence, "admin-run-verification-scope-dark.png"),
     fullPage: true,
@@ -1027,11 +975,9 @@ test("plugin configuration console remains concise and operable in Edge", async 
   expect(runBox.width).toBeGreaterThan(runBox.height);
   await page.locator('[data-file="config/generic-picker/demo.yaml"]').click();
   await expect(page.locator("#run-panel").getByText("case-a", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "case-a，未运行" }).click();
-  await page.getByRole("button", { name: "case-a，1 次" }).click();
-  await expect(page.locator('[data-case="case-a"] .case-count')).toHaveText(
-    "×2",
-  );
+  await page.getByRole("button", { name: "增加 case-a 次数" }).click();
+  await page.getByRole("button", { name: "增加 case-a 次数" }).click();
+  await expect(page.locator('[data-case="case-a"] .case-count output')).toHaveText("2");
   const genericRunResponse = page.waitForResponse(
     (response) =>
       response
@@ -1043,6 +989,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   expect((await genericRunResponse).json()).resolves.toMatchObject({
     count: 2,
   });
+  await expect(page.locator(".case-count output")).toHaveText(["0", "0"]);
   await page.locator('[data-file="config/command/hello-world.yaml"]').click();
   await expect(page.getByRole("button", { name: "编辑" })).toBeVisible();
   const headerBeforeNotice = await page
@@ -1237,9 +1184,12 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "run-fields-only",
           "plugin-case-field-mapping",
           "case-empty-default",
-          "case-hover-wheel",
-          "case-click-increment",
-          "case-count-progressive-editor",
+          "case-wheel-noop",
+          "case-explicit-stepper",
+          "case-delayed-press-repeat",
+          "config-root-only",
+          "config-free-save-inline-syntax",
+          "terminal-bounded-archive-search",
           "case-marquee-scope-only",
           "case-group-relative-edit",
           "case-group-fixed-edit",

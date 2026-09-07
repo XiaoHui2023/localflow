@@ -30,6 +30,7 @@ import {
   Link,
   ListChecks,
   Moon,
+  Minus,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
@@ -157,6 +158,7 @@ function useUiRevision() {
 }
 
 function TaskTerminal({ task, interactive, theme }) {
+  const windowBytes = 4 * 1024 * 1024;
   const host = useRef();
   const finder = useRef();
   const terminal = useRef();
@@ -172,6 +174,33 @@ function TaskTerminal({ task, interactive, theme }) {
     resultCount: 0,
     invalid: false,
   });
+  const [rangeStart, setRangeStart] = useState(0);
+  const [hydrated, setHydrated] = useState(false);
+  const [archiveResults, setArchiveResults] = useState([]);
+  const [archiveTruncated, setArchiveTruncated] = useState(false);
+  const [archiveSearching, setArchiveSearching] = useState(false);
+  const [archiveSearchError, setArchiveSearchError] = useState("");
+  useEffect(() => {
+    setRangeStart(Math.max(0, Number(task.log_size || 0) - windowBytes));
+    setArchiveResults([]);
+    setArchiveSearchError("");
+  }, [task.id]);
+  const searchArchive = async () => {
+    if (!query) return;
+    setArchiveSearching(true);
+    setArchiveSearchError("");
+    try {
+      const result = await api.searchLog(task.id, query, searchOptions);
+      setArchiveResults(result.items);
+      setArchiveTruncated(result.truncated);
+    } catch (error) {
+      setArchiveResults([]);
+      setArchiveTruncated(false);
+      setArchiveSearchError(error.message || "检索失败");
+    } finally {
+      setArchiveSearching(false);
+    }
+  };
   const search = (direction = "next", incremental = false, options = searchOptions) => {
     if (!query || !finder.current) return;
     const summary = countTerminalMatches(terminal.current, query, options);
@@ -213,6 +242,7 @@ function TaskTerminal({ task, interactive, theme }) {
   }, [query, searching]);
   useEffect(() => {
     const element = host.current;
+    setHydrated(false);
     const dark = theme === "dark";
     const term = new Terminal({
       convertEol: true,
@@ -260,8 +290,11 @@ function TaskTerminal({ task, interactive, theme }) {
     element.dataset.rows = String(term.rows);
     element.dataset.columns = String(term.cols);
     const protocol = location.protocol === "https:" ? "wss" : "ws";
+    const end = interactive
+      ? ""
+      : `&end=${Math.min(Number(task.log_size || 0), rangeStart + windowBytes)}`;
     const socket = new WebSocket(
-      `${protocol}://${location.host}/api/v1/tasks/${task.id}/terminal`,
+      `${protocol}://${location.host}/api/v1/tasks/${task.id}/terminal?offset=${rangeStart}${end}`,
     );
     socket.onopen = () => {
       element.dataset.connection = "open";
@@ -278,13 +311,11 @@ function TaskTerminal({ task, interactive, theme }) {
               JSON.stringify({ type: "ack", offset: message.offset }),
             );
         });
-      } else if (message.type === "error")
-        term.writeln(`\r\n[${message.message}]`);
+      } else if (message.type === "caught_up") setHydrated(true);
     };
     socket.onclose = () => {
       if (element.isConnected) {
         element.dataset.connection = "closed";
-        term.writeln("\r\n[连接关闭]");
       }
     };
     term.onData((data) => {
@@ -313,7 +344,8 @@ function TaskTerminal({ task, interactive, theme }) {
       terminal.current = undefined;
       term.dispose();
     };
-  }, [task.id, interactive, theme]);
+  }, [task.id, interactive, theme, rangeStart]);
+  const rangeEnd = Math.min(Number(task.log_size || 0), rangeStart + windowBytes);
   return (
     <div className="terminal-shell">
       <div className="terminal-tools">
@@ -383,6 +415,30 @@ function TaskTerminal({ task, interactive, theme }) {
             >
               <X />
             </button>
+            <button
+              className="terminal-archive-search"
+              disabled={!query || archiveSearching}
+              onClick={searchArchive}
+            >
+              {archiveSearching ? "检索中" : "检索全部日志"}
+            </button>
+          </div>
+        )}
+        {!interactive && Number(task.log_size || 0) > windowBytes && (
+          <div className="terminal-range" aria-label="日志分段">
+            <button
+              disabled={rangeStart === 0}
+              onClick={() => setRangeStart(Math.max(0, rangeStart - windowBytes))}
+            >
+              上一段
+            </button>
+            <span>{rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} 字节</span>
+            <button
+              disabled={rangeEnd >= Number(task.log_size || 0)}
+              onClick={() => setRangeStart(rangeEnd)}
+            >
+              下一段
+            </button>
           </div>
         )}
         <Hint label="跳到终端开头">
@@ -412,7 +468,23 @@ function TaskTerminal({ task, interactive, theme }) {
           <Search />
         </button>
       </div>
-      <div className="terminal" ref={host} />
+      {archiveResults.length > 0 && (
+        <div className="terminal-search-results" role="listbox" aria-label="全部日志匹配">
+          {archiveResults.map((item) => (
+            <button
+              key={`${item.offset}-${item.line}`}
+              onClick={() => setRangeStart(Math.max(0, item.offset - 65536))}
+            >
+              <b>第 {item.line} 行</b><span>{item.preview}</span>
+            </button>
+          ))}
+          {archiveTruncated && <small>仅显示前 200 个匹配</small>}
+        </div>
+      )}
+      {archiveSearchError && (
+        <div className="terminal-search-error" role="alert">{archiveSearchError}</div>
+      )}
+      <div className={`terminal ${hydrated ? "hydrated" : "hydrating"}`} ref={host} />
     </div>
   );
 }
@@ -495,7 +567,7 @@ function TaskDetail({ task, role, interrupt }) {
           <CopyValue label="命令" value={task.command.join(" ")} />
         )}
         <CopyValue label="工作目录" value={task.working_directory} />
-        <CopyValue label="输出" value={task.log_path} />
+        <CopyValue label="终端输出" value={task.log_path} />
         {custom.map(([key, value]) => (
           <CopyValue
             label={key === "seed" ? "随机种子" : key}
@@ -755,23 +827,6 @@ function TerminalPage({ tasks, role, theme }) {
   );
 }
 
-function configState(diagnosis) {
-  if (!diagnosis || diagnosis.valid === false) return "invalid";
-  if (diagnosis.kind === "task") return "task";
-  if (diagnosis.kind === "fragment") return "fragment";
-  return "generic";
-}
-
-const configStateLabels = {
-  generic: "普通参数",
-  fragment: "共享片段",
-  task: "可运行配置",
-  invalid: "配置有误",
-};
-const configExtension = (name) =>
-  name.match(/\.(?:ya?ml|json|toml)$/i)?.[0] || "";
-const visibleConfigName = (name) =>
-  name.slice(0, name.length - configExtension(name).length);
 const workspaceExtension = (name) =>
   name.match(/\.(?:ya?ml|json|toml|py|md)$/i)?.[0] || "";
 
@@ -806,34 +861,16 @@ function buildTree(entries, diagnostics) {
 }
 
 function TreeNode({ node, style, dragHandle }) {
-  const state = node.isInternal
-    ? "folder"
-    : node.data.path.startsWith("plugins/")
-      ? "plugin"
-      : configState(node.data.diagnosis);
+  const state = node.isInternal ? "folder" : "file";
   const Icon = node.data.symlink
     ? Link
     : node.isInternal
       ? node.isOpen
         ? FolderOpen
         : Folder
-      : state === "plugin"
-        ? FileCode2
-        : state === "task"
-          ? FileCheck2
-          : state === "fragment"
-            ? Files
-            : state === "invalid"
-              ? TriangleAlert
-              : File;
-  const label = node.isInternal
-    ? "文件夹"
-    : state === "plugin"
-      ? "插件文件"
-      : configStateLabels[state];
-  const displayName = node.isInternal
-    ? node.data.name
-    : visibleConfigName(node.data.name);
+      : File;
+  const label = node.isInternal ? "文件夹" : "配置文件";
+  const displayName = node.data.name;
   const submit = (value) => {
     const clean = value.trim();
     const extension = node.isInternal ? "" : workspaceExtension(node.data.name);
@@ -890,25 +927,24 @@ function TreeNode({ node, style, dragHandle }) {
 function CasePicker({ field, filePath, values, discoverValues, setValues }) {
   const [options, setOptions] = useState([]);
   const [error, setError] = useState("");
-  const [editing, setEditing] = useState();
   const [scope, setScope] = useState([]);
   const [drag, setDrag] = useState();
   const dragRef = useRef();
-  const wheelRef = useRef({ amount: 0, direction: 0 });
-  const wheelAction = useRef();
+  const repeatRef = useRef();
   const grid = useRef();
-  const suppressClick = useRef(false);
   const countField = field.count_field;
   const defaultCountField = field.default_count_field;
   const included = new Set(values[field.name] || []);
   const runs = values[countField] || {};
   const defaultRuns = (defaultCountField && values[defaultCountField]) || 1;
   const scoped = new Set(scope);
+  const discoveryInputKey = JSON.stringify(discoverValues);
   useEffect(() => {
+    const discoveryInputs = JSON.parse(discoveryInputKey);
     const timer = setTimeout(
       () =>
         api
-          .discoverConfig(filePath, discoverValues)
+          .discoverConfig(filePath, discoveryInputs)
           .then((result) => {
             setOptions(result.items);
             setError("");
@@ -917,7 +953,7 @@ function CasePicker({ field, filePath, values, discoverValues, setValues }) {
       250,
     );
     return () => clearTimeout(timer);
-  }, [filePath, discoverValues]);
+  }, [filePath, discoveryInputKey]);
   useEffect(() => {
     const clear = (event) => {
       if (grid.current && !grid.current.contains(event.target)) setScope([]);
@@ -952,15 +988,7 @@ function CasePicker({ field, filePath, values, discoverValues, setValues }) {
       };
     });
   const targets = (name) => (scoped.has(name) ? scope : [name]);
-  const increment = (event, name) => {
-    if (
-      suppressClick.current?.name === name &&
-      performance.now() <= suppressClick.current.until
-    ) {
-      suppressClick.current = undefined;
-      return;
-    }
-    suppressClick.current = undefined;
+  const select = (event, name) => {
     if (event.ctrlKey || event.metaKey) {
       setScope((current) =>
         current.includes(name)
@@ -969,45 +997,32 @@ function CasePicker({ field, filePath, values, discoverValues, setValues }) {
       );
       return;
     }
-    if (scope.length && !scoped.has(name)) setScope([]);
-    changeCounts(targets(name), (old) => old + 1);
-  };
-  const adjustWithWheel = (event, name) => {
-    if (editing) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const unit = event.deltaMode === 1 ? 40 : event.deltaMode === 2 ? 100 : 1;
-    const delta = event.deltaY * unit;
-    const direction = Math.sign(delta);
-    if (!direction) return;
-    if (wheelRef.current.direction && wheelRef.current.direction !== direction)
-      wheelRef.current.amount = 0;
-    wheelRef.current.direction = direction;
-    wheelRef.current.amount += Math.abs(delta);
-    const steps = Math.floor(wheelRef.current.amount / 80);
-    if (!steps) return;
-    wheelRef.current.amount %= 80;
-    changeCounts(
-      targets(name),
-      (old) => old + (direction < 0 ? steps : -steps),
+    setScope((current) =>
+      current.length === 1 && current[0] === name ? [] : [name],
     );
   };
-  wheelAction.current = adjustWithWheel;
   useEffect(() => {
-    const root = grid.current;
-    const handle = (event) => {
-      const item = event.target.closest(".case-item");
-      if (item && root.contains(item))
-        wheelAction.current(event, item.dataset.case);
-    };
-    root.addEventListener("wheel", handle, { passive: false });
-    return () => root.removeEventListener("wheel", handle);
+    return () => clearTimeout(repeatRef.current?.timer);
   }, []);
-  const beginEdit = (name) => setEditing({ name, value: String(count(name)) });
-  const finishEdit = (commit) => {
-    if (!editing) return;
-    if (commit) changeCounts(targets(editing.name), () => editing.value);
-    setEditing(undefined);
+  const stopRepeat = () => {
+    clearTimeout(repeatRef.current?.timer);
+    repeatRef.current = undefined;
+  };
+  const step = (name, delta) =>
+    changeCounts(targets(name), (old) => old + delta);
+  const beginRepeat = (event, name, delta) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    step(name, delta);
+    const started = performance.now();
+    const repeat = () => {
+      step(name, delta);
+      const held = performance.now() - started;
+      const delay = held > 2400 ? 65 : held > 1400 ? 105 : 170;
+      repeatRef.current = { timer: setTimeout(repeat, delay) };
+    };
+    repeatRef.current = { timer: setTimeout(repeat, 550) };
   };
   const startMarquee = (event, kind) => {
     if (event.button !== 0 || event.target.closest(".case-count")) return;
@@ -1053,9 +1068,6 @@ function CasePicker({ field, filePath, values, discoverValues, setValues }) {
       update(pointer);
       const current = dragRef.current;
       if (current && current.width + current.height > 8) {
-        suppressClick.current = origin.startedCase
-          ? { name: origin.startedCase, until: performance.now() + 300 }
-          : undefined;
         const currentBox = root.getBoundingClientRect();
         const selection = {
           left: currentBox.left + current.left,
@@ -1120,47 +1132,39 @@ function CasePicker({ field, filePath, values, discoverValues, setValues }) {
                 className="case-main"
                 aria-pressed={isScoped}
                 aria-label={`${name}${amount ? `，${amount} 次` : "，未运行"}${isScoped ? "，已框选" : ""}`}
-                onClick={(event) => increment(event, name)}
+                onClick={(event) => select(event, name)}
               >
                 <span>{name}</span>
               </button>
-              {amount > 0 &&
-                (editing?.name === name ? (
-                  <input
-                    className="case-count"
-                    data-count-editor
-                    aria-label={
-                      groupSize > 1
-                        ? `设置所选 ${groupSize} 个 Case 运行次数`
-                        : `${name} 运行次数`
-                    }
-                    autoFocus
-                    type="number"
-                    min="0"
-                    value={editing.value}
-                    onChange={(event) =>
-                      setEditing({ ...editing, value: event.target.value })
-                    }
-                    onBlur={() => finishEdit(true)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") finishEdit(true);
-                      if (event.key === "Escape") finishEdit(false);
-                    }}
-                  />
-                ) : (
+              <div className="case-count" role="group" aria-label={`${name} 运行次数`}>
+                {amount > 0 && (
                   <button
                     type="button"
-                    className="case-count"
-                    aria-label={
-                      groupSize > 1
-                        ? `设置所选 ${groupSize} 个 Case 运行次数`
-                        : `修改 ${name} 运行次数`
-                    }
-                    onClick={() => beginEdit(name)}
+                    className="case-step decrease"
+                    aria-label={groupSize > 1 ? `减少所选 ${groupSize} 个 Case 次数` : `减少 ${name} 次数`}
+                    onPointerDown={(event) => beginRepeat(event, name, -1)}
+                    onPointerUp={stopRepeat}
+                    onPointerCancel={stopRepeat}
+                    onLostPointerCapture={stopRepeat}
+                    onClick={(event) => event.detail === 0 && step(name, -1)}
                   >
-                    ×{amount}
+                    <Minus />
                   </button>
-                ))}
+                )}
+                <output aria-live="polite">{amount}</output>
+                <button
+                  type="button"
+                  className="case-step increase"
+                  aria-label={groupSize > 1 ? `增加所选 ${groupSize} 个 Case 次数` : `增加 ${name} 次数`}
+                  onPointerDown={(event) => beginRepeat(event, name, 1)}
+                  onPointerUp={stopRepeat}
+                  onPointerCancel={stopRepeat}
+                  onLostPointerCapture={stopRepeat}
+                  onClick={(event) => event.detail === 0 && step(name, 1)}
+                >
+                  <Plus />
+                </button>
+              </div>
             </div>
           );
         })}
@@ -1192,6 +1196,16 @@ function pluginInputs(plugin, values) {
       .filter((name) => Object.prototype.hasOwnProperty.call(values, name))
       .map((name) => [name, values[name]]),
   );
+}
+
+function withoutCaseSelections(plugin, values) {
+  const next = { ...(values || {}) };
+  for (const field of plugin?.fields || []) {
+    if (field.type !== "case-picker") continue;
+    next[field.name] = [];
+    if (field.count_field) next[field.count_field] = {};
+  }
+  return next;
 }
 
 function pathLeaf(value) {
@@ -1271,7 +1285,7 @@ function RunFields({
           .then((result) => {
             if (active) {
               setInspection(result.items);
-              setInspectionError("");
+              setInspectionError((result.errors || []).join("；"));
             }
           })
           .catch((error) => {
@@ -1363,8 +1377,10 @@ function Config({ theme }) {
   const contentRef = useRef("");
   const baseContentRef = useRef("");
   const localVersionsRef = useRef(new Map());
+  const pluginsRef = useRef([]);
   const [files, setFiles] = useState([]);
   const [diagnostics, setDiagnostics] = useState({});
+  const [editorDiagnosis, setEditorDiagnosis] = useState();
   const [plugins, setPlugins] = useState([]);
   const [file, setFile] = useState();
   const [selectedPath, setSelectedPath] = useState();
@@ -1378,7 +1394,6 @@ function Config({ theme }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [createKind, setCreateKind] = useState("file");
   const [createPath, setCreatePath] = useState("");
-  const [createPlugin, setCreatePlugin] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [treeOpen, setTreeOpen] = useState(false);
   const [treeSize, setTreeSize] = useState({ width: 260, height: 600 });
@@ -1399,10 +1414,14 @@ function Config({ theme }) {
     setSelectedPath(path);
     setFile(value);
     setContent(value.content);
-    setValues(remembered?.values || value.document || {});
+    const plugin = pluginsRef.current.find((item) => item.name === value.plugin);
+    setValues(
+      remembered?.values || withoutCaseSelections(plugin, value.document || {}),
+    );
+    setEditorDiagnosis(value.diagnosis);
     setMode(
       path.startsWith("config/")
-        ? remembered?.mode || (value.diagnosis?.runnable ? "use" : "edit")
+        ? remembered?.mode || (value.run_diagnosis?.runnable ? "use" : "edit")
         : "edit",
     );
     setRunStatus("idle");
@@ -1414,8 +1433,8 @@ function Config({ theme }) {
     Promise.all([
       reload(),
       api.plugins().then((result) => {
+        pluginsRef.current = result.items;
         setPlugins(result.items);
-        setCreatePlugin(result.items[0]?.name || "");
       }),
     ])
       .then(([items]) => {
@@ -1449,6 +1468,18 @@ function Config({ theme }) {
   useEffect(() => {
     contentRef.current = content;
   }, [content]);
+  useEffect(() => {
+    if (!file?.path?.startsWith("config/")) return;
+    const timer = setTimeout(() => {
+      api
+        .diagnoseConfig(file.path.replace(/^config\//, ""), content)
+        .then((result) => setEditorDiagnosis(result.diagnosis))
+        .catch((error) =>
+          setEditorDiagnosis({ valid: false, errors: [error.message] }),
+        );
+    }, 220);
+    return () => clearTimeout(timer);
+  }, [file?.path, content]);
   useEffect(() => {
     if (!notice.startsWith("已")) return;
     const timer = setTimeout(
@@ -1506,22 +1537,14 @@ function Config({ theme }) {
           filePathRef.current = undefined;
         }
       });
-    const pluginChanged = (event) => {
-      const data = JSON.parse(event.data);
-      return Promise.all([
-        reload(),
-        api.plugins().then((result) => setPlugins(result.items)),
-      ]).then(([items]) => {
+    const pluginChanged = () => {
+      return api.plugins().then((result) => {
+        pluginsRef.current = result.items;
+        setPlugins(result.items);
         const current = filePathRef.current;
-        const relative = current?.replace(/^plugins\//, "");
-        if (
-          !current?.startsWith("plugins/") ||
-          !data.paths?.includes(relative) ||
-          !items.some((item) => item.path === current)
-        )
-          return undefined;
+        if (!current?.startsWith("config/")) return undefined;
         if (contentRef.current !== baseContentRef.current) {
-          setNotice("文件已在外部变化，请先保存或重新打开");
+          setNotice("插件已更新；保存或重新打开后刷新运行检查");
           return undefined;
         }
         return open(current).then(() => setNotice("已同步外部修改"));
@@ -1538,13 +1561,15 @@ function Config({ theme }) {
     return () => events.close();
   }, [reload, open]);
   const selectedPlugin = plugins.find((item) => item.name === file?.plugin);
-  const runDisabled = selectedPlugin?.fields.some(
-    (field) =>
-      field.required &&
-      (values[field.name] == null ||
-        values[field.name] === "" ||
-        (Array.isArray(values[field.name]) && values[field.name].length === 0)),
-  );
+  const runDisabled =
+    !file?.run_diagnosis?.runnable ||
+    selectedPlugin?.fields.some(
+      (field) =>
+        field.required &&
+        (values[field.name] == null ||
+          values[field.name] === "" ||
+          (Array.isArray(values[field.name]) && values[field.name].length === 0)),
+    );
   const move = async (source, target) => {
     const movesOpenFile =
       filePathRef.current === source ||
@@ -1560,7 +1585,7 @@ function Config({ theme }) {
   };
   const rename = async ({ id, name }) => {
     const source = id.replace(/^folder:/, "");
-    if (["config", "plugins"].includes(source)) return;
+    if (source === "config") return;
     const parent = source.slice(0, source.lastIndexOf("/") + 1);
     await move(source, `${parent}${name}`);
   };
@@ -1575,7 +1600,7 @@ function Config({ theme }) {
     try {
       const saved = await api.saveWorkspaceFile(
         file.path,
-        content,
+        contentRef.current,
         file.version,
       );
       localVersionsRef.current.set(saved.path, saved.version);
@@ -1597,6 +1622,7 @@ function Config({ theme }) {
         pluginInputs(selectedPlugin, values),
       );
       setRunStatus("accepted");
+      setValues((current) => withoutCaseSelections(selectedPlugin, current));
       setNotice(`已加入 ${result.count} 个任务`);
     } catch (error) {
       setRunStatus("idle");
@@ -1620,11 +1646,9 @@ function Config({ theme }) {
         const named = /\.(?:ya?ml|json|toml)$/i.test(relative)
           ? relative
           : `${relative}.yaml`;
-        const saved = await api.createFile(named, createPlugin);
-        path = `config/${saved.path}`;
-      } else {
-        if (!/\.(?:py|md)$/i.test(path)) path += ".py";
-        await api.saveWorkspaceFile(path, "", "*");
+        const created = await api.saveWorkspaceFile(`config/${named}`, "", "*");
+        localVersionsRef.current.set(created.path, created.version);
+        path = `config/${named}`;
       }
       setCreateOpen(false);
       setCreatePath("");
@@ -1831,10 +1855,10 @@ function Config({ theme }) {
             <header className="workbench-header">
               <div className="workbench-context">
                 <FileCode2 />
-                <span>{visibleConfigName(pathLeaf(file.path))}</span>
+                <span>{pathLeaf(file.path)}</span>
               </div>
               <div className="workbench-actions" role="group" aria-label="配置操作">
-                  {mode === "edit" && file.diagnosis?.runnable && (
+                  {mode === "edit" && selectedPlugin && (
                     <button
                       className="secondary"
                       onClick={() => {
@@ -1842,7 +1866,8 @@ function Config({ theme }) {
                         setMode("use");
                       }}
                     >
-                      取消
+                      <Play />
+                      运行
                     </button>
                   )}
                   {mode === "use" && (
@@ -1880,11 +1905,11 @@ function Config({ theme }) {
                   )}
               </div>
             </header>
-            {file.diagnosis?.errors?.length > 0 && (
+            {editorDiagnosis?.errors?.length > 0 && (
               <div className="config-diagnosis" role="alert">
                 <b>配置有误</b>
                 <ul>
-                  {file.diagnosis.errors.map((item) => (
+                  {editorDiagnosis.errors.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
@@ -1892,6 +1917,16 @@ function Config({ theme }) {
             )}
             {mode === "use" ? (
               <div className="use-config">
+                {file.run_diagnosis?.errors?.length > 0 && (
+                  <div className="config-diagnosis" role="alert">
+                    <b>运行配置有误</b>
+                    <ul>
+                      {file.run_diagnosis.errors.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <RunFields
                   key={file.version}
                   plugin={selectedPlugin}
@@ -1931,7 +1966,11 @@ function Config({ theme }) {
                 language={editorLanguage}
                 theme={editorTheme}
                 value={content}
-                onChange={(value) => setContent(value || "")}
+                onChange={(value) => {
+                  const next = value || "";
+                  contentRef.current = next;
+                  setContent(next);
+                }}
                 options={{
                   minimap: { enabled: false },
                   automaticLayout: true,
@@ -1974,22 +2013,6 @@ function Config({ theme }) {
                 onChange={(event) => setCreatePath(event.target.value)}
               />
             </label>
-            {createKind === "file" &&
-              (selectedFolder || "config").startsWith("config") && (
-                <label>
-                  <span>插件</span>
-                  <select
-                    value={createPlugin}
-                    onChange={(event) => setCreatePlugin(event.target.value)}
-                  >
-                    {plugins.map((item) => (
-                      <option key={item.name} value={item.name}>
-                        {item.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
             <footer>
               <button
                 className="secondary"

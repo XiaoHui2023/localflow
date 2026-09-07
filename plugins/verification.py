@@ -198,6 +198,42 @@ class Verification:
                 "severity": severity,
                 "message": None if exists else "当前环境找不到命令入口",
             })
+        selected_case = next(iter(values.get("cases", [])), "${case}")
+        preview_values = {
+            "root": context["root"],
+            "scripts_dir": str(Path(context["root"]) / "scripts"),
+            "case": selected_case,
+            "seed": values.get("seed") or "${seed}",
+            "run": 1,
+        }
+        def preview(value):
+            result = str(value)
+            for key, replacement in preview_values.items():
+                result = result.replace("${" + key + "}", str(replacement))
+            return result
+        working = self._path(values["working_directory"], context).resolve()
+        for name, label in (("compile_logs", "编译日志"), ("run_logs", "运行日志")):
+            resolved = []
+            for raw in values.get(name, []):
+                path = Path(preview(raw))
+                resolved.append(str(path if path.is_absolute() else (working / path).resolve()))
+            items.append({
+                "name": name,
+                "label": label,
+                "value": "\n".join(resolved) if resolved else "未配置",
+                "kind": "path",
+                "severity": "info",
+                "message": "仅展示解析结果；运行前不检查文件是否存在",
+            })
+        labels = [preview(value) for value in values.get("labels", [])]
+        items.append({
+            "name": "labels",
+            "label": "标签",
+            "value": ", ".join(labels) if labels else "未配置",
+            "kind": "text",
+            "severity": "info",
+            "message": None,
+        })
         return items
 
     def evaluate_result(self, task, _context):
@@ -278,8 +314,14 @@ class Verification:
                             "_case": case_name,
                             "_run": index + 1,
                             **({} if automatic_seed else {"seed": seed}),
-                            "_compile_logs": dynamic.resolve(values.get("compile_logs", [])),
-                            "_run_logs": dynamic.resolve(values.get("run_logs", [])),
+                            "_compile_logs": [
+                                str(path if path.is_absolute() else (working_directory / path).resolve())
+                                for path in (Path(str(value)) for value in dynamic.resolve(values.get("compile_logs", [])))
+                            ],
+                            "_run_logs": [
+                                str(path if path.is_absolute() else (working_directory / path).resolve())
+                                for path in (Path(str(value)) for value in dynamic.resolve(values.get("run_logs", [])))
+                            ],
                         },
                         deferred_values={
                             "seed": DeferredValue(
