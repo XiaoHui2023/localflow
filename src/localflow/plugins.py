@@ -230,17 +230,19 @@ class PluginRegistry:
         required = {"plugin", *getattr(instance, "required_common_fields", set())}
         definitions = dict(common.get("$defs", {}))
         config_model = getattr(instance, "config_model", None)
+        additional_properties: bool | dict[str, Any] = True
         if config_model is not None:
             plugin_schema = config_model.model_json_schema()
             properties.update(plugin_schema.get("properties", {}))
             required.update(plugin_schema.get("required", []))
             definitions.update(plugin_schema.get("$defs", {}))
+            additional_properties = plugin_schema.get("additionalProperties", False)
         schema: dict[str, Any] = {
             "title": f"{name} configuration",
             "type": "object",
             "properties": properties,
             "required": sorted(required),
-            "additionalProperties": config_model is None,
+            "additionalProperties": additional_properties,
         }
         if definitions:
             schema["$defs"] = definitions

@@ -2,7 +2,7 @@
 
 ## Decision
 
-Use the existing semantic disclosure button, resource tree, Monaco editor, and task workspace. Name the control `配置`. On wide screens, place the disclosed configuration workbench on the left and the task status pane on the right; below the existing breakpoint, stack configuration before tasks. Put labeled `编辑` and `运行` actions immediately after the selected file name in one contextual action group.
+Use the existing semantic disclosure button, resource tree, Monaco editor, and task workspace. Name the control `配置`. Default a fresh browser session to expanded; preserve an explicit user collapse for that session. On wide screens, place the disclosed configuration workbench on the left and the task status pane on the right; below the existing breakpoint, stack configuration before tasks. Put labeled `编辑` and `运行` actions immediately after the selected file name in one contextual action group. Disable Save when editor text exactly equals the loaded base version; syntax or plugin validity never controls Save.
 
 The terminal buffer contains only task log/process bytes. Connection, live/read-only state, and replay state belong to the terminal page header and accessibility status, never `xterm.write` or `xterm.writeln`.
 
@@ -21,9 +21,10 @@ WAI-ARIA disclosure supplies the interaction contract (`button`, `aria-expanded`
 
 - At 1440 px, `run-panel.right <= task-pane.left`, their top edges align, and document overflow is zero.
 - At 760 px, configuration ends before tasks begin; at 390 px, explorer ends before editor begins and overflow is zero.
-- The disclosure has the exact visible name `配置`, retains one DOM location, and reports state through `aria-expanded`/`aria-controls`.
+- The disclosure has the exact visible name `配置`, starts expanded when no preference exists, retains one DOM location, and reports state through `aria-expanded`/`aria-controls`.
 - The selected file name and contextual action group are adjacent; `编辑` and `运行` are both visible labels and require no menu/navigation step.
 - Closing/reopening and leaving/returning to Tasks preserves file, mode, and unfinished inputs.
+- Save is disabled before an edit and immediately after a successful save, but enabled for any byte-changing edit even when diagnosis fails.
 - Live and terminal-state xterm text contains the task bytes and contains no application-authored connection/replay sentences.
 
 Fault mutants restore right-side grid order, the long label, icon-only run, remote `space-between` actions, or synthetic `term.writeln` status. Each must make the browser gate fail.

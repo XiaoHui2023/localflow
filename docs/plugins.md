@@ -59,7 +59,7 @@ api_inputs = {
 - `config_model`：只描述插件专属字段的 Pydantic 模型；建议 `extra="forbid"`，使拼错字段立即出现在配置诊断中。
 - `input_model`：只描述本次运行输入的 Pydantic 模型；字段必须对应 `run_fields` 及其次数辅助字段。
 
-公共字段由核心统一校验，不要在 `config_model` 中重复声明。已有的第三方插件若未提供 `config_model` 仍可装载，但配置页只能完成公共字段与插件存在性诊断，并会显示能力降级警告；新增插件应提供模型，才能形成完整 API schema。
+公共字段由核心统一校验，不要在 `config_model` 中重复声明。已有的第三方插件若未提供 `config_model` 仍可装载，但配置页只能完成公共字段与插件存在性诊断，并会显示能力降级警告；新增插件应提供模型，才能形成完整 API schema。模型的 `extra` 策略是插件运行合同：字段集合封闭时使用 `forbid`，需要保留站点、仿真器或命令插值自定义值时使用 `allow`；宿主生成的 JSON Schema 必须沿用该策略，不能一律写成 `additionalProperties: false`。内置验证插件采用 `allow`，因此 `root`、`extra_inputs` 等额外配置会原样进入解析值，而网页本次运行请求仍只允许 `run_fields`。
 
 ## 字段与候选项发现
 

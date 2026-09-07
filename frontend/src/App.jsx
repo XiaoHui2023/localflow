@@ -1877,7 +1877,11 @@ function Config({ theme }) {
                     </button>
                   )}
                   {mode === "edit" ? (
-                    <button className="primary" onClick={save}>
+                    <button
+                      className="primary"
+                      disabled={!file || content === baseContentRef.current}
+                      onClick={save}
+                    >
                       保存
                     </button>
                   ) : (
@@ -2271,7 +2275,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [theme, setTheme] = useTheme();
   const [runOpen, setRunOpen] = useState(
-    () => sessionStorage.getItem("localflow-run-panel") === "open",
+    () => sessionStorage.getItem("localflow-run-panel") !== "closed",
   );
   const refresh = useCallback(async () => {
     try {

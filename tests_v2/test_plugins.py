@@ -59,7 +59,7 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     schema = verification["api"]["configuration_schema"]
     assert {"plugin", "command", "case_directory"}.issubset(schema["properties"])
     assert {"plugin", "working_directory", "command"}.issubset(schema["required"])
-    assert schema["additionalProperties"] is False
+    assert schema["additionalProperties"] is True
     assert {
         "variables",
         "labels",

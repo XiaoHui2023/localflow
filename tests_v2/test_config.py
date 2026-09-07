@@ -97,6 +97,18 @@ def test_config_imports_and_layered_diagnosis(root: Path) -> None:
     assert not any("${case}" in item or "${seed}" in item for item in invalid.errors)
     assert not invalid.valid and any("case_directory" in item for item in invalid.errors)
     assert any("working_directory" in item for item in invalid.errors)
+    extensible = diagnose_config(
+        {
+            "plugin": "verification",
+            "case_directory": "cases",
+            "working_directory": ".",
+            "command": "true",
+            "root": "site-owned-simulation-root",
+            "extra_inputs": {"wave": "dump.fsdb"},
+        },
+        plugins,
+    )
+    assert extensible.runnable, extensible.errors
 
 
 def test_config_api_exposes_only_runnable_configuration_tree(admin: TestClient, root: Path) -> None:

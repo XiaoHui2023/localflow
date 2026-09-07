@@ -37,7 +37,9 @@ def evaluate_vcs_text(text: str) -> tuple[str, int]:
 
 
 class VerificationConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    # Verification configurations often carry simulator-specific values that
+    # are consumed by command interpolation or a site-local plugin extension.
+    model_config = ConfigDict(extra="allow")
 
     case_directory: str | None = None
     case_root: str | None = None

@@ -52,6 +52,8 @@ BROWSER_ASSERTIONS = {
     "case-delayed-press-repeat",
     "config-root-only",
     "config-free-save-inline-syntax",
+    "config-default-expanded",
+    "config-dirty-save",
     "terminal-bounded-archive-search",
     "case-marquee-scope-only",
     "case-group-relative-edit",

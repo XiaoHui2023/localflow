@@ -352,7 +352,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(page.getByText("暂无任务", { exact: true })).toBeVisible();
   const runPanelToggle = page.getByRole("button", { name: "配置" });
   await expect(runPanelToggle)
-    .toHaveAttribute("aria-expanded", "false");
+    .toHaveAttribute("aria-expanded", "true");
   await expect(runPanelToggle)
     .toHaveAttribute("aria-controls", "run-panel");
   await expect(runPanelToggle).toHaveText("配置");
@@ -795,13 +795,17 @@ test("plugin configuration console remains concise and operable in Edge", async 
     page.locator('[data-file="config/command/qa-command.yaml"]'),
   ).toBeVisible();
   expect(fs.readFileSync(path.join(qaRoot, "config", "command", "qa-command.yaml"), "utf8")).toBe("");
+  const saveButton = page.getByRole("button", { name: "保存", exact: true });
+  await expect(saveButton).toBeDisabled();
   const blankEditor = page.locator(".monaco-editor").first();
   await blankEditor.locator(".view-lines").click({ position: { x: 24, y: 12 } });
   await page.keyboard.insertText("broken: *missing");
   await expect(blankEditor.locator(".view-lines")).toContainText("broken: *missing");
   await expect(page.locator(".config-diagnosis")).toBeVisible();
-  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(saveButton).toBeEnabled();
+  await saveButton.click();
   await expect(page.getByRole("status")).toContainText("已保存");
+  await expect(saveButton).toBeDisabled();
   expect(fs.readFileSync(path.join(qaRoot, "config", "command", "qa-command.yaml"), "utf8")).toContain("broken: *missing");
   await page.getByRole("button", { name: "重命名" }).click();
   const rename = page.locator(".tree-node input");
@@ -1189,6 +1193,8 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "case-delayed-press-repeat",
           "config-root-only",
           "config-free-save-inline-syntax",
+          "config-default-expanded",
+          "config-dirty-save",
           "terminal-bounded-archive-search",
           "case-marquee-scope-only",
           "case-group-relative-edit",

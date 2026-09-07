@@ -8,7 +8,9 @@
         "setTimeout\\(repeat, 550\\)",
         "api\\.searchLog",
         "message\\.type === \"caught_up\"",
-        "onMove=\\{onMove\\}"
+        "onMove=\\{onMove\\}",
+        "sessionStorage\\.getItem\\(\"localflow-run-panel\"\\) !== \"closed\"",
+        "disabled=\\{!file \\|\\| content === baseContentRef\\.current\\}"
       ],
       "forbidden": [
         "onWheel",
@@ -28,7 +30,7 @@
     },
     {
       "path": "../plugins/verification.py",
-      "required": ["compile_logs", "run_logs", "working_directory / path"]
+      "required": ["ConfigDict\\(extra=\"allow\"\\)", "compile_logs", "run_logs", "working_directory / path"]
     }
   ]
 }

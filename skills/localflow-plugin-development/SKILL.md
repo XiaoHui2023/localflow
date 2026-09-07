@@ -10,7 +10,7 @@ Read `../../docs/plugins.md` and `../../plugins/README.md`. Start from the close
 ## Contract
 
 - Register one plugin with the provided decorator.
-- Declare a strict configuration model, a strict input model matching the finite `run_fields` schema, status definitions, and one API example that expands successfully.
+- Declare a configuration model, a strict input model matching the finite `run_fields` schema, status definitions, and one API example that expands successfully. Use `extra="forbid"` only for a genuinely closed configuration vocabulary; use `extra="allow"` when site/simulator fields or command-interpolation values are an intentional extension surface. The host schema must preserve that declared extra policy.
 - Discovery returns data; it does not render components. The host owns controls, accessibility, layout, and responsive behavior.
 - Optional `inspect(values, context)` returns read-only values and diagnostics; the host owns the compact component and tooltip. Keep inspection bounded, side-effect free and valid for both web and API callers.
 - Keep editor syntax/import diagnosis separate from plugin diagnosis. Saving an ordinary configuration file never requires the plugin schema to pass. The plugin run surface owns resolved-value review and runnable errors.
