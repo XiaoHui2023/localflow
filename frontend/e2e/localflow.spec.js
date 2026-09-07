@@ -151,11 +151,17 @@ async function runAcceptance(page) {
     await page.getByRole("button", { name: "登录", exact: true }).click();
   }
   await openRunPanel(page);
-  await page.locator('[data-file="config/verification/demo.yaml"]').click();
+  const verificationConfig = page.locator(
+    '[data-file="config/verification/demo.yaml"]',
+  );
   const inspectionTrigger = page
     .locator(".inspection-item")
     .filter({ hasText: "Case 目录" })
     .locator(".inspection-state");
+  await expect(async () => {
+    await verificationConfig.click();
+    await expect(inspectionTrigger).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 15_000 });
   await assertTooltipInteraction(page, inspectionTrigger, "已发现 3 个 Case");
   const helloConfig = page.locator(
     '[data-file="config/command/hello-world.yaml"]',

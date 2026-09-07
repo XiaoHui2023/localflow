@@ -31,6 +31,10 @@
     {
       "path": "../plugins/verification.py",
       "required": ["ConfigDict\\(extra=\"allow\"\\)", "compile_logs", "run_logs", "working_directory / path"]
+    },
+    {
+      "path": "../frontend/e2e/legacy-browser.mjs",
+      "required": ["getAttribute\\(\"aria-expanded\"\\)\\) !== \"true\"", "configToggle\\.click\\(\\)"]
     }
   ]
 }

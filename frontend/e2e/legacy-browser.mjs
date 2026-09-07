@@ -43,7 +43,14 @@ try {
   await driver.wait(async () => (await driver.findElements(By.css("[role='alertdialog']"))).length === 0, 10_000);
   step = "open configuration";
   await driver.findElement(By.xpath("//*[@role='tab' and normalize-space()='任务']")).click();
-  await driver.findElement(By.xpath("//button[normalize-space()='配置']")).click();
+  const configToggle = await driver.findElement(By.xpath("//button[normalize-space()='配置']"));
+  if ((await configToggle.getAttribute("aria-expanded")) !== "true") {
+    await configToggle.click();
+    await driver.wait(
+      async () => (await configToggle.getAttribute("aria-expanded")) === "true",
+      10_000,
+    );
+  }
   const config = await driver.wait(until.elementLocated(By.css("[data-file='config/command/hello-world.yaml']")), 20_000);
   await config.click();
   await driver.findElement(By.xpath("//button[normalize-space()='编辑']")).click();
