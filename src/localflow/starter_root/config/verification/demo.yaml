@@ -7,3 +7,6 @@ command: >-
 labels: [verification]
 compile_logs: ["artifacts/${case}.compile.log"]
 run_logs: ["artifacts/${case}.run.log"]
+custom_texts:
+  - "Case: ${case}"
+  - "Seed: ${seed}"

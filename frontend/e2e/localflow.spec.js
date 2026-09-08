@@ -731,6 +731,10 @@ test("plugin configuration console remains concise and operable in Edge", async 
   );
   expect(simulationTask.name).toBe("case-a");
   expect(Number.isInteger(simulationTask.custom.seed)).toBeTruthy();
+  expect(simulationTask.custom["自定义文本"]).toEqual([
+    "Case: case-a",
+    `Seed: ${simulationTask.custom.seed}`,
+  ]);
   await page.locator("#nav-tasks").click();
   const simulationRow = page
     .locator(".task-row")
@@ -746,6 +750,17 @@ test("plugin configuration console remains concise and operable in Edge", async 
       exact: true,
     }),
   ).toBeVisible();
+  const taskCustomTexts = simulationDetail
+    .locator(".copy-field")
+    .filter({ has: page.getByText("自定义文本", { exact: true }) });
+  await expect(taskCustomTexts).toHaveCount(2);
+  const caseCustomText = taskCustomTexts
+    .locator(".copy-value")
+    .filter({ hasText: "Case: case-a" });
+  await caseCustomText.click();
+  expect(await page.evaluate(() => window.__localflowCopiedText)).toBe(
+    "Case: case-a",
+  );
   await simulationRow.click();
 
   await openRunPanel(page);
@@ -851,6 +866,15 @@ test("plugin configuration console remains concise and operable in Edge", async 
     "标签",
   ]);
   await expect(page.locator(".inspection-item.severity-error")).toHaveCount(0);
+  const previewCustomText = page
+    .locator(".inspection-item")
+    .filter({ hasText: "Case: ${case}" })
+    .locator(".copy-value");
+  await expect(previewCustomText).toBeVisible();
+  await previewCustomText.click();
+  expect(await page.evaluate(() => window.__localflowCopiedText)).toBe(
+    "Case: ${case}",
+  );
   await expect(page.getByLabel("搜索 Case")).toHaveCount(0);
   await expect(page.locator(".case-count output")).toHaveText(["0", "0", "0"]);
   await expect(page.locator(".case-step.decrease")).toHaveCount(0);

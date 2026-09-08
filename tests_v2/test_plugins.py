@@ -66,6 +66,7 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
         "mutex_keys",
         "compile_logs",
         "run_logs",
+        "custom_texts",
     }.issubset(schema["properties"])
     input_schema = verification["api"]["input_schema"]
     assert {"cases", "runs", "case_runs", "seed"}.issubset(input_schema["properties"])
@@ -96,6 +97,7 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
             "${seed}",
         ],
         "labels": ["nightly"],
+        "custom_texts": ["Case: ${case}", "Seed: ${seed}"],
         "variables": {"cases_dir": "${root}/cases", "scripts_dir": "${root}/scripts"},
     }
     items = await registry.discover_config(document, {}, {"root": str(root)})
@@ -109,6 +111,7 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     )[0]
     assert task.name == "case-a"
     assert task.custom["_case"] == "case-a"
+    assert task.custom["自定义文本"] == ["Case: case-a", "Seed: ${seed}"]
     assert "seed" not in task.custom
     assert task.deferred_values["seed"].source == "monotonic_unix"
     assert task.command.count("--case") == task.command.count("--seed") == 1
@@ -122,6 +125,7 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
             "case_directory": str(root / "cases"),
             "working_directory": str(root),
             "command": "make all CASE=${case} SEED=${seed}",
+            "custom_texts": ["case=${case}", "seed=${seed}", "run=${run}"],
         },
         {"cases": ["case-a"], "seed": 41},
         {"root": str(root)},
@@ -130,6 +134,11 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
         "/bin/sh",
         "-c",
         "make all CASE=case-a SEED=41",
+    ]
+    assert make_task.custom["自定义文本"] == [
+        "case=case-a",
+        "seed=41",
+        "run=1",
     ]
     composed = {
         "plugin": "verification",
@@ -199,13 +208,20 @@ def test_verification_result_uses_final_uvm_summary_and_existing_logs(root: Path
     compile_log.write_text("Error-[SYN] compile failed\n", encoding="utf-8")
     run_log = root / "run.log"
     task = SimpleNamespace(
-        custom={"_compile_logs": [str(compile_log)], "_run_logs": [str(run_log)]},
+        custom={
+            "_compile_logs": [str(compile_log)],
+            "_run_logs": [str(run_log)],
+            "自定义文本": ["build=nightly", "owner=verification"],
+        },
         exit_code=0,
     )
     missing_run = plugin.evaluate_result(task, {"root": str(root)})
     assert missing_run == {
         "status": "compile_error",
-        "custom": {"编译日志": [str(compile_log)]},
+        "custom": {
+            "自定义文本": ["build=nightly", "owner=verification"],
+            "编译日志": [str(compile_log)],
+        },
     }
     run_log.write_text(
         "UVM_ERROR old message\n"
@@ -216,7 +232,10 @@ def test_verification_result_uses_final_uvm_summary_and_existing_logs(root: Path
     result = plugin.evaluate_result(task, {"root": str(root)})
     assert result["status"] == "error"
     assert "label" not in result
-    assert result["custom"] == {"运行日志": [str(run_log)]}
+    assert result["custom"] == {
+        "自定义文本": ["build=nightly", "owner=verification"],
+        "运行日志": [str(run_log)],
+    }
 
 
 def test_run_field_contract_is_simple_and_rejects_invalid_metadata(root: Path) -> None:

@@ -136,6 +136,8 @@ def test_config_api_exposes_only_runnable_configuration_tree(admin: TestClient, 
     assert items["working_directory"]["severity"] == "ok"
     assert items["case_directory"]["severity"] == "ok"
     assert items["command_entry"]["severity"] in {"ok", "warning"}
+    assert items["custom_text_0"]["value"] == "Case: ${case}"
+    assert items["custom_text_1"]["value"] == "Seed: ${seed}"
 
     broken = root / "config" / "verification" / "broken-path.yaml"
     broken.write_text(

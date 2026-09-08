@@ -45,6 +45,7 @@ class VerificationConfig(BaseModel):
     case_root: str | None = None
     compile_logs: list[str] = Field(default_factory=list)
     run_logs: list[str] = Field(default_factory=list)
+    custom_texts: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def require_case_directory(self):
@@ -94,6 +95,7 @@ class Verification:
         "working_directory": ".",
         "command": "make all CASE=${case} SEED=${seed}",
         "mutex_keys": ["simulator:demo"],
+        "custom_texts": ["Case: ${case}", "Seed: ${seed}"],
     }
     api_inputs = {
         "cases": ["case-a"],
@@ -236,12 +238,23 @@ class Verification:
             "severity": "info",
             "message": None,
         })
+        for index, value in enumerate(values.get("custom_texts", [])):
+            items.append({
+                "name": f"custom_text_{index}",
+                "label": "自定义文本",
+                "value": preview(value),
+                "kind": "text",
+                "severity": "info",
+                "message": None,
+            })
         return items
 
     def evaluate_result(self, task, _context):
         compile_logs = [Path(value) for value in task.custom.get("_compile_logs", [])]
         run_logs = [Path(value) for value in task.custom.get("_run_logs", [])]
         runtime = {"seed": task.custom["seed"]} if "seed" in task.custom else {}
+        if task.custom.get("自定义文本"):
+            runtime["自定义文本"] = task.custom["自定义文本"]
         if not compile_logs and not run_logs:
             return "passed" if task.exit_code in {None, 0} else "crashed"
         existing_run = [path for path in run_logs if path.is_file()]
@@ -323,6 +336,10 @@ class Verification:
                             "_run_logs": [
                                 str(path if path.is_absolute() else (working_directory / path).resolve())
                                 for path in (Path(str(value)) for value in dynamic.resolve(values.get("run_logs", [])))
+                            ],
+                            "自定义文本": [
+                                str(value)
+                                for value in dynamic.resolve(values.get("custom_texts", []))
                             ],
                         },
                         deferred_values={

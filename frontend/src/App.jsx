@@ -568,13 +568,23 @@ function TaskDetail({ task, role, interrupt }) {
         )}
         <CopyValue label="工作目录" value={task.working_directory} />
         <CopyValue label="终端输出" value={task.log_path} />
-        {custom.map(([key, value]) => (
-          <CopyValue
-            label={key === "seed" ? "随机种子" : key}
-            value={value}
-            key={key}
-          />
-        ))}
+        {custom.flatMap(([key, value]) =>
+          key === "自定义文本" && Array.isArray(value)
+            ? value.map((line, index) => (
+                <CopyValue
+                  label="自定义文本"
+                  value={line}
+                  key={`${key}-${index}`}
+                />
+              ))
+            : [
+                <CopyValue
+                  label={key === "seed" ? "随机种子" : key}
+                  value={value}
+                  key={key}
+                />,
+              ],
+        )}
       </div>
       {role === "admin" && !finalStates.has(task.state) && (
         <Hint label={stopLabel}>
@@ -1230,7 +1240,7 @@ function InspectionItems({ items, error }) {
           key={item.name}
         >
           <span>{item.label || item.name}</span>
-          <code tabIndex="0">{item.value}</code>
+          <CopyValue value={item.value} />
           <Hint label={item.message}>
             <span
               className="inspection-state"

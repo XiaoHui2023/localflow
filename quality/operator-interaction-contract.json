@@ -10,7 +10,9 @@
         "message\\.type === \"caught_up\"",
         "onMove=\\{onMove\\}",
         "sessionStorage\\.getItem\\(\"localflow-run-panel\"\\) !== \"closed\"",
-        "disabled=\\{!file \\|\\| content === baseContentRef\\.current\\}"
+        "disabled=\\{!file \\|\\| content === baseContentRef\\.current\\}",
+        "key === \"自定义文本\" && Array\\.isArray\\(value\\)",
+        "<CopyValue value=\\{item\\.value\\} />"
       ],
       "forbidden": [
         "onWheel",
@@ -30,7 +32,7 @@
     },
     {
       "path": "../plugins/verification.py",
-      "required": ["ConfigDict\\(extra=\"allow\"\\)", "compile_logs", "run_logs", "working_directory / path"]
+      "required": ["ConfigDict\\(extra=\"allow\"\\)", "compile_logs", "run_logs", "custom_texts", "working_directory / path", "runtime\\[\"自定义文本\"\\]"]
     },
     {
       "path": "../frontend/e2e/legacy-browser.mjs",

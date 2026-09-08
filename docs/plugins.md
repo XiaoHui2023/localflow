@@ -41,7 +41,7 @@ class Example:
 
 ### AI Agent 组合验证配置
 
-AI Agent 应先读取 `GET /api/v1/plugins/verification`，复制 `api.example.configuration` 作为最小骨架，再分别按 `configuration_schema` 和 `input_schema` 生成两部分；不要猜字段名或另造一套模板。长期不变的 `command`、`case_directory`、`labels`、`mutex_keys`、`compile_logs`、`run_logs` 和变量放入配置，本次选择的 `cases`、逐 Case `case_runs` 与可选 `seed` 放入 `inputs`。提交前调用 `/runs/plan` 或已有配置的 `/plan`，检查任务数量、命令、目录、标签、互斥键和 `deferred_values`；预演不分配 seed、不创建任务。正式提交在一个事务中分配自动值、冻结快照并建立批次。
+AI Agent 应先读取 `GET /api/v1/plugins/verification`，复制 `api.example.configuration` 作为最小骨架，再分别按 `configuration_schema` 和 `input_schema` 生成两部分；不要猜字段名或另造一套模板。长期不变的 `command`、`case_directory`、`labels`、`mutex_keys`、`compile_logs`、`run_logs`、`custom_texts` 和变量放入配置，本次选择的 `cases`、逐 Case `case_runs` 与可选 `seed` 放入 `inputs`。提交前调用 `/runs/plan` 或已有配置的 `/plan`，检查任务数量、命令、目录、标签、互斥键和 `deferred_values`；预演不分配 seed、不创建任务。正式提交在一个事务中分配自动值、冻结快照并建立批次。
 
 ```python
 api_inputs = {
@@ -137,6 +137,8 @@ variables:
 `config/variables.yaml` 提供全局和项目变量，模板中的 `variables` 是模板层，网页 JSON 是本次运行层。优先级依次为本次运行、模板、项目、全局；未知引用、循环和结构值误嵌入文本都会拒绝。变量来源只用于内部诊断，不会混入任务的插件计算信息或网页详情。
 
 验证插件可配置多个 `compile_logs` 与 `run_logs`。运行前检查区像命令一样显示它们基于任务工作目录和当前 Case 展开后的绝对值，但不检查存在性，因为它们是未来输出。入队快照冻结同一绝对路径，结果判定不会退回控制器目录。没有运行日志时状态为“编译错误”且详情只列存在的编译日志；存在运行日志时只显示运行日志并按最终 UVM/VCS 证据判定。
+
+`custom_texts` 是供操作者核对和复制的字符串列表，不参与命令解释。每项可以引用变量，运行配置审查区先逐行显示预览，入队事务再把 Case、运行序号和最终 seed 一并冻结进任务快照。任务详情逐项提供独立复制目标；结果解析更新状态和日志字段时必须保留这些文本。
 
 ## 装载代次与错误边界
 

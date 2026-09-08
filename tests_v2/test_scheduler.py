@@ -285,6 +285,7 @@ async def test_verification_result_is_frozen_from_run_log(root: Path) -> None:
         "compile_logs": [str(compile_log)],
         "run_logs": [str(run_log)],
         "labels": ["nightly"],
+        "custom_texts": ["Case: ${case}", "Seed: ${seed}"],
     }
     draft = registry.expand_config(
         document, {"cases": ["case-a"], "seed": 1}, {"root": str(root)}
@@ -306,7 +307,11 @@ async def test_verification_result_is_frozen_from_run_log(root: Path) -> None:
     result = store.get_task(task.id)
     assert result.status.key == "error"
     assert result.status.label == "ERROR"
-    assert result.custom == {"seed": 1, "运行日志": [str(run_log)]}
+    assert result.custom == {
+        "seed": 1,
+        "自定义文本": ["Case: case-a", "Seed: 1"],
+        "运行日志": [str(run_log)],
+    }
     assert result.mutex_keys == ["tag:nightly"]
     await service.stop()
     store.close()
