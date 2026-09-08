@@ -235,8 +235,10 @@ class Store:
                     ).fetchone()
                     if existing is not None:
                         response = json.loads(existing[0])
-                        self._db.execute("ROLLBACK")
-                        records = [self.get_task(task_id) for task_id in response["task_ids"]]
+                        self._db.execute("COMMIT")
+                        records = [
+                            self._get_task_locked(task_id) for task_id in response["task_ids"]
+                        ]
                         return records, response
                 self._db.execute(
                     "INSERT INTO batches(id,template,values_json,created_at) VALUES(?,?,?,?)",
@@ -290,9 +292,10 @@ class Store:
                     )
                 self._db.execute("COMMIT")
             except BaseException:
-                self._db.execute("ROLLBACK")
+                if self._db.in_transaction:
+                    self._db.execute("ROLLBACK")
                 raise
-        return [self.get_task(task_id) for task_id, _ in tasks], None
+            return [self._get_task_locked(task_id) for task_id, _ in tasks], None
 
     def get_batch(self, batch_id: str) -> dict[str, Any]:
         batch = self._db.execute("SELECT * FROM batches WHERE id=?", (batch_id,)).fetchone()
@@ -310,6 +313,10 @@ class Store:
         }
 
     def get_task(self, task_id: str) -> TaskRecord:
+        with self._lock:
+            return self._get_task_locked(task_id)
+
+    def _get_task_locked(self, task_id: str) -> TaskRecord:
         row = self._db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
         if row is None:
             raise KeyError(task_id)

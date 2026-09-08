@@ -70,10 +70,14 @@ def test_concurrent_idempotent_batch_submission_creates_one_batch(root: Path) ->
             "demo", {}, drafts, ("agent", "/api/v1/runs", "same-key")
         )
 
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        first, second = list(pool.map(lambda _value: submit(), range(2)))
-    assert first[0] == second[0]
-    assert [record.id for record in first[1]] == [record.id for record in second[1]]
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(lambda _value: submit(), range(64)))
+    first = results[0]
+    assert all(result[0] == first[0] for result in results)
+    assert all(
+        [record.id for record in result[1]] == [record.id for record in first[1]]
+        for result in results
+    )
     assert len(store.list_tasks()) == 1
     store.close()
 
