@@ -508,7 +508,7 @@ async function writeClipboard(text) {
   input.remove();
   if (!copied) throw new Error("copy unavailable");
 }
-function CopyValue({ label, value }) {
+function CopyValue({ label, value, customText = false }) {
   const [copied, setCopied] = useState(false);
   const timer = useRef();
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -521,7 +521,7 @@ function CopyValue({ label, value }) {
     timer.current = setTimeout(() => setCopied(false), 1200);
   };
   return (
-    <div className="copy-field">
+    <div className="copy-field" data-custom-text={customText || undefined}>
       {label && <span className="copy-label">{label}</span>}
       <span className="copy-shell" data-copied={copied}>
         <Hint label={copied ? "已复制" : "点击复制"}>
@@ -529,7 +529,7 @@ function CopyValue({ label, value }) {
             className="copy-value"
             type="button"
             onClick={copy}
-            aria-label={`${label ? `${label}，` : ""}${copied ? "已复制" : "点击复制"}`}
+            aria-label={`${label ? `${label}，` : customText ? `${text}，` : ""}${copied ? "已复制" : "点击复制"}`}
           >
             <code>{text}</code>
           </button>
@@ -572,7 +572,7 @@ function TaskDetail({ task, role, interrupt }) {
           key === "自定义文本" && Array.isArray(value)
             ? value.map((line, index) => (
                 <CopyValue
-                  label="自定义文本"
+                  customText
                   value={line}
                   key={`${key}-${index}`}
                 />
@@ -1012,10 +1012,22 @@ function CasePicker({ field, filePath, values, discoverValues, setValues }) {
     );
   };
   useEffect(() => {
-    return () => clearTimeout(repeatRef.current?.timer);
+    const stop = () => stopRepeat();
+    window.addEventListener("pointerup", stop, true);
+    window.addEventListener("pointercancel", stop, true);
+    window.addEventListener("blur", stop);
+    return () => {
+      stopRepeat();
+      window.removeEventListener("pointerup", stop, true);
+      window.removeEventListener("pointercancel", stop, true);
+      window.removeEventListener("blur", stop);
+    };
   }, []);
   const stopRepeat = () => {
-    clearTimeout(repeatRef.current?.timer);
+    const active = repeatRef.current;
+    clearTimeout(active?.timer);
+    if (active?.target?.hasPointerCapture?.(active.pointerId))
+      active.target.releasePointerCapture(active.pointerId);
     repeatRef.current = undefined;
   };
   const step = (name, delta) =>
@@ -1023,16 +1035,24 @@ function CasePicker({ field, filePath, values, discoverValues, setValues }) {
   const beginRepeat = (event, name, delta) => {
     if (event.button !== 0) return;
     event.preventDefault();
-    event.currentTarget.setPointerCapture?.(event.pointerId);
+    stopRepeat();
+    const state = {
+      pointerId: event.pointerId,
+      target: event.currentTarget,
+      timer: undefined,
+    };
+    repeatRef.current = state;
+    state.target.setPointerCapture?.(state.pointerId);
     step(name, delta);
     const started = performance.now();
     const repeat = () => {
+      if (repeatRef.current !== state) return;
       step(name, delta);
       const held = performance.now() - started;
       const delay = held > 2400 ? 65 : held > 1400 ? 105 : 170;
-      repeatRef.current = { timer: setTimeout(repeat, delay) };
+      state.timer = setTimeout(repeat, delay);
     };
-    repeatRef.current = { timer: setTimeout(repeat, 550) };
+    state.timer = setTimeout(repeat, 550);
   };
   const startMarquee = (event, kind) => {
     if (event.button !== 0 || event.target.closest(".case-count")) return;
@@ -1234,13 +1254,16 @@ function InspectionItems({ items, error }) {
   if (!items.length) return null;
   return (
     <div className="inspection-grid">
-      {items.map((item) => (
+      {items.map((item) => {
+        const customText = item.name.startsWith("custom_text_");
+        return (
         <div
           className={`inspection-item severity-${item.severity}`}
           key={item.name}
+          data-custom-text={customText || undefined}
         >
-          <span>{item.label || item.name}</span>
-          <CopyValue value={item.value} />
+          {!customText && <span>{item.label || item.name}</span>}
+          <CopyValue value={item.value} customText={customText} />
           <Hint label={item.message}>
             <span
               className="inspection-state"
@@ -1256,7 +1279,8 @@ function InspectionItems({ items, error }) {
             </span>
           </Hint>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -1384,6 +1408,9 @@ function readConfigMemory() {
 function Config({ theme }) {
   const filePathRef = useRef();
   const inspectionControllerRef = useRef();
+  const diagnosisControllerRef = useRef();
+  const editorRef = useRef();
+  const monacoRef = useRef();
   const contentRef = useRef("");
   const baseContentRef = useRef("");
   const localVersionsRef = useRef(new Map());
@@ -1480,16 +1507,61 @@ function Config({ theme }) {
   }, [content]);
   useEffect(() => {
     if (!file?.path?.startsWith("config/")) return;
+    diagnosisControllerRef.current?.abort();
+    const controller = new AbortController();
+    diagnosisControllerRef.current = controller;
     const timer = setTimeout(() => {
       api
-        .diagnoseConfig(file.path.replace(/^config\//, ""), content)
-        .then((result) => setEditorDiagnosis(result.diagnosis))
+        .diagnoseConfig(
+          file.path.replace(/^config\//, ""),
+          content,
+          controller.signal,
+        )
+        .then((result) => {
+          if (!controller.signal.aborted) setEditorDiagnosis(result.diagnosis);
+        })
         .catch((error) =>
-          setEditorDiagnosis({ valid: false, errors: [error.message] }),
+          error.name === "AbortError"
+            ? undefined
+            : setEditorDiagnosis({ valid: false, errors: [error.message] }),
         );
     }, 220);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [file?.path, content]);
+  useEffect(() => {
+    const monaco = monacoRef.current;
+    const model = editorRef.current?.getModel();
+    if (!monaco || !model) return;
+    const issues = editorDiagnosis?.issues || [];
+    const fallback = issues.length
+      ? issues
+      : (editorDiagnosis?.errors || []).map((message) => ({
+          message,
+          line: 1,
+          column: 1,
+          end_line: 1,
+          end_column: 2,
+          severity: "error",
+        }));
+    monaco.editor.setModelMarkers(
+      model,
+      "localflow-yaml",
+      fallback.map((issue) => ({
+        message: issue.message,
+        severity:
+          issue.severity === "warning"
+            ? monaco.MarkerSeverity.Warning
+            : monaco.MarkerSeverity.Error,
+        startLineNumber: issue.line,
+        startColumn: issue.column,
+        endLineNumber: issue.end_line,
+        endColumn: issue.end_column,
+      })),
+    );
+  }, [editorDiagnosis, file?.path, mode]);
   useEffect(() => {
     if (!notice.startsWith("已")) return;
     const timer = setTimeout(
@@ -1919,16 +1991,6 @@ function Config({ theme }) {
                   )}
               </div>
             </header>
-            {editorDiagnosis?.errors?.length > 0 && (
-              <div className="config-diagnosis" role="alert">
-                <b>配置有误</b>
-                <ul>
-                  {editorDiagnosis.errors.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
             {mode === "use" ? (
               <div className="use-config">
                 {file.run_diagnosis?.errors?.length > 0 && (
@@ -1975,22 +2037,64 @@ function Config({ theme }) {
                 />
               </div>
             ) : (
-              <Editor
-                height="calc(100vh - 76px)"
-                language={editorLanguage}
-                theme={editorTheme}
-                value={content}
-                onChange={(value) => {
-                  const next = value || "";
-                  contentRef.current = next;
-                  setContent(next);
-                }}
-                options={{
-                  minimap: { enabled: false },
-                  automaticLayout: true,
-                  padding: { top: 16 },
-                }}
-              />
+              <div className="editor-stack">
+                <Editor
+                  height="100%"
+                  language={editorLanguage}
+                  theme={editorTheme}
+                  value={content}
+                  onMount={(editor, monaco) => {
+                    editorRef.current = editor;
+                    monacoRef.current = monaco;
+                    setEditorDiagnosis((current) => ({ ...current }));
+                  }}
+                  onChange={(value) => {
+                    const next = value || "";
+                    contentRef.current = next;
+                    setContent(next);
+                  }}
+                  options={{
+                    minimap: { enabled: false },
+                    automaticLayout: true,
+                    padding: { top: 16 },
+                  }}
+                />
+                {editorDiagnosis?.errors?.length > 0 && (
+                  <section className="problems-panel" aria-label="问题" role="region">
+                    <header>
+                      <b>问题</b>
+                      <span>{editorDiagnosis.errors.length}</span>
+                    </header>
+                    <ul>
+                      {(editorDiagnosis.issues?.length
+                        ? editorDiagnosis.issues
+                        : editorDiagnosis.errors.map((message) => ({
+                            message,
+                            line: 1,
+                            column: 1,
+                          }))).map((issue, index) => (
+                        <li key={`${issue.message}-${index}`}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              editorRef.current?.setPosition({
+                                lineNumber: issue.line,
+                                column: issue.column,
+                              });
+                              editorRef.current?.revealLineInCenter(issue.line);
+                              editorRef.current?.focus();
+                            }}
+                          >
+                            <TriangleAlert />
+                            <span>{issue.message}</span>
+                            <code>{issue.line}:{issue.column}</code>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+              </div>
             )}
           </>
         ) : (

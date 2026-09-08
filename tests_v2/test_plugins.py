@@ -98,7 +98,7 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
         ],
         "labels": ["nightly"],
         "custom_texts": ["Case: ${case}", "Seed: ${seed}"],
-        "variables": {"cases_dir": "${root}/cases", "scripts_dir": "${root}/scripts"},
+        "variables": {"cases_dir": "cases", "scripts_dir": "scripts"},
     }
     items = await registry.discover_config(document, {}, {"root": str(root)})
     assert items == ["case-a", "case-b", "smoke"]
@@ -125,7 +125,7 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
             "case_directory": str(root / "cases"),
             "working_directory": str(root),
             "command": "make all CASE=${case} SEED=${seed}",
-            "custom_texts": ["case=${case}", "seed=${seed}", "run=${run}"],
+            "custom_texts": ["case=${case}", "seed=${seed}"],
         },
         {"cases": ["case-a"], "seed": 41},
         {"root": str(root)},
@@ -138,7 +138,6 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     assert make_task.custom["自定义文本"] == [
         "case=case-a",
         "seed=41",
-        "run=1",
     ]
     composed = {
         "plugin": "verification",
@@ -181,6 +180,64 @@ def test_verification_command_uses_only_variables_explicitly_requested(
     assert task.working_directory == str(root.resolve())
     assert "--case" not in task.command
     assert "--seed" not in task.command
+
+
+def test_verification_resolves_yaml_root_variables_after_include(root: Path) -> None:
+    initialize_root(root)
+    included = root / "config" / "verification" / "included-values.yaml"
+    included.write_text(
+        "project:\n  command: make smoke\n  label: included\n",
+        encoding="utf-8",
+    )
+    source = root / "config" / "verification" / "included-command.yaml"
+    source.write_text(
+        "!include included-values.yaml\n"
+        "plugin: verification\n"
+        "case_directory: cases\n"
+        "working_directory: .\n"
+        "command: ${project.command}\n"
+        "labels: [\"${project.label}\"]\n",
+        encoding="utf-8",
+    )
+    from localflow.config_repository import ConfigRepository
+
+    document = ConfigRepository(root).parse("verification/included-command.yaml")
+    registry = PluginRegistry(root / "plugins")
+    registry.load()
+    task = registry.expand_config(
+        document,
+        {"cases": ["case-a"]},
+        {"root": str(root)},
+    )[0]
+
+    assert task.command == ["/bin/sh", "-c", "make smoke"]
+    assert task.labels == ["included"]
+
+
+def test_verification_only_exposes_case_and_seed_as_runtime_variables(root: Path) -> None:
+    initialize_root(root)
+    registry = PluginRegistry(root / "plugins")
+    registry.load()
+    base = {
+        "plugin": "verification",
+        "case_directory": str(root / "cases"),
+        "working_directory": ".",
+    }
+
+    for forbidden in ("root", "scripts_dir", "cases_dir", "run", "runs", "cases"):
+        with pytest.raises(ValueError, match=f"unknown variable: {forbidden}"):
+            registry.expand_config(
+                {**base, "command": f"echo ${{{forbidden}}}"},
+                {"cases": ["case-a"]},
+                {"root": str(root)},
+            )
+
+    task = registry.expand_config(
+        {**base, "command": "echo ${case} ${seed}"},
+        {"cases": ["case-a"], "seed": 41},
+        {"root": str(root)},
+    )[0]
+    assert task.command[-1] == "echo case-a 41"
 
 
 def test_verification_rejects_an_implicit_controller_working_directory(root: Path) -> None:

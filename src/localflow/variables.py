@@ -1,14 +1,66 @@
 from __future__ import annotations
 
 import re
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
+
+from configlib.resolver import resolve_variables as resolve_configlib_variables
+from configlib.yaml_compose import apply_composition
 
 REFERENCE = re.compile(r"\$\{([a-zA-Z_][a-zA-Z0-9_.-]*)\}")
 
 
 class VariableError(ValueError):
     pass
+
+
+def resolve_config_tree(
+    document: dict[str, Any],
+    deferred: set[str] | None = None,
+    external: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Resolve a merged configlib tree while preserving host-allocated values."""
+    source = deepcopy(document)
+    aliases = source.get("variables", {})
+    if aliases is not None and not isinstance(aliases, dict):
+        raise VariableError("variables must be an object")
+    # The legacy ``variables`` table intentionally aliases its keys at the
+    # document root, including when a target field has the same name.
+    augmented = {**(external or {}), **source, **(aliases or {})}
+    tokens = {
+        name: f"__LOCALFLOW_DEFERRED_{name.upper()}_7F4C2E__"
+        for name in (deferred or set())
+    }
+    augmented.update(tokens)
+    try:
+        resolved = apply_composition(resolve_configlib_variables(augmented))
+    except KeyError as error:
+        message = str(error).strip("'\"")
+        name = message.rsplit(": ", 1)[-1]
+        raise VariableError(f"unknown variable: {name}") from error
+    except ValueError as error:
+        raise VariableError(str(error)) from error
+
+    def restore(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {key: restore(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [restore(item) for item in value]
+        if not isinstance(value, str):
+            return value
+        for name, token in tokens.items():
+            value = value.replace(token, "${" + name + "}")
+        return value
+
+    restored = restore(resolved)
+    for name in tokens:
+        if name not in source:
+            restored.pop(name, None)
+    for name in set(external or {}) | set(aliases or {}):
+        if name not in source:
+            restored.pop(name, None)
+    return restored
 
 
 def _flatten(value: dict[str, Any], prefix: str = "") -> dict[str, Any]:

@@ -14,7 +14,7 @@ export const api = {
   runTemplate: (name, values) => request("/batches", { method: "POST", body: JSON.stringify({ template: name, values }) }), files: () => request("/config/files"), file: (path) => request(`/config/files/${configPath(path)}`),
   discoverTemplate: (name, values) => request(`/templates/${name}/discover`, { method: "POST", body: JSON.stringify(values) }),
   discoverConfig: (path, inputs) => request(`/config/files/${configPath(path)}/discover`, { method: "POST", body: JSON.stringify({ inputs }) }),
-  diagnoseConfig: (path, content) => request(`/config/files/${configPath(path)}/diagnosis`, { method: "POST", body: JSON.stringify({ content }) }),
+  diagnoseConfig: (path, content, signal) => request(`/config/files/${configPath(path)}/diagnosis`, { method: "POST", body: JSON.stringify({ content }), signal }),
   inspectConfig: (path, inputs, signal) => request(`/config/files/${configPath(path)}/inspection`, { method: "POST", body: JSON.stringify({ inputs }), signal }),
   saveFile: (path, content, version) => request(`/config/files/${configPath(path)}`, { method: "PUT", headers: { "If-Match": version }, body: JSON.stringify({ content }) }),
   createFile: (path, plugin) => request("/config/files", { method: "POST", body: JSON.stringify({ path, plugin }) }),

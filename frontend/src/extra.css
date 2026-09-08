@@ -97,3 +97,18 @@
 .terminal-search-results button:hover{background:var(--surface-subtle)}
 .terminal-search-results span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:12px ui-monospace,monospace}
 .terminal-search-error{position:absolute;z-index:4;top:48px;right:10px;max-width:min(680px,calc(100% - 20px));padding:7px 10px;border:1px solid var(--danger);border-radius:7px;background:var(--surface);color:var(--danger);font-size:12px}
+
+/* Monaco owns inline markers; this bounded Problems region mirrors VS Code's
+   editor-bottom diagnostics without moving the operator to another surface. */
+.editor-stack{height:calc(100vh - 58px);min-height:0;display:grid;grid-template-rows:minmax(220px,1fr) auto;overflow:hidden}
+.problems-panel{max-height:180px;overflow:auto;border-top:1px solid var(--border);background:var(--surface-subtle);font-size:12px}
+.problems-panel>header{position:sticky;top:0;z-index:1;height:34px;display:flex;align-items:center;gap:7px;padding:0 12px;border-bottom:1px solid var(--border);background:var(--surface-subtle)}
+.problems-panel>header span{min-width:20px;padding:1px 6px;border-radius:999px;background:var(--danger-bg);color:var(--danger);text-align:center;font-variant-numeric:tabular-nums}
+.problems-panel ul{margin:0;padding:0;list-style:none}
+.problems-panel button{width:100%;min-height:32px;display:grid;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;gap:7px;padding:5px 12px;border:0;border-bottom:1px solid var(--border);background:transparent;color:var(--text);text-align:left}
+.problems-panel button:hover,.problems-panel button:focus-visible{background:var(--surface-selected)}
+.problems-panel svg{width:15px;color:var(--danger)}
+.problems-panel code{color:var(--muted);font-size:11px}
+.inspection-item[data-custom-text="true"]{grid-template-columns:minmax(0,1fr) 24px}
+.details>.copy-field[data-custom-text="true"]{grid-template-columns:minmax(0,1fr)}
+@media(max-width:760px){.problems-panel{max-height:150px}}

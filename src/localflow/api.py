@@ -34,7 +34,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .auth import AuthManager
-from .config_diagnostics import ConfigDiagnosis, diagnose_config
+from .config_diagnostics import ConfigDiagnosis, diagnose_config, syntax_error_diagnosis
 from .config_repository import ConfigConflict, ConfigRepository
 from .executor import SubprocessExecutor, SystemdExecutor, systemd_user_manager_available
 from .models import BatchCreate, RunCreate, TaskCreate, TaskDraft, TaskRecord
@@ -822,12 +822,7 @@ def create_app(
                 config.parse(path)
                 diagnosis = ConfigDiagnosis(kind="generic", valid=True, runnable=False)
             except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
-                diagnosis = ConfigDiagnosis(
-                    kind="generic",
-                    valid=False,
-                    runnable=False,
-                    errors=[f"syntax or import error: {error}"],
-                )
+                diagnosis = syntax_error_diagnosis(error)
             diagnostics[path] = diagnosis.model_dump()
         return {"items": items, "diagnostics": diagnostics}
 
@@ -844,7 +839,7 @@ def create_app(
                 config.parse(relative)
                 diagnosis = ConfigDiagnosis(kind="generic", valid=True, runnable=False)
             except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
-                diagnosis = ConfigDiagnosis(kind="generic", valid=False, runnable=False, errors=[f"syntax or import error: {error}"])
+                diagnosis = syntax_error_diagnosis(error)
             diagnostics[path] = diagnosis.model_dump()
         return {"items": entries, "diagnostics": diagnostics}
 
@@ -861,7 +856,7 @@ def create_app(
                     run_diagnosis = diagnose_config(document, plugins)
                 except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
                     document = None
-                    diagnosis = ConfigDiagnosis(kind="generic", valid=False, runnable=False, errors=[f"syntax or import error: {error}"])
+                    diagnosis = syntax_error_diagnosis(error)
                     run_diagnosis = diagnosis
                 result.update(
                     document=document,
@@ -951,12 +946,7 @@ def create_app(
                 run_diagnosis = diagnose_config(document, plugins)
             except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
                 document = None
-                diagnosis = ConfigDiagnosis(
-                    kind="generic",
-                    valid=False,
-                    runnable=False,
-                    errors=[f"syntax or import error: {error}"],
-                )
+                diagnosis = syntax_error_diagnosis(error)
                 run_diagnosis = diagnosis
             plugin_name = document.get("plugin") if isinstance(document, dict) else None
             return {
@@ -994,12 +984,7 @@ def create_app(
             config.parse(path, payload.content)
             diagnosis = ConfigDiagnosis(kind="generic", valid=True, runnable=False)
         except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
-            diagnosis = ConfigDiagnosis(
-                kind="generic",
-                valid=False,
-                runnable=False,
-                errors=[f"syntax or import error: {error}"],
-            )
+            diagnosis = syntax_error_diagnosis(error)
         return {"diagnosis": diagnosis.model_dump()}
 
     @app.post("/api/v1/config/files/{path:path}/move")

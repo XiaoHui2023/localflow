@@ -51,6 +51,16 @@ def test_workspace_save_is_not_blocked_by_plugin_diagnostics(
     ).json()["diagnosis"]
     assert diagnosis["valid"] is False
     assert diagnosis["errors"]
+    assert diagnosis["issues"] == [
+        {
+            "message": diagnosis["errors"][0],
+            "severity": "error",
+            "line": 1,
+            "column": 10,
+            "end_line": 1,
+            "end_column": 11,
+        }
+    ]
 
 
 def test_verification_inspection_shows_resolved_logs_without_requiring_files(

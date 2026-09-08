@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, ValidationError
 
 from .models import COMMON_CONFIG_FIELDS, CommonConfigFields
 from .plugins import PluginRegistry
+
+
+class ConfigIssue(BaseModel):
+    message: str
+    severity: Literal["error", "warning"] = "error"
+    line: int = Field(default=1, ge=1)
+    column: int = Field(default=1, ge=1)
+    end_line: int = Field(default=1, ge=1)
+    end_column: int = Field(default=2, ge=1)
 
 
 class ConfigDiagnosis(BaseModel):
@@ -16,6 +26,38 @@ class ConfigDiagnosis(BaseModel):
     common_fields: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    issues: list[ConfigIssue] = Field(default_factory=list)
+
+
+def syntax_error_diagnosis(error: Exception) -> ConfigDiagnosis:
+    detail = getattr(error, "problem", None) or str(error)
+    message = f"syntax or import error: {detail}"
+    mark = getattr(error, "problem_mark", None)
+    if mark is not None:
+        line = int(mark.line) + 1
+        column = int(mark.column) + 1
+    elif getattr(error, "lineno", None) is not None:
+        line = int(error.lineno)
+        column = int(getattr(error, "colno", 1))
+    else:
+        match = re.search(r"line\s+(\d+).*?column\s+(\d+)", str(error), re.I | re.S)
+        line = int(match.group(1)) if match else 1
+        column = int(match.group(2)) if match else 1
+    return ConfigDiagnosis(
+        kind="generic",
+        valid=False,
+        runnable=False,
+        errors=[message],
+        issues=[
+            ConfigIssue(
+                message=message,
+                line=line,
+                column=column,
+                end_line=line,
+                end_column=column + 1,
+            )
+        ],
+    )
 
 
 def _validation_errors(error: ValidationError, prefix: str = "") -> list[str]:

@@ -12,13 +12,19 @@
         "sessionStorage\\.getItem\\(\"localflow-run-panel\"\\) !== \"closed\"",
         "disabled=\\{!file \\|\\| content === baseContentRef\\.current\\}",
         "key === \"自定义文本\" && Array\\.isArray\\(value\\)",
-        "<CopyValue value=\\{item\\.value\\} />"
+        "monaco\\.editor\\.setModelMarkers",
+        "className=\"problems-panel\"",
+        "diagnosisControllerRef\\.current\\?\\.abort",
+        "window\\.addEventListener\\(\"pointerup\", stop, true\\)",
+        "repeatRef\\.current !== state",
+        "data-custom-text=\\{customText \\|\\| undefined\\}"
       ],
       "forbidden": [
         "onWheel",
         "addEventListener\\(\"wheel\"",
         "term\\.writeln",
-        "只读回放已连接"
+        "只读回放已连接",
+        "label=\"自定义文本\""
       ]
     },
     {
@@ -32,7 +38,12 @@
     },
     {
       "path": "../plugins/verification.py",
-      "required": ["ConfigDict\\(extra=\"allow\"\\)", "compile_logs", "run_logs", "custom_texts", "working_directory / path", "runtime\\[\"自定义文本\"\\]"]
+      "required": ["ConfigDict\\(extra=\"allow\"\\)", "compile_logs", "run_logs", "custom_texts", "working_directory / path", "runtime\\[\"自定义文本\"\\]", "deferred_variables = \\{\"case\", \"seed\"\\}"],
+      "forbidden": ["deferred_variables = \\{\"case\", \"seed\", \"run\"\\}"]
+    },
+    {
+      "path": "../src/localflow/variables.py",
+      "required": ["resolve_configlib_variables", "apply_composition", "resolve_config_tree"]
     },
     {
       "path": "../frontend/e2e/legacy-browser.mjs",

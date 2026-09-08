@@ -1,8 +1,9 @@
-!include ../shared/task-defaults.yaml
+!include ../shared/verification-defaults.yaml
 plugin: verification
-case_directory: "${cases_dir}"
+case_directory: "${verification.cases}"
+working_directory: "${verification.workdir}"
 runs: 1
-command: [python3, -u, "${scripts_dir}/simulate.py", --case, "${case}", --seed, "${seed}", --compile-log, "${root}/artifacts/${case}.compile.log", --run-log, "${root}/artifacts/${case}.run.log"]
+command: [python3, -u, "${verification.script}", --case, "${case}", --seed, "${seed}", --compile-log, "${verification.artifacts}/${case}.compile.log", --run-log, "${verification.artifacts}/${case}.run.log"]
 labels: [example, verification]
-compile_logs: ["${root}/artifacts/${case}.compile.log"]
-run_logs: ["${root}/artifacts/${case}.run.log"]
+compile_logs: ["${verification.artifacts}/${case}.compile.log"]
+run_logs: ["${verification.artifacts}/${case}.run.log"]

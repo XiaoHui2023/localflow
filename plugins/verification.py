@@ -85,7 +85,7 @@ class Verification:
     config_model = VerificationConfig
     input_model = VerificationInputs
     required_common_fields = {"working_directory", "command"}
-    deferred_variables = {"case", "seed", "run"}
+    deferred_variables = {"case", "seed"}
     title = "验证仿真"
     description = "选择 Case、次数和随机种子"
     instructions = "配置 Case 目录和仿真命令。使用时选择一个或多个 Case；每个 Case 的每次运行都会成为独立任务。"
@@ -204,11 +204,8 @@ class Verification:
             })
         selected_case = next(iter(values.get("cases", [])), "${case}")
         preview_values = {
-            "root": context["root"],
-            "scripts_dir": str(Path(context["root"]) / "scripts"),
             "case": selected_case,
             "seed": values.get("seed") or "${seed}",
-            "run": 1,
         }
         def preview(value):
             result = str(value)
@@ -297,11 +294,8 @@ class Verification:
                         (
                             "root",
                             {
-                                "root": context["root"],
-                                "scripts_dir": str(Path(context["root"]) / "scripts"),
                                 "case": case_name,
                                 "seed": seed,
-                                "run": index + 1,
                             },
                         )
                     ],

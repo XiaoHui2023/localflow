@@ -1,0 +1,5 @@
+verification:
+  cases: cases
+  workdir: .
+  script: scripts/simulate.py
+  artifacts: artifacts

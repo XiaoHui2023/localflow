@@ -21,7 +21,7 @@ from .models import (
     TaskRecord,
     TaskStatus,
 )
-from .variables import VariableResolver
+from .variables import resolve_config_tree
 
 _loading: list[tuple[str, str, type]] | None = None
 
@@ -403,24 +403,27 @@ class PluginRegistry:
         overrides: dict[str, Any],
         context: dict[str, Any],
     ) -> dict[str, Any]:
-        root = Path(context["root"])
         variables = document.get("variables", {})
         if not isinstance(variables, dict):
             raise ValueError("variables must be an object")
         plugin_name = document.get("plugin")
         instance = self.plugins[plugin_name].instance
         deferred = set(getattr(instance, "deferred_variables", set()))
-        resolver = VariableResolver(
-            [
-                ("root", {"root": str(root), "scripts_dir": str(root / "scripts"), "cases_dir": str(root / "cases")}),
-                ("config", variables),
-                ("run", overrides),
-            ],
-            deferred=deferred,
+        root = Path(context["root"])
+        external = (
+            {}
+            if plugin_name == "verification"
+            else {
+                "root": str(root),
+                "scripts_dir": str(root / "scripts"),
+                "cases_dir": str(root / "cases"),
+                **overrides,
+            }
         )
-        values = {key: value for key, value in document.items() if key not in {"plugin", "stop", "variables"}}
+        resolved = resolve_config_tree(document, deferred, external)
+        values = {key: value for key, value in resolved.items() if key not in {"plugin", "stop", "variables"}}
         values.update({key: value for key, value in overrides.items() if key not in {"plugin", "stop", "variables"}})
-        return resolver.resolution(values).value
+        return values
 
     async def discover(
         self,

@@ -750,9 +750,12 @@ test("plugin configuration console remains concise and operable in Edge", async 
       exact: true,
     }),
   ).toBeVisible();
-  const taskCustomTexts = simulationDetail
-    .locator(".copy-field")
-    .filter({ has: page.getByText("自定义文本", { exact: true }) });
+  await expect(
+    simulationDetail.getByText("自定义文本", { exact: true }),
+  ).toHaveCount(0);
+  const taskCustomTexts = simulationDetail.locator(
+    '.copy-field[data-custom-text="true"]',
+  );
   await expect(taskCustomTexts).toHaveCount(2);
   const caseCustomText = taskCustomTexts
     .locator(".copy-value")
@@ -822,12 +825,21 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await blankEditor.locator(".view-lines").click({ position: { x: 24, y: 12 } });
   await page.keyboard.insertText("broken: *missing");
   await expect(blankEditor.locator(".view-lines")).toContainText("broken: *missing");
-  await expect(page.locator(".config-diagnosis")).toBeVisible();
+  await expect(page.locator(".problems-panel")).toBeVisible();
+  await expect(page.locator(".monaco-editor .squiggly-error")).toBeVisible();
+  await expect(page.locator(".problems-panel code")).toContainText(/\d+:\d+/);
   await expect(saveButton).toBeEnabled();
   await saveButton.click();
   await expect(page.getByRole("status")).toContainText("已保存");
   await expect(saveButton).toBeDisabled();
   expect(fs.readFileSync(path.join(qaRoot, "config", "command", "qa-command.yaml"), "utf8")).toContain("broken: *missing");
+  await blankEditor.locator("textarea").press("Control+a");
+  await page.keyboard.insertText("valid: true");
+  await expect(page.locator(".problems-panel")).toHaveCount(0);
+  await expect(page.locator(".monaco-editor .squiggly-error")).toHaveCount(0);
+  await expect(saveButton).toBeEnabled();
+  await saveButton.click();
+  await expect(saveButton).toBeDisabled();
   await page.getByRole("button", { name: "重命名" }).click();
   const rename = page.locator(".tree-node input");
   await expect(rename).toBeVisible();
@@ -867,9 +879,12 @@ test("plugin configuration console remains concise and operable in Edge", async 
   ]);
   await expect(page.locator(".inspection-item.severity-error")).toHaveCount(0);
   const previewCustomText = page
-    .locator(".inspection-item")
+    .locator('.inspection-item[data-custom-text="true"]')
     .filter({ hasText: "Case: ${case}" })
     .locator(".copy-value");
+  await expect(
+    page.locator('.inspection-item[data-custom-text="true"] > span:first-child'),
+  ).toHaveCount(0);
   await expect(previewCustomText).toBeVisible();
   await previewCustomText.click();
   expect(await page.evaluate(() => window.__localflowCopiedText)).toBe(
@@ -936,6 +951,8 @@ test("plugin configuration console remains concise and operable in Edge", async 
   const caseB = page.locator('[data-case="case-b"]');
   const increaseB = caseB.getByRole("button", { name: "增加 case-b 次数" });
   await increaseB.click();
+  await expect(caseB.locator(".case-count output")).toHaveText("1");
+  await page.waitForTimeout(720);
   await expect(caseB.locator(".case-count output")).toHaveText("1");
   await expect(caseB.getByRole("button", { name: "减少 case-b 次数" })).toBeVisible();
   const increaseBBox = await increaseB.boundingBox();

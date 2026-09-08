@@ -19,7 +19,7 @@ This is a configuration/snapshot ownership escape, not a GNU Make defect and not
 
 ## Fix and regression corpus
 
-1. Require `working_directory` for the verification plugin while leaving `${case}`, `${seed}`, and `${run}` entirely optional in arbitrary commands.
+1. Require `working_directory` for the verification plugin while leaving its only two plugin variables, `${case}` and `${seed}`, entirely optional in arbitrary commands. Any other placeholder must come from the merged YAML tree.
 2. Normalize plugin drafts before plan/enqueue and normalize direct task drafts again in `TaskService`.
 3. Upgrade an installed built-in plugin only when its normalized content digest matches a known shipped baseline. Preserve edited regular files and every symlink.
 4. Short gates cover missing cwd rejection, relative plan/task equality, direct task submission, arbitrary commands with no Case/seed placeholders, user edits, and plugin symlinks.

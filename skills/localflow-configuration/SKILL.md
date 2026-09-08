@@ -16,9 +16,9 @@ Production packages contain only `command/hello-world.yaml` and `verification/de
 - `plugin` present: also validate plugin existence and plugin-specific fields.
 - Invalid or partial task configuration remains visible but cannot run.
 
-Use the supported configlib include syntax for shared values. The selected plugin comes from the merged configuration, not separate UI or client state. Prefer a string `command`; it has Ubuntu non-login `/bin/sh -c` semantics. Use a string list only when exact argv without shell parsing is required.
+Use configlib include syntax for shared values, then treat the merged YAML document as the variable root. Any YAML-defined path can be referenced after include; `variables:` remains a compatible short-name alias table. The selected plugin comes from the merged configuration, not separate UI or client state. Prefer a string `command`; it has Ubuntu non-login `/bin/sh -c` semantics. Use a string list only when exact argv without shell parsing is required.
 
-Verification commands are arbitrary user commands. `${case}`, `${seed}` and `${run}` are optional variables: use any subset or none, and never require placeholders or append guessed flags. A Make example may use `make all CASE=${case} SEED=${seed}`, while another valid command is simply `make all`. The task output records the final expanded command before process output.
+Verification commands are arbitrary user commands. `${case}` and `${seed}` are the only plugin-provided variables: use either, both, or neither, and never require placeholders or append guessed flags. Do not assume `root`, `scripts_dir`, `cases_dir`, `run`, `runs`, or `cases`; define reusable values in YAML instead. A Make example may use `make all CASE=${case} SEED=${seed}`, while another valid command is simply `make all`. The task output records the final expanded command before process output.
 
 ## Progressive working-directory disclosure
 
