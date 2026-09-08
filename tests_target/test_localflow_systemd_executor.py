@@ -241,6 +241,165 @@ async def test_real_systemd_interactive_stop_and_cgroup_cleanup(tmp_path: Path) 
 
 
 @pytest.mark.asyncio
+async def test_real_systemd_stop_waits_while_graceful_exit_keeps_progressing(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "localflow-progressive-stop"
+    initialize_root(root)
+    store = Store(root / "runtime" / "localflow.db")
+    service = TaskService(root, store, SystemdExecutor(root), max_concurrency=1)
+    script = (
+        "import signal,time\n"
+        "def stop(*_):\n"
+        " for step in range(6):\n"
+        "  print(f'cleanup {step}', flush=True); time.sleep(.12)\n"
+        " print('cleanup complete', flush=True); raise SystemExit(0)\n"
+        "signal.signal(signal.SIGINT, stop)\n"
+        "print('ready', flush=True)\n"
+        "while True: time.sleep(.1)\n"
+    )
+    task = service.submit(
+        TaskCreate(
+            name="progressive-stop",
+            working_directory=str(root),
+            command=[sys.executable, "-u", "-c", script],
+            stop=StopStrategy(
+                actions=[
+                    StopAction(
+                        type="signal",
+                        signal="SIGINT",
+                        timeout_seconds=0.2,
+                        extend_timeout_on_output=True,
+                        max_timeout_seconds=2,
+                    )
+                ]
+            ),
+        )
+    )
+    await service.start()
+    for _ in range(100):
+        await asyncio.sleep(0.05)
+        output = service.read_log(task.id)[0]
+        if control_socket_path(root, task.id).exists() and any(
+            line.rstrip(b"\r") == b"ready" for line in output.splitlines()
+        ):
+            break
+    assert control_socket_path(root, task.id).exists()
+    assert any(
+        line.rstrip(b"\r") == b"ready"
+        for line in service.read_log(task.id)[0].splitlines()
+    )
+    await service.interrupt(task.id)
+    for _ in range(100):
+        await asyncio.sleep(0.05)
+        if store.get_task(task.id).ended_at:
+            break
+    result = store.get_task(task.id)
+    assert result.state == "cancelled"
+    assert result.exit_code == 0
+    assert result.interrupt_stage == "stop:0:signal"
+    assert b"cleanup complete" in service.read_log(task.id)[0]
+    await service.stop()
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_real_systemd_progress_cannot_postpone_force_cleanup_past_hard_limit(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "localflow-noisy-hung-stop"
+    initialize_root(root)
+    store = Store(root / "runtime" / "localflow.db")
+    service = TaskService(root, store, SystemdExecutor(root), max_concurrency=1)
+    script = (
+        "import signal,time\n"
+        "def stop(*_):\n"
+        " while True: print('still stopping', flush=True); time.sleep(.04)\n"
+        "signal.signal(signal.SIGINT, stop)\n"
+        "print('ready', flush=True)\n"
+        "while True: time.sleep(.1)\n"
+    )
+    task = service.submit(
+        TaskCreate(
+            name="noisy-hung-stop",
+            working_directory=str(root),
+            command=[sys.executable, "-u", "-c", script],
+            stop=StopStrategy(
+                actions=[
+                    StopAction(
+                        type="signal",
+                        signal="SIGINT",
+                        timeout_seconds=0.1,
+                        extend_timeout_on_output=True,
+                        max_timeout_seconds=0.45,
+                    )
+                ]
+            ),
+        )
+    )
+    await service.start()
+    for _ in range(100):
+        await asyncio.sleep(0.05)
+        output = service.read_log(task.id)[0]
+        if control_socket_path(root, task.id).exists() and any(
+            line.rstrip(b"\r") == b"ready" for line in output.splitlines()
+        ):
+            break
+    started = asyncio.get_running_loop().time()
+    await service.interrupt(task.id)
+    for _ in range(100):
+        await asyncio.sleep(0.05)
+        if store.get_task(task.id).ended_at:
+            break
+    result = store.get_task(task.id)
+    assert result.state == "cancelled"
+    assert result.exit_code == 137
+    assert result.interrupt_stage == "sigkill"
+    assert asyncio.get_running_loop().time() - started < 2
+    await service.stop()
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_shutdown_all_force_cleans_complete_systemd_cgroup(tmp_path: Path) -> None:
+    root = tmp_path / "localflow-shutdown-cleanup"
+    initialize_root(root)
+    store = Store(root / "runtime" / "localflow.db")
+    executor = SystemdExecutor(root)
+    service = TaskService(root, store, executor, max_concurrency=1)
+    orphan_file = root / "shutdown-orphan.pid"
+    script = (
+        "import signal,subprocess,time\n"
+        f"child=subprocess.Popen(['sleep','30']); open({str(orphan_file)!r},'w').write(str(child.pid))\n"
+        "signal.signal(signal.SIGINT, signal.SIG_IGN)\n"
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+        "while True: time.sleep(.1)\n"
+    )
+    task = service.submit(
+        TaskCreate(
+            name="shutdown-cgroup-cleanup",
+            working_directory=str(root),
+            command=[sys.executable, "-u", "-c", script],
+        )
+    )
+    await service.start()
+    for _ in range(100):
+        await asyncio.sleep(0.05)
+        if orphan_file.exists() and control_socket_path(root, task.id).exists():
+            break
+    orphan_pid = int(orphan_file.read_text(encoding="ascii"))
+    await service.shutdown_all(timeout_seconds=0.2)
+    result = store.get_task(task.id)
+    assert result.state == "cancelled"
+    assert result.interrupt_stage == "sigkill"
+    assert not await executor.is_running(result)
+    with pytest.raises(ProcessLookupError):
+        os.kill(orphan_pid, 0)
+    await service.stop()
+    store.close()
+
+
+@pytest.mark.asyncio
 async def test_task_survives_control_service_restart(tmp_path: Path) -> None:
     root = tmp_path / "localflow-root"
     initialize_root(root)

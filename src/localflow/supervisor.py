@@ -6,7 +6,6 @@ import json
 import os
 import pty
 import selectors
-import shlex
 import signal
 import socket
 import struct
@@ -16,6 +15,7 @@ from pathlib import Path
 
 from .control import control_socket_path
 from .log_files import BoundedLogWriter, lifecycle_line
+from .models import command_for_log
 
 
 def supervise(root: Path, task_id: str) -> int:
@@ -50,13 +50,7 @@ def supervise(root: Path, task_id: str) -> int:
         int(limits.get("task_log_max_bytes", 100 * 1024 * 1024)),
         int(limits.get("keep_free_bytes", 0)),
     ) as log:
-        shown_command = (
-            task["command"][2]
-            if len(task["command"]) >= 3
-            and task["command"][0] == "/bin/sh"
-            and task["command"][1] in {"-c", "-lc"}
-            else shlex.join(task["command"])
-        )
+        shown_command = command_for_log(task["command"], task["working_directory"])
         log.write(lifecycle_line("process.command", cwd=task["working_directory"], command=shown_command))
         log.write(lifecycle_line("process.started", pid=child_pid, terminal="pty"))
         while True:

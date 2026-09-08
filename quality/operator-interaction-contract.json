@@ -4,7 +4,7 @@
       "path": "../frontend/src/App.jsx",
       "required": [
         "label=\"终端输出\"",
-        "className=\"case-step increase\"",
+        "if \\(!event\\.ctrlKey && !event\\.metaKey\\) beginRepeat\\(event, name, 1\\)",
         "setTimeout\\(repeat, 550\\)",
         "api\\.searchLog",
         "message\\.type === \"caught_up\"",
@@ -17,14 +17,28 @@
         "diagnosisControllerRef\\.current\\?\\.abort",
         "window\\.addEventListener\\(\"pointerup\", stop, true\\)",
         "repeatRef\\.current !== state",
-        "data-custom-text=\\{customText \\|\\| undefined\\}"
+        "data-custom-text=\\{customText \\|\\| undefined\\}",
+        "className=\"tree-dirty\"",
+        "draftsRef\\.current\\.get\\(path\\)",
+        "className=\"copy-affordance\"",
+        "item\\.check === \"availability\" && item\\.severity === \"error\"",
+        "data-terminal-group=\"active\"",
+        "data-terminal-group=\"history\"",
+        "className=\"terminal-unread\"",
+        "data-terminal-state=\\{task\\.state\\}",
+        "task\\.template === \"verification\"",
+        "hidden\\.add\\(\"运行日志\"\\)"
       ],
       "forbidden": [
         "onWheel",
         "addEventListener\\(\"wheel\"",
         "term\\.writeln",
         "只读回放已连接",
-        "label=\"自定义文本\""
+        "label=\"自定义文本\"",
+        "copy-confirm",
+        "检查通过",
+        "<i className=\\{`tone-\\$\\{taskTone\\(task\\)\\}`\\} />",
+        "className=\"case-step increase\""
       ]
     },
     {
@@ -38,12 +52,22 @@
     },
     {
       "path": "../plugins/verification.py",
-      "required": ["ConfigDict\\(extra=\"allow\"\\)", "compile_logs", "run_logs", "custom_texts", "working_directory / path", "runtime\\[\"自定义文本\"\\]", "deferred_variables = \\{\"case\", \"seed\"\\}"],
-      "forbidden": ["deferred_variables = \\{\"case\", \"seed\", \"run\"\\}"]
+      "required": ["ConfigDict\\(extra=\"allow\"\\)", "compile_logs", "run_logs", "custom_texts", "working_directory / path", "runtime\\[\"自定义文本\"\\]", "deferred_variables = \\{\"case\", \"seed\"\\}", "\"check\": \"availability\"", "\"value\": str\\(value\\)"],
+      "forbidden": ["deferred_variables = \\{\"case\", \"seed\", \"run\"\\}", "command_entry"]
+    },
+    {
+      "path": "../src/localflow/builtin_plugins/verification.py.example",
+      "required": ["\"check\": \"availability\"", "\"value\": str\\(value\\)"],
+      "forbidden": ["command_entry"]
     },
     {
       "path": "../src/localflow/variables.py",
       "required": ["resolve_configlib_variables", "apply_composition", "resolve_config_tree"]
+    },
+    {
+      "path": "../src/localflow/models.py",
+      "required": ["shell is only valid with a string command", "freeze_command_working_directory", "\\\"-ic\\\"", "cd \\{shlex\\.quote\\(working_directory\\)\\}"],
+      "forbidden": ["LOCALFLOW_TASK_WORKING_DIRECTORY"]
     },
     {
       "path": "../frontend/e2e/legacy-browser.mjs",

@@ -268,8 +268,8 @@ def test_quality_trace_and_mutant(tmp_path: Path) -> None:
             encoding="utf-8"
         )
     )
-    receipt["assertions"].remove("verification-seed-task-detail")
-    missing_interaction_assertion = tmp_path / "missing-seed-detail-assertion.json"
+    receipt["assertions"].remove("verification-concise-task-detail")
+    missing_interaction_assertion = tmp_path / "missing-task-detail-assertion.json"
     missing_interaction_assertion.write_text(json.dumps(receipt), encoding="utf-8")
     escaped_oracle = subprocess.run(
         [
@@ -284,7 +284,7 @@ def test_quality_trace_and_mutant(tmp_path: Path) -> None:
     )
     assert escaped_oracle.returncode == 1
     assert "browser receipt missing assertions" in escaped_oracle.stderr
-    assert "verification-seed-task-detail" in escaped_oracle.stderr
+    assert "verification-concise-task-detail" in escaped_oracle.stderr
 
     receipt = json.loads(
         (root / "quality" / "evidence" / "browser" / "browser-receipt.json").read_text(

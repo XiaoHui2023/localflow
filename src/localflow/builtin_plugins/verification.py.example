@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import os
 import re
 import shlex
-import shutil
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -177,31 +175,10 @@ class Verification:
             "label": "Case 目录",
             "value": str(case_root),
             "kind": "path",
+            "check": "availability",
             "severity": severity,
             "message": message,
         }]
-        command = values.get("command", [])
-        try:
-            arguments = shlex.split(command) if isinstance(command, str) else command
-        except ValueError:
-            arguments = []
-        if arguments:
-            executable = str(arguments[0])
-            working = self._path(values["working_directory"], context)
-            candidate = Path(executable)
-            resolved = (
-                candidate if candidate.is_absolute() else (working / candidate).resolve()
-            )
-            exists = resolved.is_file() if candidate.parent != Path(".") else shutil.which(executable) is not None
-            severity = "ok" if exists else ("warning" if os.name == "nt" else "error")
-            items.append({
-                "name": "command_entry",
-                "label": "命令入口",
-                "value": executable,
-                "kind": "path",
-                "severity": severity,
-                "message": None if exists else "当前环境找不到命令入口",
-            })
         selected_case = next(iter(values.get("cases", [])), "${case}")
         preview_values = {
             "case": selected_case,
@@ -239,7 +216,7 @@ class Verification:
             items.append({
                 "name": f"custom_text_{index}",
                 "label": "自定义文本",
-                "value": preview(value),
+                "value": str(value),
                 "kind": "text",
                 "severity": "info",
                 "message": None,
@@ -316,6 +293,7 @@ class Verification:
                     TaskDraft(
                         name=case_name,
                         working_directory=str(working_directory),
+                        shell=values.get("shell"),
                         command=command,
                         labels=labels,
                         mutex_keys=list(dict.fromkeys(mutex_keys)),

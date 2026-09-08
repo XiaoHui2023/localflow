@@ -122,8 +122,32 @@ def _summary(task: TaskRecord) -> dict[str, Any]:
 
 def _detail(task: TaskRecord, root: Path) -> dict[str, Any]:
     value = task.model_dump(mode="json")
-    value["log_path"] = str(root / "logs" / task.id / "output.log")
+    log_path = root / "logs" / task.id / "output.log"
+    value["log_path"] = str(log_path)
+    try:
+        value["log_size"] = log_path.stat().st_size
+    except FileNotFoundError:
+        value["log_size"] = 0
     return value
+
+
+def _task_receipt(record: TaskRecord) -> dict[str, str]:
+    return {"id": record.id, "href": f"/api/v1/tasks/{record.id}"}
+
+
+def _batch_receipt(batch_id: str, records: list[TaskRecord]) -> dict[str, Any]:
+    return {
+        "batch_id": batch_id,
+        "batch": {"id": batch_id, "href": f"/api/v1/batches/{batch_id}"},
+        "task_ids": [record.id for record in records],
+        "tasks": [_task_receipt(record) for record in records],
+        "count": len(records),
+    }
+
+
+def _accepted_monitor(response: Response, href: str) -> None:
+    response.headers["Location"] = href
+    response.headers["Retry-After"] = "1"
 
 
 def _plan(plugin_name: str, drafts: list[TaskCreate]) -> dict[str, Any]:
@@ -296,7 +320,25 @@ def create_app(
     app.state.time_service = time_service
     app.state.shutdown_requested = False
 
+    def session_cookie_domain(request: Request) -> str | None:
+        domain = settings.server.session_cookie_domain
+        if domain is None:
+            return None
+        if request.url.scheme != "https":
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "shared administrator sessions require HTTPS",
+            )
+        hostname = (request.url.hostname or "").rstrip(".").lower()
+        if hostname != domain and not hostname.endswith("." + domain):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "request host is outside the configured session cookie domain",
+            )
+        return domain
+
     def set_admin_cookie(request: Request, response: Response, token: str) -> None:
+        domain = session_cookie_domain(request)
         response.set_cookie(
             "localflow_session",
             token,
@@ -305,6 +347,7 @@ def create_app(
             secure=request.url.scheme == "https",
             max_age=34_560_000,
             path="/",
+            domain=domain,
         )
 
     async def require_admin(request: Request) -> str:
@@ -437,19 +480,29 @@ def create_app(
     @app.post("/api/v1/tasks", status_code=202)
     async def create_task(
         payload: TaskCreate,
+        response: Response,
         actor: str = Depends(require_submitter),
         idempotency_key: Annotated[str | None, Header()] = None,
     ):
         if idempotency_key:
             previous = store.idempotency_get(actor, "/api/v1/tasks", idempotency_key)
             if previous:
+                href = previous.get("task", {}).get("href") or (
+                    f"/api/v1/tasks/{previous['task_id']}"
+                )
+                previous.setdefault(
+                    "task", {"id": previous["task_id"], "href": href}
+                )
+                _accepted_monitor(response, href)
                 return previous
         record = tasks.submit(payload)
         result = {
             "task_id": record.id,
+            "task": _task_receipt(record),
             "state": record.state,
             "created_at": record.created_at.isoformat(),
         }
+        _accepted_monitor(response, result["task"]["href"])
         if idempotency_key:
             store.idempotency_put(actor, "/api/v1/tasks", idempotency_key, result)
         return result
@@ -687,14 +740,24 @@ def create_app(
 
     @app.post("/api/v1/templates/{name}/runs", status_code=202)
     async def run_template(
-        name: str, values: dict[str, Any], _actor: str = Depends(require_submitter)
+        name: str,
+        values: dict[str, Any],
+        response: Response,
+        _actor: str = Depends(require_submitter),
     ):
         try:
             drafts = plugins.expand(name, values, {"root": str(root)})
         except KeyError:
             raise HTTPException(404, "template not found") from None
         records = [tasks.submit(draft) for draft in drafts]
-        return {"task_ids": [item.id for item in records], "count": len(records)}
+        result = {
+            "task_ids": [item.id for item in records],
+            "tasks": [_task_receipt(item) for item in records],
+            "count": len(records),
+        }
+        if records:
+            _accepted_monitor(response, result["tasks"][0]["href"])
+        return result
 
     @app.post("/api/v1/templates/{name}/discover")
     async def discover_template(
@@ -713,6 +776,7 @@ def create_app(
     @app.post("/api/v1/batches", status_code=202)
     async def create_batch(
         payload: BatchCreate,
+        response: Response,
         actor: str = Depends(require_submitter),
         idempotency_key: Annotated[str | None, Header()] = None,
     ):
@@ -728,11 +792,8 @@ def create_app(
             drafts,
             (actor, route, idempotency_key) if idempotency_key else None,
         )
-        result = {
-            "batch_id": batch_id,
-            "task_ids": [record.id for record in records],
-            "count": len(records),
-        }
+        result = _batch_receipt(batch_id, records)
+        _accepted_monitor(response, result["batch"]["href"])
         return result
 
     @app.post("/api/v1/runs/plan")
@@ -763,6 +824,7 @@ def create_app(
     @app.post("/api/v1/runs", status_code=202)
     async def create_run(
         payload: RunCreate,
+        response: Response,
         actor: str = Depends(require_submitter),
         idempotency_key: Annotated[str | None, Header()] = None,
     ):
@@ -798,11 +860,8 @@ def create_app(
             drafts,
             (actor, route, idempotency_key) if idempotency_key else None,
         )
-        result = {
-            "batch_id": batch_id,
-            "task_ids": [record.id for record in records],
-            "count": len(records),
-        }
+        result = _batch_receipt(batch_id, records)
+        _accepted_monitor(response, result["batch"]["href"])
         return result
 
     @app.get("/api/v1/batches/{batch_id}")
@@ -1040,6 +1099,7 @@ def create_app(
     async def config_run(
         path: str,
         payload: ConfigRun,
+        response: Response,
         actor: str = Depends(require_submitter),
         idempotency_key: Annotated[str | None, Header()] = None,
     ):
@@ -1064,11 +1124,8 @@ def create_app(
             drafts,
             (actor, route, idempotency_key) if idempotency_key else None,
         )
-        result = {
-            "batch_id": batch_id,
-            "task_ids": [item.id for item in records],
-            "count": len(records),
-        }
+        result = _batch_receipt(batch_id, records)
+        _accepted_monitor(response, result["batch"]["href"])
         return result
 
     @app.post("/api/v1/config/files/{path:path}/discover")

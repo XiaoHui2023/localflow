@@ -15,6 +15,9 @@ def test_anonymous_is_summary_and_cannot_submit(
     }
     created = admin.post("/api/v1/tasks", json=payload, headers={"Idempotency-Key": "same"})
     assert created.status_code == 202
+    assert created.headers["location"] == f"/api/v1/tasks/{created.json()['task_id']}"
+    assert created.headers["retry-after"] == "1"
+    assert created.json()["task"]["href"] == created.headers["location"]
     assert (
         admin.post("/api/v1/tasks", json=payload, headers={"Idempotency-Key": "same"}).json()
         == created.json()
@@ -80,6 +83,15 @@ def test_one_request_inline_configuration_uses_plugin_and_creates_batch(
     )
     assert created.status_code == 202
     assert created.json()["count"] == 1
+    assert created.headers["location"] == f"/api/v1/batches/{created.json()['batch_id']}"
+    assert created.headers["retry-after"] == "1"
+    assert created.json()["batch"]["href"] == created.headers["location"]
+    assert created.json()["tasks"] == [
+        {
+            "id": created.json()["task_ids"][0],
+            "href": f"/api/v1/tasks/{created.json()['task_ids'][0]}",
+        }
+    ]
     assert (
         admin.post(
             "/api/v1/runs", json=payload, headers={"Idempotency-Key": "inline-run"}

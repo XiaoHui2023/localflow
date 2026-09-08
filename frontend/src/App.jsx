@@ -19,6 +19,7 @@ import {
   ClipboardPaste,
   Clock3,
   Copy,
+  CircleX,
   File,
   FileCheck2,
   FileCode2,
@@ -532,11 +533,11 @@ function CopyValue({ label, value, customText = false }) {
             aria-label={`${label ? `${label}，` : customText ? `${text}，` : ""}${copied ? "已复制" : "点击复制"}`}
           >
             <code>{text}</code>
+            <span className="copy-affordance" aria-hidden="true">
+              {copied ? <Check /> : <Copy />}
+            </span>
           </button>
         </Hint>
-        <i className="copy-confirm" aria-hidden="true">
-          <Check />
-        </i>
         <span className="copy-status" role="status">
           {copied ? "已复制" : ""}
         </span>
@@ -547,6 +548,10 @@ function CopyValue({ label, value, customText = false }) {
 
 function TaskDetail({ task, role, interrupt }) {
   const hidden = new Set(["source", "variable_sources"]);
+  if (task.template === "verification") {
+    hidden.add("seed");
+    hidden.add("运行日志");
+  }
   const custom = Object.entries(task.custom || {}).filter(
     ([key, value]) =>
       !hidden.has(key) &&
@@ -713,15 +718,20 @@ function QueueTasks({ tasks, renderTask }) {
 }
 
 function TerminalPage({ tasks, role, theme }) {
-  const active = tasks.filter((task) =>
-    ["starting", "running", "stopping"].includes(task.state),
-  );
-  const available = [
-    ...active,
-    ...tasks.filter((task) => finalStates.has(task.state)),
-  ];
+  const newestFirst = (left, right) =>
+    Date.parse(right.ended_at || right.started_at || right.created_at || 0) -
+    Date.parse(left.ended_at || left.started_at || left.created_at || 0);
+  const active = tasks
+    .filter((task) => ["starting", "running", "stopping"].includes(task.state))
+    .sort(newestFirst);
+  const history = tasks
+    .filter((task) => finalStates.has(task.state))
+    .sort(newestFirst);
+  const available = [...active, ...history];
   const [selectedId, setSelectedId] = useState();
   const manualSelection = useRef(false);
+  const observedLogSizes = useRef(new Map());
+  const [unreadIds, setUnreadIds] = useState(new Set());
   const [input, setInput] = useState("");
   const [notice, setNotice] = useState("");
   useEffect(() => {
@@ -731,6 +741,29 @@ function TerminalPage({ tasks, role, theme }) {
     } else if (!manualSelection.current && active.length) {
       setSelectedId(active[0].id);
     }
+  }, [tasks, selectedId]);
+  useEffect(() => {
+    const present = new Set(available.map((task) => task.id));
+    setUnreadIds((previous) => {
+      const next = new Set(previous);
+      for (const id of next) if (!present.has(id)) next.delete(id);
+      for (const task of available) {
+        const size = Number(task.log_size || 0);
+        const oldSize = observedLogSizes.current.get(task.id);
+        if (oldSize !== undefined && size > oldSize && task.id !== selectedId)
+          next.add(task.id);
+        if (task.id === selectedId) next.delete(task.id);
+        observedLogSizes.current.set(task.id, size);
+      }
+      if (
+        next.size === previous.size &&
+        [...next].every((id) => previous.has(id))
+      )
+        return previous;
+      return next;
+    });
+    for (const id of observedLogSizes.current.keys())
+      if (!present.has(id)) observedLogSizes.current.delete(id);
   }, [tasks, selectedId]);
   const selected = available.find((task) => task.id === selectedId);
   const interactive =
@@ -753,25 +786,70 @@ function TerminalPage({ tasks, role, theme }) {
       setNotice(error.message);
     }
   };
+  const selectTerminal = (task) => {
+    manualSelection.current = true;
+    setSelectedId(task.id);
+    observedLogSizes.current.set(task.id, Number(task.log_size || 0));
+    setUnreadIds((previous) => {
+      if (!previous.has(task.id)) return previous;
+      const next = new Set(previous);
+      next.delete(task.id);
+      return next;
+    });
+  };
+  const renderTerminal = (task) => {
+    const unread = unreadIds.has(task.id);
+    const tone = taskTone(task);
+    return (
+      <button
+        className={`terminal-entry state-${task.state} tone-${tone} ${task.id === selectedId ? "active" : ""} ${unread ? "has-unread" : ""}`}
+        data-terminal-state={task.state}
+        data-unread={unread || undefined}
+        key={task.id}
+        onClick={() => selectTerminal(task)}
+      >
+        <span className="terminal-entry-text">
+          <b className="terminal-entry-name">{task.name}</b>
+          <span className="terminal-entry-meta">
+            <small className="terminal-entry-state">{taskLabel(task)}</small>
+            {task.labels?.map((label) => (
+              <em className="terminal-entry-label" key={label}>
+                {label}
+              </em>
+            ))}
+          </span>
+        </span>
+        {unread && (
+          <i
+            className="terminal-unread"
+            aria-label="有新终端输出"
+            title="有新终端输出"
+          />
+        )}
+      </button>
+    );
+  };
   return (
     <div className="terminal-page">
-      <aside aria-label="运行中的终端">
-        {available.map((task) => (
-          <button
-            className={task.id === selectedId ? "active" : ""}
-            key={task.id}
-            onClick={() => {
-              manualSelection.current = true;
-              setSelectedId(task.id);
-            }}
-          >
-            <i className={`tone-${taskTone(task)}`} />
-            <span>
-              <b>{task.name}</b>
-              <small>{taskLabel(task)}</small>
-            </span>
-          </button>
-        ))}
+      <aside aria-label="终端列表">
+        {active.length > 0 && (
+          <div className="terminal-entry-group" data-terminal-group="active">
+            <header>
+              <span>运行中</span>
+              <small>{active.length}</small>
+            </header>
+            {active.map(renderTerminal)}
+          </div>
+        )}
+        {history.length > 0 && (
+          <div className="terminal-entry-group" data-terminal-group="history">
+            <header>
+              <span>历史</span>
+              <small>{history.length}</small>
+            </header>
+            {history.map(renderTerminal)}
+          </div>
+        )}
         {available.length === 0 && <p>没有可交互的任务</p>}
       </aside>
       <section>
@@ -840,9 +918,17 @@ function TerminalPage({ tasks, role, theme }) {
 const workspaceExtension = (name) =>
   name.match(/\.(?:ya?ml|json|toml|py|md)$/i)?.[0] || "";
 
-function buildTree(entries, diagnostics) {
+function buildTree(entries, diagnostics, dirtyPaths = new Set()) {
   const nodes = new Map();
   const roots = [];
+  const decoratedPaths = new Set(dirtyPaths);
+  for (const path of dirtyPaths) {
+    let parent = path;
+    while (parent.includes("/")) {
+      parent = parent.slice(0, parent.lastIndexOf("/"));
+      decoratedPaths.add(parent);
+    }
+  }
   for (const entry of [...entries].sort(
     (a, b) =>
       a.path.split("/").length - b.path.split("/").length ||
@@ -857,6 +943,7 @@ function buildTree(entries, diagnostics) {
       symlink: entry.symlink,
       readonly: entry.readonly,
       diagnosis: diagnostics[entry.path],
+      dirty: decoratedPaths.has(entry.path),
       ...(entry.kind === "directory" ? { children: [] } : {}),
     };
     nodes.set(entry.path, node);
@@ -895,7 +982,7 @@ function TreeNode({ node, style, dragHandle }) {
       <div
         data-file={node.id}
         data-config-state={state}
-        aria-label={`${displayName}，${label}`}
+        aria-label={`${displayName}，${label}${node.data.dirty ? "，未保存" : ""}`}
         className={`tree-node state-${state} ${node.isSelected ? "selected" : ""}`}
         style={style}
         ref={dragHandle}
@@ -927,7 +1014,10 @@ function TreeNode({ node, style, dragHandle }) {
             }}
           />
         ) : (
-          <span>{displayName}</span>
+          <span className="tree-name">{displayName}</span>
+        )}
+        {node.data.dirty && (
+          <span className="tree-dirty" aria-hidden="true" />
         )}
       </div>
     </Hint>
@@ -1040,19 +1130,33 @@ function CasePicker({ field, filePath, values, discoverValues, setValues }) {
       pointerId: event.pointerId,
       target: event.currentTarget,
       timer: undefined,
+      name,
+      delta,
+      applied: 0,
     };
     repeatRef.current = state;
     state.target.setPointerCapture?.(state.pointerId);
-    step(name, delta);
+    const applyStep = () => {
+      step(name, delta);
+      state.applied += 1;
+    };
+    applyStep();
     const started = performance.now();
     const repeat = () => {
       if (repeatRef.current !== state) return;
-      step(name, delta);
+      applyStep();
       const held = performance.now() - started;
       const delay = held > 2400 ? 65 : held > 1400 ? 105 : 170;
       state.timer = setTimeout(repeat, delay);
     };
     state.timer = setTimeout(repeat, 550);
+  };
+  const cancelIncrementForDrag = (name) => {
+    const active = repeatRef.current;
+    if (!active || active.name !== name || active.delta !== 1) return;
+    const applied = active.applied;
+    stopRepeat();
+    if (applied) changeCounts(targets(name), (old) => old - applied);
   };
   const startMarquee = (event, kind) => {
     if (event.button !== 0 || event.target.closest(".case-count")) return;
@@ -1083,6 +1187,14 @@ function CasePicker({ field, filePath, values, discoverValues, setValues }) {
         width: Math.abs(x - origin.x),
         height: Math.abs(y - origin.y),
       };
+      if (
+        origin.startedCase &&
+        !origin.incrementCancelled &&
+        next.width + next.height > 8
+      ) {
+        origin.incrementCancelled = true;
+        cancelIncrementForDrag(origin.startedCase);
+      }
       dragRef.current = next;
       setDrag(next);
     };
@@ -1142,10 +1254,7 @@ function CasePicker({ field, filePath, values, discoverValues, setValues }) {
       <div
         className="case-list"
         ref={grid}
-        onMouseDown={(event) => startMarquee(event, "mouse")}
-        onPointerDown={(event) =>
-          event.pointerType === "pen" && startMarquee(event, "pointer")
-        }
+        onPointerDown={(event) => startMarquee(event, "pointer")}
       >
         {options.map((name) => {
           const amount = count(name);
@@ -1161,8 +1270,17 @@ function CasePicker({ field, filePath, values, discoverValues, setValues }) {
                 type="button"
                 className="case-main"
                 aria-pressed={isScoped}
-                aria-label={`${name}${amount ? `，${amount} 次` : "，未运行"}${isScoped ? "，已框选" : ""}`}
-                onClick={(event) => select(event, name)}
+                aria-label={`增加 ${name} 次数${isScoped ? "，应用到已框选 Case" : ""}`}
+                onPointerDown={(event) => {
+                  if (!event.ctrlKey && !event.metaKey) beginRepeat(event, name, 1);
+                }}
+                onPointerUp={stopRepeat}
+                onPointerCancel={stopRepeat}
+                onLostPointerCapture={stopRepeat}
+                onClick={(event) => {
+                  if (event.ctrlKey || event.metaKey) select(event, name);
+                  else if (event.detail === 0) step(name, 1);
+                }}
               >
                 <span>{name}</span>
               </button>
@@ -1182,18 +1300,6 @@ function CasePicker({ field, filePath, values, discoverValues, setValues }) {
                   </button>
                 )}
                 <output aria-live="polite">{amount}</output>
-                <button
-                  type="button"
-                  className="case-step increase"
-                  aria-label={groupSize > 1 ? `增加所选 ${groupSize} 个 Case 次数` : `增加 ${name} 次数`}
-                  onPointerDown={(event) => beginRepeat(event, name, 1)}
-                  onPointerUp={stopRepeat}
-                  onPointerCancel={stopRepeat}
-                  onLostPointerCapture={stopRepeat}
-                  onClick={(event) => event.detail === 0 && step(name, 1)}
-                >
-                  <Plus />
-                </button>
               </div>
             </div>
           );
@@ -1256,6 +1362,8 @@ function InspectionItems({ items, error }) {
     <div className="inspection-grid">
       {items.map((item) => {
         const customText = item.name.startsWith("custom_text_");
+        const unavailable =
+          item.check === "availability" && item.severity === "error";
         return (
         <div
           className={`inspection-item severity-${item.severity}`}
@@ -1264,20 +1372,20 @@ function InspectionItems({ items, error }) {
         >
           {!customText && <span>{item.label || item.name}</span>}
           <CopyValue value={item.value} customText={customText} />
-          <Hint label={item.message}>
-            <span
-              className="inspection-state"
-              role="img"
-              tabIndex={item.message ? 0 : -1}
-              aria-label={item.severity === "ok" ? "检查通过" : item.severity}
-            >
-              {item.severity === "error" || item.severity === "warning" ? (
-                <TriangleAlert />
-              ) : (
-                <Check />
-              )}
-            </span>
-          </Hint>
+          <span className="inspection-status-slot">
+            {unavailable && (
+              <Hint label={item.message || "不可用"}>
+                <span
+                  className="inspection-state"
+                  role="img"
+                  tabIndex={0}
+                  aria-label="路径不存在"
+                >
+                  <CircleX />
+                </span>
+              </Hint>
+            )}
+          </span>
         </div>
         );
       })}
@@ -1413,6 +1521,8 @@ function Config({ theme }) {
   const monacoRef = useRef();
   const contentRef = useRef("");
   const baseContentRef = useRef("");
+  const fileRef = useRef();
+  const draftsRef = useRef(new Map());
   const localVersionsRef = useRef(new Map());
   const pluginsRef = useRef([]);
   const [files, setFiles] = useState([]);
@@ -1423,6 +1533,7 @@ function Config({ theme }) {
   const [selectedPath, setSelectedPath] = useState();
   const [clipboard, setClipboard] = useState();
   const [content, setContent] = useState("");
+  const [dirtyPaths, setDirtyPaths] = useState(new Set());
   const [mode, setMode] = useState("edit");
   const [values, setValues] = useState({});
   const [notice, setNotice] = useState("");
@@ -1435,6 +1546,53 @@ function Config({ theme }) {
   const [treeOpen, setTreeOpen] = useState(false);
   const [treeSize, setTreeSize] = useState({ width: 260, height: 600 });
   const treeHost = useRef();
+  const markDirty = useCallback((path, dirty) => {
+    setDirtyPaths((current) => {
+      if (dirty === current.has(path)) return current;
+      const next = new Set(current);
+      if (dirty) next.add(path);
+      else next.delete(path);
+      return next;
+    });
+  }, []);
+  const forgetDrafts = useCallback((prefix) => {
+    for (const path of draftsRef.current.keys()) {
+      if (path === prefix || path.startsWith(`${prefix}/`))
+        draftsRef.current.delete(path);
+    }
+    setDirtyPaths(
+      (current) =>
+        new Set(
+          [...current].filter(
+            (path) => path !== prefix && !path.startsWith(`${prefix}/`),
+          ),
+        ),
+    );
+  }, []);
+  const remapDrafts = useCallback((source, target) => {
+    const replacements = [];
+    for (const [path, draft] of draftsRef.current.entries()) {
+      if (path !== source && !path.startsWith(`${source}/`)) continue;
+      const nextPath = target + path.slice(source.length);
+      replacements.push([
+        path,
+        nextPath,
+        { ...draft, file: { ...draft.file, path: nextPath } },
+      ]);
+    }
+    if (!replacements.length) return;
+    for (const [path] of replacements) draftsRef.current.delete(path);
+    for (const [, path, draft] of replacements)
+      draftsRef.current.set(path, draft);
+    setDirtyPaths((current) => {
+      const next = new Set(current);
+      for (const [path, nextPath] of replacements) {
+        next.delete(path);
+        next.add(nextPath);
+      }
+      return next;
+    });
+  }, []);
   const reload = useCallback(async () => {
     const result = await api.workspace();
     setFiles(result.items);
@@ -1442,27 +1600,34 @@ function Config({ theme }) {
     return result.items;
   }, []);
   const open = useCallback(async (path, restore = true) => {
-    const value = await api.workspaceFile(path);
+    const serverValue = await api.workspaceFile(path);
+    const draft = draftsRef.current.get(path);
+    const value = draft?.file || serverValue;
     const stored = restore ? readConfigMemory().files?.[path] : undefined;
     const remembered = stored?.version === value.version ? stored : undefined;
     filePathRef.current = path;
-    contentRef.current = value.content;
-    baseContentRef.current = value.content;
+    fileRef.current = value;
+    contentRef.current = draft?.content ?? value.content;
+    baseContentRef.current = draft?.baseContent ?? value.content;
     setSelectedPath(path);
     setFile(value);
-    setContent(value.content);
+    setContent(contentRef.current);
     const plugin = pluginsRef.current.find((item) => item.name === value.plugin);
     setValues(
       remembered?.values || withoutCaseSelections(plugin, value.document || {}),
     );
-    setEditorDiagnosis(value.diagnosis);
+    setEditorDiagnosis(draft?.diagnosis || value.diagnosis);
     setMode(
       path.startsWith("config/")
         ? remembered?.mode || (value.run_diagnosis?.runnable ? "use" : "edit")
         : "edit",
     );
     setRunStatus("idle");
-    setNotice("");
+    setNotice(
+      draft && draft.file.version !== serverValue.version
+        ? "文件已在外部变化，请比较后选择"
+        : "",
+    );
     setTreeOpen(false);
     setConflict(undefined);
   }, []);
@@ -1501,6 +1666,7 @@ function Config({ theme }) {
   }, [file?.path, file?.version, mode, values]);
   useEffect(() => {
     filePathRef.current = file?.path;
+    fileRef.current = file;
   }, [file?.path]);
   useEffect(() => {
     contentRef.current = content;
@@ -1644,6 +1810,7 @@ function Config({ theme }) {
   }, [reload, open]);
   const selectedPlugin = plugins.find((item) => item.name === file?.plugin);
   const runDisabled =
+    dirtyPaths.has(file?.path) ||
     !file?.run_diagnosis?.runnable ||
     selectedPlugin?.fields.some(
       (field) =>
@@ -1660,6 +1827,7 @@ function Config({ theme }) {
     if (movesOpenFile)
       filePathRef.current = target + filePathRef.current.slice(source.length);
     await api.moveWorkspace(source, target);
+    remapDrafts(source, target);
     await reload();
     setSelectedPath(target);
     if (movesOpenFile) await open(filePathRef.current);
@@ -1686,6 +1854,8 @@ function Config({ theme }) {
         file.version,
       );
       localVersionsRef.current.set(saved.path, saved.version);
+      draftsRef.current.delete(saved.path);
+      markDirty(saved.path, false);
       await open(saved.path, false);
       setNotice("已保存");
     } catch (error) {
@@ -1754,6 +1924,7 @@ function Config({ theme }) {
     }
     try {
       await api.deleteWorkspace(removedPath);
+      forgetDrafts(removedPath);
       setDeleting(false);
       await reload();
       setSelectedPath(undefined);
@@ -1901,7 +2072,7 @@ function Config({ theme }) {
         </header>
         <div className="tree-host" ref={treeHost}>
           <Tree
-            data={buildTree(files, diagnostics)}
+            data={buildTree(files, diagnostics, dirtyPaths)}
             width={treeSize.width}
             height={treeSize.height}
             rowHeight={32}
@@ -1944,7 +2115,6 @@ function Config({ theme }) {
                     <button
                       className="secondary"
                       onClick={() => {
-                        setContent(file.content);
                         setMode("use");
                       }}
                     >
@@ -1971,6 +2141,7 @@ function Config({ theme }) {
                       className={`primary run-action ${runStatus}`}
                       data-run-state={runStatus}
                       disabled={runDisabled || runStatus === "submitting"}
+                      title={dirtyPaths.has(file.path) ? "请先保存配置" : undefined}
                       onClick={run}
                     >
                       {runStatus === "accepted" ? (
@@ -2020,7 +2191,12 @@ function Config({ theme }) {
                   <button
                     onClick={() => {
                       setFile(conflict);
+                      fileRef.current = conflict;
+                      contentRef.current = conflict.content;
+                      baseContentRef.current = conflict.content;
                       setContent(conflict.content);
+                      draftsRef.current.delete(conflict.path);
+                      markDirty(conflict.path, false);
                       setConflict(undefined);
                     }}
                   >
@@ -2052,6 +2228,20 @@ function Config({ theme }) {
                     const next = value || "";
                     contentRef.current = next;
                     setContent(next);
+                    const path = filePathRef.current;
+                    if (!path || !fileRef.current) return;
+                    if (next === baseContentRef.current) {
+                      draftsRef.current.delete(path);
+                      markDirty(path, false);
+                    } else {
+                      draftsRef.current.set(path, {
+                        file: fileRef.current,
+                        content: next,
+                        baseContent: baseContentRef.current,
+                        diagnosis: editorDiagnosis,
+                      });
+                      markDirty(path, true);
+                    }
                   }}
                   options={{
                     minimap: { enabled: false },

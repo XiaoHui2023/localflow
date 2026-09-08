@@ -2,7 +2,7 @@
 
 ## Decision
 
-Use the existing semantic disclosure button, resource tree, Monaco editor, and task workspace. Name the control `配置`. Default a fresh browser session to expanded; preserve an explicit user collapse for that session. On wide screens, place the disclosed configuration workbench on the left and the task status pane on the right; below the existing breakpoint, stack configuration before tasks. Put labeled `编辑` and `运行` actions immediately after the selected file name in one contextual action group. Disable Save when editor text exactly equals the loaded base version; syntax or plugin validity never controls Save.
+Use the existing semantic disclosure button, resource tree, Monaco editor, and task workspace. Name the control `配置`. Default a fresh browser session to expanded; preserve an explicit user collapse for that session. On wide screens, place the disclosed configuration workbench on the left and the task status pane on the right; below the existing breakpoint, stack configuration before tasks. Put labeled `编辑` and `运行` actions immediately after the selected file name in one contextual action group. Disable Save when editor text exactly equals the loaded base version; syntax or plugin validity never controls Save. Preserve an independent draft per file, decorate dirty files and collapsed parents with a dot, and never discard a draft merely because the operator changes files or opens the run surface.
 
 Use Monaco model markers plus a bounded Problems region below the editor for syntax/import feedback. Debounce edits briefly, abort the previous request, ignore stale responses, and return structured one-based line/column ranges from the server. Markers, the Problems row, and the resource-tree state are three projections of the same current diagnosis. Selecting a problem focuses and reveals its range; saving never changes page or mode. Do not add a full YAML language server when the product-specific configlib include parser remains the authority.
 
@@ -27,10 +27,14 @@ WAI-ARIA disclosure supplies the interaction contract (`button`, `aria-expanded`
 - The selected file name and contextual action group are adjacent; `编辑` and `运行` are both visible labels and require no menu/navigation step.
 - Closing/reopening and leaving/returning to Tasks preserves file, mode, and unfinished inputs.
 - Save is disabled before an edit and immediately after a successful save, but enabled for any byte-changing edit even when diagnosis fails.
+- Switching among configuration files restores each unsaved byte buffer and its base version. File and ancestor-folder dirty dots disappear only after save, delete, or an explicit external-version choice; rename/move remaps them.
 - Every edit produces at most one current diagnosis after the debounce window; an older response cannot overwrite a newer edit. Invalid YAML has a Monaco error marker and a bottom Problems row with line/column; selecting it returns focus to that position without changing mode. Saving the invalid draft remains possible.
 - Live and terminal-state xterm text contains the task bytes and contains no application-authored connection/replay sentences.
+- A Case row is the primary increment target: pointer-down adds exactly one immediately, then repeats only after 550 ms and accelerates in bounded stages. There is no separate plus button. The decrement appears only above zero, shares the repeat state machine, and cannot bubble into row increment. Keyboard activation increments once; Ctrl/Cmd click edits the explicit group; wheel and focus never change counts.
 
 Fault mutants restore right-side grid order, the long label, icon-only run, remote `space-between` actions, or synthetic `term.writeln` status. Each must make the browser gate fail.
+
+For the element-level inspection, copy-feedback, and draft identity rationale, read [run inspection and draft decisions](run-inspection-and-drafts.md).
 
 ## Sources checked 2026-09-08
 

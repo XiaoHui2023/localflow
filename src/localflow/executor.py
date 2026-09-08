@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import shlex
 import shutil
 import signal
 import socket
@@ -15,7 +14,7 @@ from typing import Protocol
 
 from .control import control_socket_path
 from .log_files import BoundedLogWriter, lifecycle_line
-from .models import TaskRecord
+from .models import TaskRecord, command_for_log
 
 
 def systemd_user_manager_available() -> tuple[bool, str]:
@@ -85,13 +84,7 @@ class SubprocessExecutor:
         else:
             kwargs["start_new_session"] = True
         try:
-            shown_command = (
-                task.command[2]
-                if len(task.command) >= 3
-                and task.command[0] == "/bin/sh"
-                and task.command[1] in {"-c", "-lc"}
-                else shlex.join(task.command)
-            )
+            shown_command = command_for_log(task.command, str(workdir))
             log.write(lifecycle_line("process.command", cwd=str(workdir), command=shown_command))
             process = await asyncio.create_subprocess_exec(
                 *task.command,

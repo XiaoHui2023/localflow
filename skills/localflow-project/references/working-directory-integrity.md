@@ -6,6 +6,8 @@
 - Relative working directories are interpreted against the LocalFlow runtime root once, by the host, before plan display and enqueue. Plan, immutable task snapshot, lifecycle log, executor cwd, and child cwd must agree on the same absolute value.
 - Plugins may create tasks but do not own relative-path policy. `TaskService` repeats normalization for direct task submissions so the public task API has the same snapshot rule.
 - Never infer cwd from arbitrary command text. GNU Make `-f FILE` selects a makefile but does not change directory; `make -C DIR` explicitly changes directory before reading makefiles. The user chooses `working_directory` or writes `-C`.
+- A string command is personalized uniformly across plugins: use the service `$SHELL`, then the effective user's passwd login Shell, then `/bin/sh`, and invoke it with `-ic` so its rc file can provide aliases/functions. `shell` explicitly overrides detection; an argv list never enters a Shell.
+- Bind the interactive command to the absolute frozen cwd after root-relative resolution. The command starts with a safely quoted `cd <absolute-cwd> && ...`, so an rc-file `cd` cannot redirect relative Make/mkdir/file side effects to the LocalFlow root. Do not create a project-specific environment variable merely to carry cwd.
 
 ## Natural reproduction (2026-09-04)
 
@@ -26,6 +28,10 @@ This is a configuration/snapshot ownership escape, not a GNU Make defect and not
 5. Long gates use real Make and assert `CURDIR`, prerequisite content, positive target effects, negative LocalFlow-root effects, systemd ownership, and the extracted frozen executable.
 
 The old implementation must fail the natural-reproduction Oracle. Printed `PWD` alone is insufficient because it does not prove prerequisite resolution or child side effects.
+
+## Interactive shell regression corpus (2026-09-08)
+
+Linux tests create isolated HOME directories with real `.bashrc` and `.cshrc` aliases plus an intentional `cd` back to the LocalFlow root. Tasks omit the `shell` field and set the service user's detected Shell; each alias creates a relative directory and records `pwd`. Passing requires the marker only below the configured external project and proves no corresponding root-side effect. Model tests additionally reject `shell` with exact argv and verify bash/tcsh shapes. Systemd uses a PTY, so the interactive Shell has normal terminal startup semantics; the development subprocess path is tested for command behavior but does not claim production PTY fidelity.
 
 ## Tool fallback record
 

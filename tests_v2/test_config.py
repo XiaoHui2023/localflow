@@ -134,10 +134,29 @@ def test_config_api_exposes_only_runnable_configuration_tree(admin: TestClient, 
     assert inspection.status_code == 200
     items = {item["name"]: item for item in inspection.json()["items"]}
     assert items["working_directory"]["severity"] == "ok"
+    assert items["working_directory"]["check"] == "availability"
     assert items["case_directory"]["severity"] == "ok"
-    assert items["command_entry"]["severity"] in {"ok", "warning"}
+    assert items["case_directory"]["check"] == "availability"
+    assert items["shell"]["value"].startswith("/")
+    assert "自动选择" in items["shell"]["message"]
+    assert "command_entry" not in items
     assert items["custom_text_0"]["value"] == "Case: ${case}"
     assert items["custom_text_1"]["value"] == "Seed: ${seed}"
+
+    selected = admin.post(
+        "/api/v1/config/files/verification/demo.yaml/inspection",
+        json={
+            "inputs": {
+                "cases": ["case-a"],
+                "case_runs": {"case-a": 1},
+                "seed": 73,
+            }
+        },
+    )
+    assert selected.status_code == 200
+    selected_items = {item["name"]: item for item in selected.json()["items"]}
+    assert selected_items["custom_text_0"]["value"] == "Case: ${case}"
+    assert selected_items["custom_text_1"]["value"] == "Seed: ${seed}"
 
     broken = root / "config" / "verification" / "broken-path.yaml"
     broken.write_text(
@@ -154,8 +173,6 @@ def test_config_api_exposes_only_runnable_configuration_tree(admin: TestClient, 
         "command",
         "case_directory",
     }
-    if os.name != "nt":
-        expected_errors.add("command_entry")
     assert {
         item["name"] for item in failed.json()["items"] if item["severity"] == "error"
     } == expected_errors

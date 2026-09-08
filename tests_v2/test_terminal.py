@@ -121,6 +121,11 @@ def test_terminal_http_api_controls_and_fresh_offset_log(root: Path) -> None:
             time.sleep(0.02)
         assert first is not None
         assert first["next_offset"] > 0
+        live_detail = client.get(f"/api/v1/tasks/{task_id}").json()
+        live_list = client.get("/api/v1/tasks?limit=200").json()["items"]
+        listed = next(item for item in live_list if item["id"] == task_id)
+        assert live_detail["log_size"] >= first["next_offset"]
+        assert listed["log_size"] >= first["next_offset"]
         resize = client.post(
             f"/api/v1/tasks/{task_id}/terminal/resize", json={"rows": 42, "cols": 120}
         )

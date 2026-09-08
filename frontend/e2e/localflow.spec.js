@@ -143,6 +143,17 @@ async function runAcceptance(page) {
       .replace("name: hello-world", "name: hello-world-feedback"),
     "utf8",
   );
+  fs.writeFileSync(
+    path.join(qaRoot, "config", "verification", "qa-missing-path.yaml"),
+    [
+      "plugin: verification",
+      "case_directory: missing-cases",
+      "working_directory: .",
+      "command: echo ${case} ${seed}",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
   await page.goto("/");
   await page.getByRole("tab", { name: "设置" }).click();
   const loginKey = page.getByLabel("管理员秘钥");
@@ -154,15 +165,23 @@ async function runAcceptance(page) {
   const verificationConfig = page.locator(
     '[data-file="config/verification/demo.yaml"]',
   );
-  const inspectionTrigger = page
+  const caseInspection = page
+    .locator(".inspection-item")
+    .filter({ hasText: "Case 目录" });
+  await expect(async () => {
+    await verificationConfig.click();
+    await expect(caseInspection).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 15_000 });
+  await expect(page.locator(".inspection-state")).toHaveCount(0);
+  await page
+    .locator('[data-file="config/verification/qa-missing-path.yaml"]')
+    .click();
+  const unavailablePath = page
     .locator(".inspection-item")
     .filter({ hasText: "Case 目录" })
     .locator(".inspection-state");
-  await expect(async () => {
-    await verificationConfig.click();
-    await expect(inspectionTrigger).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 15_000 });
-  await assertTooltipInteraction(page, inspectionTrigger, "已发现 3 个 Case");
+  await expect(unavailablePath).toHaveAttribute("aria-label", "路径不存在");
+  await assertTooltipInteraction(page, unavailablePath, "找不到 Case 目录");
   const helloConfig = page.locator(
     '[data-file="config/command/hello-world.yaml"]',
   );
@@ -512,7 +531,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   expect(hoverBorder).not.toBe(accent);
   await reportValue.click();
   await expect(reportShell).toHaveAttribute("data-copied", "true");
-  await expect(reportShell.locator(".copy-confirm")).toBeVisible();
+  await expect(reportValue.locator(".copy-affordance .lucide-check")).toBeVisible();
   const afterCopy = await reportValue.boundingBox();
   expect(afterCopy).toEqual(beforeCopy);
   expect(await page.evaluate(() => window.__localflowCopiedText)).toBe(
@@ -527,18 +546,46 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await doneRow.click();
   await expect(page.getByText("qa://finished", { exact: true })).toHaveCount(0);
 
-  const liveCode = `import time; print('qa-terminal-ready', flush=True); time.sleep(180) # ${"long-command-".repeat(36)}`;
+  const liveCode = `import time; print('qa-terminal-ready', flush=True); time.sleep(12); print('qa-terminal-fresh', flush=True); time.sleep(168) # ${"long-command-".repeat(36)}`;
   const live = await browserApi(page, "/tasks", {
     method: "POST",
     body: {
       name: "qa-terminal",
       working_directory: qaRoot,
       command: [qaPython, "-c", liveCode],
+      labels: ["browser", "terminal"],
       mutex_keys: ["qa:queue-lock"],
     },
   });
   await waitForState(page, live.task_id, ["running"]);
   await page.locator("#nav-terminal").click();
+  const liveTerminalEntry = page
+    .locator(".terminal-page .terminal-entry")
+    .filter({ hasText: "qa-terminal" });
+  await expect(liveTerminalEntry).toHaveAttribute("data-terminal-state", "running");
+  await expect(liveTerminalEntry.locator(".terminal-entry-state")).toHaveText(
+    "运行中",
+  );
+  await expect(liveTerminalEntry.locator(".terminal-entry-label")).toHaveText([
+    "browser",
+    "terminal",
+  ]);
+  await expect(liveTerminalEntry.locator(".terminal-unread")).toHaveCount(0);
+  const activeTerminalGroup = page.locator(
+    '.terminal-entry-group[data-terminal-group="active"]',
+  );
+  const historyTerminalGroup = page.locator(
+    '.terminal-entry-group[data-terminal-group="history"]',
+  );
+  await expect(activeTerminalGroup.locator(":scope > header")).toContainText(
+    "运行中",
+  );
+  await expect(historyTerminalGroup.locator(":scope > header")).toContainText(
+    "历史",
+  );
+  expect((await activeTerminalGroup.boundingBox()).y).toBeLessThan(
+    (await historyTerminalGroup.boundingBox()).y,
+  );
   await expect(page.locator(".terminal-page .xterm")).toBeVisible();
   await expect(page.locator(".terminal-page .xterm-rows")).toContainText(
     "qa-terminal-ready",
@@ -591,6 +638,24 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.getByRole("button", { name: "在终端中查找" }).click();
   await page.getByLabel("终端搜索").fill("ready");
+
+  // A marker represents unread output only. Existing and merely-running
+  // terminals stay quiet; a background terminal gets a marker after its log
+  // grows, and selecting it acknowledges the marker.
+  const finishedTerminalEntry = page
+    .locator(".terminal-page .terminal-entry")
+    .filter({ hasText: "qa-finished" });
+  await finishedTerminalEntry.click();
+  await expect(liveTerminalEntry.locator(".terminal-unread")).toHaveCount(0);
+  await expect(liveTerminalEntry.locator(".terminal-unread")).toBeVisible({
+    timeout: 18_000,
+  });
+  await expect(liveTerminalEntry.locator(".terminal-unread")).toHaveAttribute(
+    "aria-label",
+    "有新终端输出",
+  );
+  await liveTerminalEntry.click();
+  await expect(liveTerminalEntry.locator(".terminal-unread")).toHaveCount(0);
   await page.screenshot({
     path: path.join(evidence, "admin-terminal-dark.png"),
     fullPage: true,
@@ -667,7 +732,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   ).toBeLessThanOrEqual(12);
   const longValue = page
     .locator(".task-item.open .copy-value")
-    .filter({ hasText: "time.sleep(180)" });
+    .filter({ hasText: "time.sleep(168)" });
   expect(
     await longValue.evaluate((node) => node.scrollWidth > node.clientWidth),
   ).toBeTruthy();
@@ -685,7 +750,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await waitForState(page, live.task_id, ["cancelled", "failed"]);
   await page.locator("#nav-terminal").click();
   const historyTerminal = page
-    .locator(".terminal-page > aside > button")
+    .locator(".terminal-page .terminal-entry")
     .filter({ hasText: "qa-terminal" });
   await expect(historyTerminal).toBeVisible();
   await historyTerminal.click();
@@ -744,12 +809,10 @@ test("plugin configuration console remains concise and operable in Edge", async 
   const simulationDetail = page.locator(".task-item.open .details");
   await expect(
     simulationDetail.getByText("随机种子", { exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
-    simulationDetail.getByText(String(simulationTask.custom.seed), {
-      exact: true,
-    }),
-  ).toBeVisible();
+    simulationDetail.getByText("运行日志", { exact: true }),
+  ).toHaveCount(0);
   await expect(
     simulationDetail.getByText("自定义文本", { exact: true }),
   ).toHaveCount(0);
@@ -840,6 +903,21 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(saveButton).toBeEnabled();
   await saveButton.click();
   await expect(saveButton).toBeDisabled();
+  await blankEditor.locator("textarea").press("Control+a");
+  await page.keyboard.insertText("valid: false\nunsaved: keep-me");
+  const dirtyFile = page.locator('[data-file="config/command/qa-command.yaml"]');
+  await expect(dirtyFile).toHaveAttribute("aria-label", /未保存/);
+  await expect(dirtyFile.locator(".tree-dirty")).toBeVisible();
+  await page.locator('[data-file="config/command/hello-world.yaml"]').click();
+  await page.locator('[data-file="config/command/qa-command.yaml"]').click();
+  await expect(blankEditor.locator(".view-lines")).toContainText("unsaved: keep-me");
+  await expect(saveButton).toBeEnabled();
+  await blankEditor.locator("textarea").press("Control+a");
+  await page.keyboard.insertText("valid: final");
+  await expect(saveButton).toBeEnabled();
+  await saveButton.click();
+  await expect(dirtyFile).not.toHaveAttribute("aria-label", /未保存/);
+  await expect(dirtyFile.locator(".tree-dirty")).toHaveCount(0);
   await page.getByRole("button", { name: "重命名" }).click();
   const rename = page.locator(".tree-node input");
   await expect(rename).toBeVisible();
@@ -872,12 +950,12 @@ test("plugin configuration console remains concise and operable in Edge", async 
     "工作目录",
     "命令",
     "Case 目录",
-    "命令入口",
     "编译日志",
     "运行日志",
     "标签",
   ]);
   await expect(page.locator(".inspection-item.severity-error")).toHaveCount(0);
+  await expect(page.locator(".inspection-state")).toHaveCount(0);
   const previewCustomText = page
     .locator('.inspection-item[data-custom-text="true"]')
     .filter({ hasText: "Case: ${case}" })
@@ -886,13 +964,16 @@ test("plugin configuration console remains concise and operable in Edge", async 
     page.locator('.inspection-item[data-custom-text="true"] > span:first-child'),
   ).toHaveCount(0);
   await expect(previewCustomText).toBeVisible();
+  await expect(previewCustomText.locator(".copy-affordance")).toBeVisible();
   await previewCustomText.click();
+  await expect(previewCustomText.locator(".copy-affordance")).toBeVisible();
   expect(await page.evaluate(() => window.__localflowCopiedText)).toBe(
     "Case: ${case}",
   );
   await expect(page.getByLabel("搜索 Case")).toHaveCount(0);
   await expect(page.locator(".case-count output")).toHaveText(["0", "0", "0"]);
   await expect(page.locator(".case-step.decrease")).toHaveCount(0);
+  await expect(page.locator(".case-step.increase")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "运行", exact: true }),
   ).toBeDisabled();
@@ -949,9 +1030,12 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await page.mouse.wheel(0, 100);
   await expect(caseA.locator(".case-count output")).toHaveText("0");
   const caseB = page.locator('[data-case="case-b"]');
-  const increaseB = caseB.getByRole("button", { name: "增加 case-b 次数" });
+  const increaseB = caseB.getByRole("button", { name: /增加 case-b 次数/ });
   await increaseB.click();
   await expect(caseB.locator(".case-count output")).toHaveText("1");
+  await expect(
+    page.locator('.inspection-item[data-custom-text="true"] .copy-value'),
+  ).toHaveText(["Case: ${case}", "Seed: ${seed}"]);
   await page.waitForTimeout(720);
   await expect(caseB.locator(".case-count output")).toHaveText("1");
   await expect(caseB.getByRole("button", { name: "减少 case-b 次数" })).toBeVisible();
@@ -994,7 +1078,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await page.mouse.up();
   await expect(page.locator('.case-main[aria-pressed="true"]')).toHaveCount(3);
   await expect(page.locator(".case-count output")).toHaveText(["0", "0", "0"]);
-  const groupIncrease = page.getByRole("button", { name: "增加所选 3 个 Case 次数" }).first();
+  const groupIncrease = page.getByRole("button", { name: /增加 case-a 次数，应用到已框选 Case/ });
   await groupIncrease.click();
   await groupIncrease.click();
   await groupIncrease.click();
@@ -1026,8 +1110,8 @@ test("plugin configuration console remains concise and operable in Edge", async 
   expect(runBox.width).toBeGreaterThan(runBox.height);
   await page.locator('[data-file="config/generic-picker/demo.yaml"]').click();
   await expect(page.locator("#run-panel").getByText("case-a", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "增加 case-a 次数" }).click();
-  await page.getByRole("button", { name: "增加 case-a 次数" }).click();
+  await page.getByRole("button", { name: /增加 case-a 次数/ }).click();
+  await page.getByRole("button", { name: /增加 case-a 次数/ }).click();
   await expect(page.locator('[data-case="case-a"] .case-count output')).toHaveText("2");
   const genericRunResponse = page.waitForResponse(
     (response) =>
@@ -1236,7 +1320,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "plugin-case-field-mapping",
           "case-empty-default",
           "case-wheel-noop",
-          "case-explicit-stepper",
+          "case-row-increment",
           "case-delayed-press-repeat",
           "config-root-only",
           "config-free-save-inline-syntax",
@@ -1250,7 +1334,8 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "case-single-column-full-width",
           "case-focus-visible-fast-feedback",
           "blank-seed",
-          "verification-seed-task-detail",
+          "verification-concise-task-detail",
+          "terminal-grouped-unread-output",
           "required-run-field-gate",
           "icon-only-run",
           "uniform-control-geometry",

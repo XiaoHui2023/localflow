@@ -28,4 +28,14 @@ For task-page configuration disclosure, contextual edit/run controls, or termina
 - Do not publish or mutate external systems unless the user separately authorizes it.
 - Search equivalent implementations, examples, starter files and packaging inputs together. Add a failure mutant that removes the required surface so an older receipt cannot silently remain valid.
 
+For inspection information hierarchy, failure-only availability indicators, template-stable operator text, copy feedback, and dirty-draft identity, read `references/run-inspection-and-drafts.md`.
+
+For terminal-list grouping, unread-output semantics, lifecycle color use, and the distinction between observable log growth and guessed idleness, read `references/terminal-list-state-model.md`.
+
+For graceful-stop progress windows, hard escalation bounds, wait-channel failures, controller shutdown, cgroup ownership, or AI terminal intervention, read `references/stopping-progress-and-ownership.md`.
+
+For signed Agent submission/observation/control journeys and resource-link response design, read `references/agent-api-contract.md`.
+
+For persistent browser login, shared trusted DNS domains, secret lifetime, or adaptive bash/csh/zsh/fish startup behavior, read `references/identity-and-shell-boundaries.md`.
+
 For API work, use `localflow-api`. For plugin work, use `localflow-plugin-development`. For deployment or live-process work, use `localflow-operations`.

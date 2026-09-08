@@ -88,9 +88,9 @@
 
 .case-count {
   display: inline-grid;
-  grid-template-columns: repeat(3, 28px);
+  grid-template-columns: repeat(2, 28px);
   align-items: center;
-  min-width: 84px;
+  min-width: 36px;
   min-height: 30px;
   margin-right: 6px;
   padding: 0;
@@ -104,6 +104,7 @@
 }
 
 .case-count output {
+  min-width: 28px;
   text-align: center;
 }
 

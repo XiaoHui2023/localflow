@@ -38,6 +38,15 @@ retention:
 
 未写字段使用安全默认值：监听 `0.0.0.0`、匿名摘要读取、最多四个并发任务和有界日志容量。需要覆盖高级字段时参照 `Settings` 模型或运维文档添加，不为默认安装预先生成空字段。
 
+多服务器免重复登录只适用于一个共同管理的 DNS 父域。例如各节点均通过 HTTPS 使用 `node-a.localflow.example.test` 一类主机名，并安全配置相同的 `secrets/web-admin-key` 后，可在每台加入：
+
+```yaml
+server:
+  session_cookie_domain: localflow.example.test
+```
+
+省略时使用更安全的 host-only cookie；同一主机名即使随机端口改变也不需要此项。原始 IP 或无共同受控父域的地址不能共享浏览器会话。
+
 `auto` 会先探测当前账号的 systemd 用户管理器；可用时任务由 transient unit 持有，网页服务重启不带走任务。直接解压运行且用户管理器不可达时会在服务日志明确记录原因并使用 subprocess，避免页面可打开但所有任务随后启动失败。要求强制持久承载的部署可写 `backend: systemd`，并按运维文档启用用户管理器；此模式探测失败时任务会如实失败并把原因写入任务输出。
 
 旧安装若只有根目录 `localflow.yaml` 或更早的 `config/server.yaml`，下一次启动会把它原样迁移为根目录 `config.yaml`，随后仅从新位置读取。若 `config.yaml` 已存在，则不会覆盖。
@@ -54,7 +63,7 @@ working_directory: .
 command: "printf 'hello world\\n' > hello-world.txt"
 ```
 
-运行后在 LocalFlow 根目录生成 `hello-world.txt`。把 `working_directory` 和 `command` 改成自己的目录与命令即可。所有可运行配置都必须显式给出工作目录；绝对路径原样使用，相对路径统一以 LocalFlow 运行根为基准，并在预演和入队前冻结成绝对路径。`command` 优先使用字符串，Ubuntu 明确以非登录 `/bin/sh -c` 执行，管道、重定向和 shell 变量均可直接使用，同时不会读取登录 profile 改写工作目录；需要完全绕过 shell 解析时仍可写参数列表，例如 `command: [python3, -u, script.py]`。任务快照最终统一保存为参数数组。
+运行后在 LocalFlow 根目录生成 `hello-world.txt`。把 `working_directory` 和 `command` 改成自己的目录与命令即可。所有可运行配置都必须显式给出工作目录；绝对路径原样使用，相对路径统一以 LocalFlow 运行根为基准，并在预演和入队前冻结成绝对路径。字符串 `command` 自动选择服务进程的 `$SHELL`，缺失时读取该运行用户的 passwd 登录 Shell，并以 `<shell> -ic` 加载 `.bashrc`、`.cshrc`、`.zshrc` 或该 Shell 自己的交互启动配置，因此任意插件都能使用同一账号日常终端中的函数和别名。配置可用 `shell: /bin/bash` 等显式覆盖；交互启动文件执行完后，核心再次切回冻结工作目录。参数列表例如 `command: [python3, -u, script.py]` 始终完全绕过 Shell，不能同时设置 `shell`。任务快照最终统一保存为参数数组。
 
 ## 验证仿真
 
@@ -62,7 +71,9 @@ command: "printf 'hello world\\n' > hello-world.txt"
 
 字符串命令支持 Make、Shell、可执行文件以及管道、重定向等任意 Ubuntu shell 命令；参数列表用于完全绕过 shell。GNU Make 的 `-f` 只选择 Makefile，不会切换目录；要在项目目录运行，应设置 `working_directory`，或在命令中明确使用 `make -C <目录>`，LocalFlow 不从任意命令文本猜测目录。任务启动前，输出日志会记录解析后的工作目录和最终命令，自动 seed 也已替换，便于直接核对实际执行内容。
 
-进入使用界面后，顶部只读检查区显示已经解析的工作目录、命令、Case 目录、命令入口、标签、编译日志和运行日志。插件决定检查内容：必须预先存在的输入路径可报错，未来生成的日志只展示而不检查存在性。首次打开、保存成功、外部同步和相关运行输入变化都会重新检查；检查使用有界超时和旧请求取消。
+进入使用界面后，顶部只读检查区显示已经解析的工作目录、完整命令、Case 目录、标签、编译日志和运行日志，不再重复显示字符串命令的首词。插件决定检查内容：必须预先存在的输入路径可声明 availability，仅缺失时显示叉号；存在、普通信息和未来生成的日志均不显示图案。首次打开、保存成功、外部同步和相关运行输入变化都会重新检查；检查使用有界超时和旧请求取消。
+
+编辑器按文件保留未保存草稿。修改后的文件及其父目录在资源树显示圆点，切换文件不会丢失草稿；保存成功、删除或明确采用外部最新版本后清除对应状态。未保存配置可以进入运行审查，但必须先保存才能提交。
 
 ## 诊断与导入
 

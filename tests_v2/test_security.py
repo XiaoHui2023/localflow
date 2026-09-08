@@ -338,6 +338,70 @@ def test_web_key_session_survives_service_restart_until_key_changes(root: Path) 
         assert restarted.get("/api/v1/auth/session").status_code == 401
 
 
+def test_web_admin_key_is_created_once_across_manager_restarts(root: Path) -> None:
+    first = AuthManager(root)
+    original = first.admin_path.read_bytes()
+    second = AuthManager(root)
+
+    assert second.admin_path.read_bytes() == original
+
+
+def test_shared_cookie_domain_logs_into_sibling_server_without_reentering_key(
+    root: Path,
+) -> None:
+    settings = Settings(
+        server=ServerSettings(
+            anonymous_access="summary",
+            session_cookie_domain="localflow.example.test",
+        ),
+        execution=ExecutionSettings(backend="subprocess"),
+    )
+    first_app = create_app(root, settings=settings, start_scheduler=False)
+    with TestClient(first_app, base_url="https://node-a.localflow.example.test") as first:
+        key = (root / "secrets" / "web-admin-key").read_text(encoding="ascii").strip()
+        login = first.post("/api/v1/auth/local-sessions", json={"key": key})
+        assert login.status_code == 200
+        assert "Domain=localflow.example.test" in login.headers["set-cookie"]
+        assert "Secure" in login.headers["set-cookie"]
+        cookies = first.cookies
+
+    sibling_root = root.parent / "sibling-root"
+    sibling_auth = AuthManager(sibling_root)
+    sibling_auth.admin_path.write_text(key, encoding="ascii")
+    if os.name != "nt":
+        os.chmod(sibling_auth.admin_path, 0o600)
+    second_app = create_app(sibling_root, settings=settings, start_scheduler=False)
+    with TestClient(second_app, base_url="https://node-b.localflow.example.test") as second:
+        second.cookies.update(cookies)
+        assert second.get("/api/v1/auth/session").status_code == 200
+
+
+@pytest.mark.parametrize(
+    "domain",
+    ["localhost", "192.0.2.10", "https://example.test", "*.example.test", "example.test:8443"],
+)
+def test_shared_cookie_domain_rejects_unsafe_values(domain: str) -> None:
+    with pytest.raises(ValueError):
+        ServerSettings(session_cookie_domain=domain)
+
+
+def test_shared_cookie_domain_requires_https_and_matching_request_host(root: Path) -> None:
+    settings = Settings(
+        server=ServerSettings(session_cookie_domain="localflow.example.test"),
+        execution=ExecutionSettings(backend="subprocess"),
+    )
+    app = create_app(root, settings=settings, start_scheduler=False)
+    key = (root / "secrets" / "web-admin-key").read_text(encoding="ascii").strip()
+    with TestClient(app, base_url="http://node-a.localflow.example.test") as insecure:
+        assert insecure.post(
+            "/api/v1/auth/local-sessions", json={"key": key}
+        ).status_code == 400
+    with TestClient(app, base_url="https://outside.example.test") as outside:
+        assert outside.post(
+            "/api/v1/auth/local-sessions", json={"key": key}
+        ).status_code == 400
+
+
 def test_legacy_admin_secret_is_migrated_without_changing_its_value(root: Path) -> None:
     directory = root / "secrets"
     directory.mkdir(parents=True)

@@ -112,3 +112,26 @@
 .inspection-item[data-custom-text="true"]{grid-template-columns:minmax(0,1fr) 24px}
 .details>.copy-field[data-custom-text="true"]{grid-template-columns:minmax(0,1fr)}
 @media(max-width:760px){.problems-panel{max-height:150px}}
+
+/* File decorations preserve per-file drafts without turning the explorer into
+   a second status panel. Parent folders inherit the dot for collapsed trees. */
+.tree-node>.tree-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tree-dirty{width:7px;height:7px;flex:0 0 7px;margin-left:auto;border-radius:50%;background:var(--accent)}
+.tree-node.selected .tree-dirty{box-shadow:0 0 0 2px var(--surface-selected)}
+
+/* Copy feedback stays in the original control: no toast and no layout shift. */
+.copy-value{position:relative;transition:border-color .1s,background-color .1s,box-shadow .1s,transform .06s}
+.copy-value:active{transform:translateY(1px)}
+.copy-affordance{position:absolute;top:50%;right:6px;width:22px;height:22px;display:grid;place-items:center;pointer-events:none;border-radius:50%;color:var(--muted);opacity:.72;transform:translateY(-50%)}
+.copy-affordance svg{width:14px;height:14px}
+.copy-value:hover .copy-affordance{opacity:1;color:var(--accent)}
+.copy-shell[data-copied="true"] .copy-value{border-color:color-mix(in srgb,var(--success) 56%,var(--border));background:color-mix(in srgb,var(--success-bg) 45%,var(--code-bg));box-shadow:0 0 0 2px color-mix(in srgb,var(--success) 14%,transparent)}
+.copy-shell[data-copied="true"] .copy-affordance{color:var(--success);opacity:1;animation:copy-affordance-confirm .32s cubic-bezier(.2,.8,.2,1)}
+@keyframes copy-affordance-confirm{0%{transform:translateY(-50%) scale(.72)}55%{transform:translateY(-50%) scale(1.16)}100%{transform:translateY(-50%) scale(1)}}
+
+/* Only an explicitly requested availability failure owns a visible status
+   glyph. Successful and informational rows remain visually quiet. */
+.inspection-status-slot{width:24px;height:24px;display:grid;place-items:center}
+.inspection-state{color:var(--danger)}
+.severity-warning .inspection-state{color:var(--danger)}
+@media(prefers-reduced-motion:reduce){.copy-value{transition:none}.copy-shell[data-copied="true"] .copy-affordance{animation:none}}

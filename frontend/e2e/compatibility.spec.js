@@ -147,7 +147,7 @@ test("Ubuntu browser can operate the released web console", async ({
   await waitForState(page, live.task_id, ["cancelled", "failed"]);
   await page.getByRole("tab", { name: "终端" }).click();
   const historyTerminal = page
-    .locator(".terminal-page > aside > button")
+    .locator(".terminal-page .terminal-entry")
     .filter({ hasText: `${browserName}-compat-terminal` });
   await expect(historyTerminal).toBeVisible();
   await historyTerminal.click();

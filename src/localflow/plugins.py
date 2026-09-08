@@ -20,6 +20,8 @@ from .models import (
     TaskCreate,
     TaskRecord,
     TaskStatus,
+    detected_login_shell,
+    freeze_command_working_directory,
 )
 from .variables import resolve_config_tree
 
@@ -64,6 +66,7 @@ class InspectionItem(BaseModel):
     label: str | None = Field(default=None, min_length=1, max_length=80)
     value: str
     kind: Literal["text", "path", "command"] = "text"
+    check: Literal["none", "availability"] = "none"
     severity: Literal["ok", "info", "warning", "error"] = "info"
     message: str | None = None
 
@@ -343,10 +346,14 @@ class PluginRegistry:
             working_directory = Path(draft.working_directory)
             if not working_directory.is_absolute():
                 working_directory = root / working_directory
+            frozen_directory = str(working_directory.resolve())
             prepared.append(
                 draft.model_copy(
                     update={
-                        "working_directory": str(working_directory.resolve()),
+                        "working_directory": frozen_directory,
+                        "command": freeze_command_working_directory(
+                            draft.command, frozen_directory
+                        ),
                         "plugin_snapshot": snapshot,
                         "template": name,
                         "stop": stop,
@@ -471,18 +478,33 @@ class PluginRegistry:
             "label": "工作目录",
             "value": str(directory),
             "kind": "path",
+            "check": "availability",
             "severity": "ok" if directory_ok else "error",
             "message": None if directory_ok else "找不到工作目录",
         }]
         command = values.get("command")
         if isinstance(command, str) and command.strip():
+            shell = values.get("shell")
+            selected_shell = shell if isinstance(shell, str) else detected_login_shell()
+            items.append({
+                "name": "shell",
+                "label": "Shell",
+                "value": selected_shell,
+                "kind": "command",
+                "severity": "info",
+                "message": (
+                    "配置显式选择；加载该 Shell 的交互启动配置"
+                    if isinstance(shell, str)
+                    else "根据服务用户自动选择；加载交互启动配置"
+                ),
+            })
             items.append({
                 "name": "command",
                 "label": "命令",
                 "value": command,
                 "kind": "command",
                 "severity": "ok",
-                "message": "由非登录 /bin/sh -c 执行",
+                "message": f"由 {selected_shell} -ic 执行",
             })
         elif isinstance(command, list) and command:
             executable = str(command[0])
@@ -497,6 +519,7 @@ class PluginRegistry:
                 "label": "命令",
                 "value": shlex.join(str(part) for part in command),
                 "kind": "command",
+                "check": "availability",
                 "severity": "ok" if found else "error",
                 "message": None if found else f"找不到命令入口：{executable}",
             })

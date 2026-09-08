@@ -15,7 +15,15 @@ from pathlib import Path
 from .executor import Executor
 from .ids import new_id
 from .log_files import MIB, append_lifecycle
-from .models import TERMINAL_STATES, StopAction, StopStrategy, TaskCreate, TaskRecord, TaskState
+from .models import (
+    TERMINAL_STATES,
+    StopAction,
+    StopStrategy,
+    TaskCreate,
+    TaskRecord,
+    TaskState,
+    freeze_command_working_directory,
+)
 from .settings import LoggingSettings, RetentionSettings
 from .storage import Store
 
@@ -115,8 +123,14 @@ class TaskService:
         working_directory = Path(draft.working_directory)
         if not working_directory.is_absolute():
             working_directory = self.root / working_directory
+        frozen_directory = str(working_directory.resolve())
         return draft.model_copy(
-            update={"working_directory": str(working_directory.resolve())}
+            update={
+                "working_directory": frozen_directory,
+                "command": freeze_command_working_directory(
+                    draft.command, frozen_directory
+                ),
+            }
         )
 
     def _terminal(self) -> None:
@@ -167,8 +181,22 @@ class TaskService:
                 return
             await asyncio.sleep(0.1)
         remaining = self.store.list_tasks(states=active_states, limit=10_000, ascending=True)
+        forced_sequences = []
+        for task in remaining:
+            sequence = self._interrupts.get(task.id)
+            if sequence is not None:
+                sequence.cancel()
+                forced_sequences.append(sequence)
+        if forced_sequences:
+            await asyncio.gather(*forced_sequences, return_exceptions=True)
         for task in remaining:
             logger.warning("shutdown force cleanup task_id=%s", task.id)
+            self.store.transition(
+                task.id,
+                [TaskState.STARTING, TaskState.RUNNING, TaskState.STOPPING],
+                TaskState.STOPPING,
+                interrupt_stage="sigkill",
+            )
             await self.executor.interrupt(task.id, "sigkill")
         for task in remaining:
             await self._confirm_forced_exit(task.id)
@@ -351,7 +379,57 @@ class TaskService:
 
     async def _wait(self, task_id: str) -> None:
         try:
-            code = await self.executor.wait(task_id)
+            failures = 0
+            while True:
+                try:
+                    code = await self.executor.wait(task_id)
+                    break
+                except Exception as exc:
+                    failures += 1
+                    logger.error(
+                        "task result could not be collected; checking ownership "
+                        "task_id=%s attempt=%s",
+                        task_id,
+                        failures,
+                    )
+                    logger.debug(
+                        "task wait exception task_id=%s", task_id, exc_info=True
+                    )
+                    self.store.append_event(
+                        task_id,
+                        "task.wait_error",
+                        {"attempt": failures, "error": str(exc)},
+                    )
+                    current = self.store.get_task(task_id)
+                    try:
+                        running = await self.executor.is_running(current)
+                        completed = await self.executor.completed_code(task_id)
+                    except Exception as probe_exc:
+                        self.store.append_event(
+                            task_id,
+                            "task.wait_probe_error",
+                            {"attempt": failures, "error": str(probe_exc)},
+                        )
+                        running, completed = True, None
+                    if completed is not None and not running:
+                        code = completed
+                        break
+                    if not running:
+                        self.store.transition(
+                            task_id,
+                            [TaskState.RUNNING, TaskState.STARTING, TaskState.STOPPING],
+                            TaskState.LOST,
+                            ended_at=_now(),
+                            elapsed_seconds=_elapsed(current),
+                        )
+                        self._terminal()
+                        return
+                    self.store.append_event(
+                        task_id,
+                        "task.wait_retry",
+                        {"attempt": failures, "process_tree_running": True},
+                    )
+                    await asyncio.sleep(min(0.25 * failures, 2.0))
             task = self.store.get_task(task_id)
             if task.state in TERMINAL_STATES:
                 return
@@ -372,17 +450,6 @@ class TaskService:
                 custom_json=json.dumps(custom, ensure_ascii=False),
             )
             logger.info("task finished task_id=%s state=%s exit_code=%s", task_id, state, code)
-            self._terminal()
-        except Exception as exc:
-            logger.error("task result could not be collected task_id=%s", task_id)
-            logger.debug("task wait exception task_id=%s", task_id, exc_info=True)
-            self.store.append_event(task_id, "task.wait_error", {"error": str(exc)})
-            self.store.transition(
-                task_id,
-                [TaskState.RUNNING, TaskState.STARTING, TaskState.STOPPING],
-                TaskState.LOST,
-                ended_at=_now(),
-            )
             self._terminal()
         finally:
             self._waiters.pop(task_id, None)
@@ -555,27 +622,41 @@ class TaskService:
         advance: asyncio.Event,
         timeout_seconds: float,
     ) -> None:
-        deadline = time.monotonic() + timeout_seconds
+        now = time.monotonic()
+        deadline = now + timeout_seconds
+        elapsed_in_apply = max(0.0, action.timeout_seconds - timeout_seconds)
+        hard_deadline = (
+            now + max(0.0, action.max_timeout_seconds - elapsed_in_apply)
+            if action.max_timeout_seconds is not None
+            else deadline
+        )
         needle = action.output_contains.encode() if action.output_contains else None
         tail = b""
         advance.clear()
-        while time.monotonic() < deadline:
+        while time.monotonic() < min(deadline, hard_deadline):
             if self.store.get_task(task_id).state in TERMINAL_STATES:
                 return
             if advance.is_set():
                 advance.clear()
                 return
-            if needle:
+            if needle or action.extend_timeout_on_output:
                 chunk, offset = self.read_log(task_id, offset, 65536)
-                tail = (tail + chunk)[-max(len(needle) * 2, 1024) :]
-                if needle in tail:
-                    return
+                if chunk:
+                    if action.extend_timeout_on_output:
+                        deadline = min(
+                            time.monotonic() + action.timeout_seconds,
+                            hard_deadline,
+                        )
+                    if needle:
+                        tail = (tail + chunk)[-max(len(needle) * 2, 1024) :]
+                        if needle in tail:
+                            return
             await asyncio.sleep(0.05)
 
     async def _confirm_forced_exit(self, task_id: str) -> None:
         """Keep ownership until the real process tree is gone; never report a guessed exit."""
         attempt = 0
-        while not self._stopping:
+        while True:
             current = self.store.get_task(task_id)
             if current.state in TERMINAL_STATES:
                 return

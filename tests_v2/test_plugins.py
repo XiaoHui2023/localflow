@@ -130,11 +130,8 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
         {"cases": ["case-a"], "seed": 41},
         {"root": str(root)},
     )[0]
-    assert make_task.command == [
-        "/bin/sh",
-        "-c",
-        "make all CASE=case-a SEED=41",
-    ]
+    assert make_task.command[:2] == ["/bin/sh", "-ic"]
+    assert make_task.command[-1].endswith("&& make all CASE=case-a SEED=41")
     assert make_task.custom["自定义文本"] == [
         "case=case-a",
         "seed=41",
@@ -148,20 +145,20 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     }
     assert registry.expand_config(
         composed, {"cases": ["case-a"], "seed": 42}, {"root": str(root)}
-    )[0].command[-1] == "make all CASE=case-a SEED=42"
+    )[0].command[-1].endswith("&& make all CASE=case-a SEED=42")
 
 
 @pytest.mark.parametrize(
-    ("command", "expected"),
+    ("command", "expected_tail"),
     [
-        ("make all", ["/bin/sh", "-c", "make all"]),
-        ("make all CASE=${case}", ["/bin/sh", "-c", "make all CASE=case-a"]),
+        ("make all", "make all"),
+        ("make all CASE=${case}", "make all CASE=case-a"),
         (["make", "all", "SEED=${seed}"], ["make", "all", "SEED=${seed}"]),
         (["make", "all"], ["make", "all"]),
     ],
 )
 def test_verification_command_uses_only_variables_explicitly_requested(
-    root: Path, command, expected: list[str]
+    root: Path, command, expected_tail: str | list[str]
 ) -> None:
     initialize_root(root)
     registry = PluginRegistry(root / "plugins")
@@ -176,7 +173,11 @@ def test_verification_command_uses_only_variables_explicitly_requested(
         {"cases": ["case-a"]},
         {"root": str(root)},
     )[0]
-    assert task.command == expected
+    if isinstance(expected_tail, str):
+        assert task.command[:2] == ["/bin/sh", "-ic"]
+        assert task.command[-1].endswith("&& " + expected_tail)
+    else:
+        assert task.command == expected_tail
     assert task.working_directory == str(root.resolve())
     assert "--case" not in task.command
     assert "--seed" not in task.command
@@ -210,7 +211,8 @@ def test_verification_resolves_yaml_root_variables_after_include(root: Path) -> 
         {"root": str(root)},
     )[0]
 
-    assert task.command == ["/bin/sh", "-c", "make smoke"]
+    assert task.command[:2] == ["/bin/sh", "-ic"]
+    assert task.command[-1].endswith("&& make smoke")
     assert task.labels == ["included"]
 
 
@@ -237,7 +239,7 @@ def test_verification_only_exposes_case_and_seed_as_runtime_variables(root: Path
         {"cases": ["case-a"], "seed": 41},
         {"root": str(root)},
     )[0]
-    assert task.command[-1] == "echo case-a 41"
+    assert task.command[-1].endswith("&& echo case-a 41")
 
 
 def test_verification_rejects_an_implicit_controller_working_directory(root: Path) -> None:

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import os
 import re
+import shlex
 from datetime import UTC, datetime
 from enum import StrEnum
+from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 
 def utc_now() -> datetime:
@@ -13,9 +16,35 @@ def utc_now() -> datetime:
 
 
 CommandInput = str | list[str]
+_SHELL_CWD_SENTINEL = "__LOCALFLOW_RESTORE_FROZEN_CWD__"
 
 
-def normalize_command(value: CommandInput) -> list[str]:
+def detected_login_shell() -> str:
+    """Return the service user's interactive shell for string commands.
+
+    ``SHELL`` is the session-level choice propagated by common user managers.  The
+    passwd entry is the durable fallback when a controller starts without it.
+    """
+    candidates = [os.environ.get("SHELL", "")]
+    if os.name != "nt":
+        try:
+            import pwd
+
+            candidates.append(pwd.getpwuid(os.geteuid()).pw_shell)
+        except (ImportError, KeyError, OSError):
+            pass
+    for candidate in candidates:
+        candidate = candidate.strip()
+        if (
+            candidate.startswith("/")
+            and "\x00" not in candidate
+            and Path(candidate).name not in {"false", "nologin"}
+        ):
+            return candidate
+    return "/bin/sh"
+
+
+def normalize_command(value: CommandInput, shell: str | None = None) -> list[str]:
     """Normalize the public command contract to the executor's argv contract.
 
     A string intentionally has Ubuntu shell semantics.  A list remains exact argv,
@@ -24,10 +53,37 @@ def normalize_command(value: CommandInput) -> list[str]:
     if isinstance(value, str):
         if not value.strip() or "\x00" in value:
             raise ValueError("command must be non-empty and contain no NUL")
-        return ["/bin/sh", "-c", value]
+        selected_shell = shell or detected_login_shell()
+        return [selected_shell, "-ic", _SHELL_CWD_SENTINEL + value]
     if not value or any(not isinstance(item, str) or not item or "\x00" in item for item in value):
         raise ValueError("command arguments must be non-empty strings and contain no NUL")
     return value
+
+
+def freeze_command_working_directory(command: list[str], working_directory: str) -> list[str]:
+    """Bind an opt-in interactive shell command to its absolute task cwd."""
+    if (
+        len(command) >= 3
+        and command[1] == "-ic"
+        and command[2].startswith(_SHELL_CWD_SENTINEL)
+    ):
+        source = command[2][len(_SHELL_CWD_SENTINEL) :]
+        return [
+            *command[:2],
+            f"cd {shlex.quote(working_directory)} && {source}",
+            *command[3:],
+        ]
+    return command
+
+
+def command_for_log(command: list[str], working_directory: str) -> str:
+    """Render the user's command without exposing LocalFlow's shell wrapper."""
+    if len(command) >= 3 and command[1] == "-ic":
+        source = command[2]
+        prefix = f"cd {shlex.quote(working_directory)} && "
+        if source.startswith(prefix):
+            return source[len(prefix) :]
+    return shlex.join(command)
 
 
 class TaskState(StrEnum):
@@ -58,6 +114,8 @@ class StopAction(BaseModel):
     data: str | None = Field(default=None, max_length=4096)
     command: list[str] | None = Field(default=None, min_length=1, max_length=64)
     timeout_seconds: float = Field(default=10, ge=0, le=86400)
+    extend_timeout_on_output: bool = False
+    max_timeout_seconds: float | None = Field(default=None, ge=0, le=86400)
     output_contains: str | None = Field(default=None, min_length=1, max_length=512)
     label: str | None = Field(default=None, max_length=80)
 
@@ -76,6 +134,15 @@ class StopAction(BaseModel):
             raise ValueError("stop input must be at most 4096 bytes and contain no NUL")
         if self.command and any(not item or "\x00" in item for item in self.command):
             raise ValueError("stop command arguments must be non-empty and contain no NUL")
+        if self.extend_timeout_on_output and self.max_timeout_seconds is None:
+            raise ValueError(
+                "max_timeout_seconds is required when extend_timeout_on_output is enabled"
+            )
+        if (
+            self.max_timeout_seconds is not None
+            and self.max_timeout_seconds < self.timeout_seconds
+        ):
+            raise ValueError("max_timeout_seconds must be at least timeout_seconds")
         return self
 
 
@@ -89,6 +156,7 @@ COMMON_CONFIG_FIELDS = frozenset(
         "plugin",
         "name",
         "working_directory",
+        "shell",
         "command",
         "labels",
         "mutex_keys",
@@ -108,6 +176,7 @@ class CommonConfigFields(BaseModel):
     plugin: str | None = Field(default=None, min_length=1)
     name: str | None = Field(default=None, min_length=1, max_length=200)
     working_directory: str | None = Field(default=None, min_length=1)
+    shell: str | None = Field(default=None, min_length=1)
     command: CommandInput | None = None
     labels: list[str] | None = Field(default=None, max_length=64)
     mutex_keys: list[str] | None = Field(default=None, max_length=32)
@@ -116,11 +185,22 @@ class CommonConfigFields(BaseModel):
     variables: dict[str, Any] | None = None
     project: str | None = Field(default=None, min_length=1)
 
+    @field_validator("shell")
+    @classmethod
+    def validate_shell(cls, value: str | None) -> str | None:
+        if value is not None and (not value.strip() or "\x00" in value):
+            raise ValueError("shell must be non-empty and contain no NUL")
+        return value
+
     @field_validator("command")
     @classmethod
-    def validate_command(cls, value: CommandInput | None) -> CommandInput | None:
+    def validate_command(
+        cls, value: CommandInput | None, info: ValidationInfo
+    ) -> CommandInput | None:
         if value is not None:
-            normalize_command(value)
+            if isinstance(value, list) and info.data.get("shell") is not None:
+                raise ValueError("shell is only valid with a string command")
+            normalize_command(value, info.data.get("shell"))
         return value
 
     @field_validator("labels", "mutex_keys")
@@ -154,6 +234,7 @@ class TaskCreate(BaseModel):
     )
     name: str = Field(min_length=1, max_length=200)
     working_directory: str = Field(min_length=1)
+    shell: str | None = Field(default=None, min_length=1, exclude=True)
     command: list[str]
     labels: list[str] = Field(default_factory=list, max_length=64)
     mutex_keys: list[str] = Field(default_factory=list, max_length=32)
@@ -162,10 +243,19 @@ class TaskCreate(BaseModel):
     plugin_snapshot: dict[str, Any] = Field(default_factory=dict)
     stop: StopStrategy | None = None
 
+    @field_validator("shell")
+    @classmethod
+    def validate_shell(cls, value: str | None) -> str | None:
+        if value is not None and (not value.strip() or "\x00" in value):
+            raise ValueError("shell must be non-empty and contain no NUL")
+        return value
+
     @field_validator("command", mode="before")
     @classmethod
-    def non_empty_arguments(cls, value: CommandInput) -> list[str]:
-        return normalize_command(value)
+    def non_empty_arguments(cls, value: CommandInput, info: ValidationInfo) -> list[str]:
+        if isinstance(value, list) and info.data.get("shell") is not None:
+            raise ValueError("shell is only valid with a string command")
+        return normalize_command(value, info.data.get("shell"))
 
     @field_validator("labels", "mutex_keys")
     @classmethod

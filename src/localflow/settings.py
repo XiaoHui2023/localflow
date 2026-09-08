@@ -4,12 +4,13 @@ import hashlib
 import ipaddress
 import json
 import os
+import re
 from importlib.resources import files
 from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class ServerSettings(BaseModel):
@@ -19,6 +20,27 @@ class ServerSettings(BaseModel):
     tls_certfile: str | None = None
     tls_keyfile: str | None = None
     trusted_proxies: list[str] = Field(default_factory=list)
+    session_cookie_domain: str | None = None
+
+    @field_validator("session_cookie_domain")
+    @classmethod
+    def valid_session_cookie_domain(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().lower().lstrip(".")
+        try:
+            ipaddress.ip_address(normalized)
+        except ValueError:
+            pass
+        else:
+            raise ValueError("session_cookie_domain must be a DNS parent domain, not an IP")
+        labels = normalized.split(".")
+        if len(labels) < 2 or any(
+            re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", label) is None
+            for label in labels
+        ):
+            raise ValueError("session_cookie_domain must be a plain multi-label DNS domain")
+        return normalized
 
 
 class ExecutionSettings(BaseModel):

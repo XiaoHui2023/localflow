@@ -17,7 +17,9 @@
 
 ## 浏览器管理员会话
 
-用户从 `secrets/web-admin-key` 复制秘钥，在设置页输入一次。秘钥只存在于本次登录请求体，不进入 URL、服务器响应、日志、cookie 或浏览器持久存储。服务端签发由该秘钥 HMAC 签名的 `HttpOnly; SameSite=Strict` cookie；HTTPS 时同时设置 `Secure`。cookie 采用长有效期并在页面恢复会话时续期，因此浏览器刷新和服务重启后仍保持登录；修改网页管理员秘钥会立即使全部旧签名失效。
+用户从 `secrets/web-admin-key` 复制秘钥，在设置页输入一次。该文件仅在不存在时原子生成，普通启动、控制器重启和任务结束都不会重写它。秘钥只存在于本次登录请求体，不进入 URL、服务器响应、日志、cookie 或浏览器持久存储。服务端签发由该秘钥 HMAC 签名的 `HttpOnly; SameSite=Strict` 持久 cookie，并在页面恢复会话时续期，因此同一浏览器访问同一主机名（包括端口变化）或服务重启后无需重输；修改网页管理员秘钥会立即使全部旧签名失效。
+
+默认 cookie 不带 `Domain`，只属于当前主机，这是最小授权。若多台可信服务器分别使用 `node-a.localflow.example.test`、`node-b.localflow.example.test` 这样的受控子域，可在每台 `config.yaml` 设置相同的 `server.session_cookie_domain: localflow.example.test`，并安全分发完全相同的 `web-admin-key`；首次登录后浏览器可把签名会话发送给兄弟服务器。共享模式强制 HTTPS、`Secure` 和请求主机属于配置父域。父域中的每台主机都进入同一管理信任边界，只能使用专门由同一管理员控制的私有父域。不同 IP、无共同父域或互不信任的服务器不能共享浏览器 cookie；优先使用统一反向代理主机名或虚拟 IP。不得改用 localStorage 保存管理员秘钥。
 
 响应正文只返回从签名会话派生的 CSRF 令牌，网页仅保存在内存中。cookie 写操作要求精确匹配当前 scheme 与 Host 的 `Origin`，并用常量时间比较 `X-CSRF-Token`。WebSocket 管理身份要求同源 Origin；匿名完整只读连接即使发送 `input` 或 `resize` 也会被拒绝。
 
@@ -43,6 +45,6 @@ API 密钥不进入浏览器存储、任务请求、任务环境或事件数据�
 
 网页登录只能阻止不知道秘钥的人操作，HTTP 无法抵御局域网抓包或中间人。直接 HTTP 只适用于受信任的离线局域网；其他网络必须配置成对的 TLS 证书与私钥。`trusted_proxies` 只在实际经过反向代理时配置，Uvicorn 只接受这些 CIDR 的转发头。
 
-任务命令始终以参数数组交给执行器。需要管道或重定向时，用户必须在数组中显式调用 `bash -lc`，因此 shell 风险在任务详情中可见。用户插件是受信任本地代码，没有 Python 沙箱。
+任务命令最终始终以参数数组交给执行器。字符串自动解析服务账号的环境或 passwd 登录 Shell，并转换为对应交互 Shell 的 `-ic`；显式 `shell` 可覆盖该选择。它会执行服务账号的启动文件，因此只适用于受信任的本机配置。参数列表保持精确 argv，不读取 Shell 启动文件。规范化后的 Shell、参数和冻结工作目录都进入任务日志与快照。用户插件是受信任本地代码，没有 Python 沙箱。
 
 HTTP 响应启用 `nosniff`、`no-referrer` 和只允许本地脚本/连接的 CSP。终端块和输入均限制为 64 KiB，尺寸限制为 2–1000 行列；WebSocket 的 await 发送提供传输背压。当前版本未实现按身份的请求速率限制，部署在非回环网络时应由受信任反向代理补充连接数和速率上限。

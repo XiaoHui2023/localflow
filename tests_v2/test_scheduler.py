@@ -14,6 +14,21 @@ from localflow.settings import initialize_root
 from localflow.storage import Store
 
 
+class FlakyWaitExecutor(SubprocessExecutor):
+    """Inject one result-channel failure while leaving the owned process alive."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.wait_attempts = 0
+
+    async def wait(self, task_id: str) -> int:
+        self.wait_attempts += 1
+        if self.wait_attempts == 1:
+            await asyncio.sleep(0.03)
+            raise RuntimeError("injected transient wait failure")
+        return await super().wait(task_id)
+
+
 @pytest.mark.asyncio
 async def test_mutex_queue_and_logs(root: Path) -> None:
     root.mkdir()
@@ -94,6 +109,34 @@ async def test_subprocess_relative_side_effect_stays_in_configured_workdir(
         marker = project / "generated" / "marker.txt"
         assert marker.read_text(encoding="utf-8") == str(project)
         assert not (root / "generated").exists()
+    finally:
+        await service.stop()
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_transient_wait_failure_never_marks_a_live_process_terminal(root: Path) -> None:
+    root.mkdir()
+    store = Store(root / "runtime" / "localflow.db")
+    executor = FlakyWaitExecutor()
+    service = TaskService(root, store, executor, max_concurrency=1)
+    task = service.submit(
+        TaskCreate(
+            name="wait-retry",
+            working_directory=str(root),
+            command=[sys.executable, "-c", "import time; time.sleep(.15)"],
+        )
+    )
+    await service.start()
+    try:
+        for _ in range(100):
+            await asyncio.sleep(0.02)
+            if store.get_task(task.id).ended_at:
+                break
+        result = store.get_task(task.id)
+        assert executor.wait_attempts >= 2
+        assert result.state == "succeeded"
+        assert result.exit_code == 0
     finally:
         await service.stop()
         store.close()
@@ -256,6 +299,34 @@ async def test_second_interrupt_click_advances_current_wait(root: Path) -> None:
     assert store.get_task(task.id).state == "cancelled"
     await service.stop()
     store.close()
+
+
+def test_stop_progress_extension_requires_a_bounded_hard_deadline() -> None:
+    action = StopAction(
+        type="signal",
+        signal="SIGINT",
+        timeout_seconds=2,
+        extend_timeout_on_output=True,
+        max_timeout_seconds=30,
+    )
+    assert action.extend_timeout_on_output is True
+    assert action.max_timeout_seconds == 30
+
+    with pytest.raises(ValueError, match="max_timeout_seconds"):
+        StopAction(
+            type="signal",
+            signal="SIGINT",
+            timeout_seconds=2,
+            extend_timeout_on_output=True,
+        )
+    with pytest.raises(ValueError, match="at least timeout_seconds"):
+        StopAction(
+            type="signal",
+            signal="SIGINT",
+            timeout_seconds=2,
+            extend_timeout_on_output=True,
+            max_timeout_seconds=1,
+        )
 
 
 @pytest.mark.asyncio

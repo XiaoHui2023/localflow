@@ -131,7 +131,9 @@ GNU Make 把 `name=value` 作为命令行变量覆盖，`--case` 不是 Make 的
 
 后续真实使用推翻了“验证命令必须同时包含 `${case}` 与 `${seed}`”的假设。Case、seed 与 run 是插件可提供的替换值，不是用户命令必须消费的参数；命令可以使用任意子集或完全不用，插件不得拒绝或猜测参数语法。
 
-工作目录门禁也从文本观察升级为副作用证明。Python `cwd`、systemd `WorkingDirectory` 与 supervisor `chdir` 应传递同一个冻结绝对值；字符串命令使用 `/bin/sh -c`，避免 `-l` 读取 `/etc/profile`/`.profile` 后再次 `cd`。subprocess、systemd Make 与冻结制品分别创建相对 marker，并同时断言目标目录存在、LocalFlow 根不存在。打印 `PWD` 或成功读取 Makefile 不再单独构成通过。
+工作目录门禁也从文本观察升级为副作用证明。Python `cwd`、systemd `WorkingDirectory` 与 supervisor `chdir` 应传递同一个冻结绝对值；字符串命令从 `$SHELL` 或 passwd 登录 Shell 自适应选择，以 `<shell> -ic` 读取 `.bashrc`、`.cshrc`、`.zshrc`、`config.fish` 等启动配置，显式 `shell` 只作为覆盖。命令文本首先 `cd` 回冻结绝对路径，使 rc 中的 `cd` 不能夺走任务目录。subprocess、systemd Make、隔离 HOME 的真实 bash/tcsh 别名与冻结制品分别创建相对 marker，并同时断言目标目录存在、LocalFlow 根不存在。打印 `PWD` 或成功读取 Makefile不再单独构成通过。GNU Bash 手册确认交互非登录 Shell 读取 `.bashrc` 且交互模式默认展开别名；zsh 与 fish 官方文档分别确认 `.zshrc` 和 `config.fish` 的启动语义。
+
+HTTP 202 的 Agent 可发现性采用 RFC 9110 的状态监视器建议：保留原有 `task_id`/`task_ids`，同时返回相对 `href` 并让 `Location` 指向任务或批次资源，避免客户端猜路径。日志仍使用字节游标，控制通道区分原始输入、命名控制键和持久停止协议。网页会话遵循 RFC 6265：host-only cookie 已经跨同主机端口；跨可信服务器只有在共享受控 DNS 父域、同一网页密钥和 HTTPS/Secure 下才启用 Domain。标准也明确警告兄弟域可覆盖父域 cookie，因此该配置代表共同管理员信任边界，不能用于不同 IP 或混合信任域。
 
 详细研究、Find Skills 结果、失败基线和能力合同见 [2026-09-02 工作目录证据](../quality/evidence/2026-09-02-working-directory.md) 与 [专项合同](../quality/evidence/2026-09-02-working-directory-capability.json)。
 
