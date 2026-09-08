@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from localflow.models import detected_login_shell
 from localflow.plugins import PluginRegistry, run_field
 from localflow.settings import initialize_root
 
@@ -130,7 +131,7 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
         {"cases": ["case-a"], "seed": 41},
         {"root": str(root)},
     )[0]
-    assert make_task.command[:2] == ["/bin/sh", "-ic"]
+    assert make_task.command[:2] == [detected_login_shell(), "-ic"]
     assert make_task.command[-1].endswith("&& make all CASE=case-a SEED=41")
     assert make_task.custom["自定义文本"] == [
         "case=case-a",
@@ -174,7 +175,7 @@ def test_verification_command_uses_only_variables_explicitly_requested(
         {"root": str(root)},
     )[0]
     if isinstance(expected_tail, str):
-        assert task.command[:2] == ["/bin/sh", "-ic"]
+        assert task.command[:2] == [detected_login_shell(), "-ic"]
         assert task.command[-1].endswith("&& " + expected_tail)
     else:
         assert task.command == expected_tail
@@ -211,7 +212,7 @@ def test_verification_resolves_yaml_root_variables_after_include(root: Path) -> 
         {"root": str(root)},
     )[0]
 
-    assert task.command[:2] == ["/bin/sh", "-ic"]
+    assert task.command[:2] == [detected_login_shell(), "-ic"]
     assert task.command[-1].endswith("&& make smoke")
     assert task.labels == ["included"]
 
