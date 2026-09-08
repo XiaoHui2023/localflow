@@ -5,6 +5,7 @@ Use this topic for repeated browser login, multi-server access, secret rotation,
 ## Browser session model
 
 - `secrets/web-admin-key` is create-once state. Starting LocalFlow, finishing a task, or changing ports never rotates it. An owner explicitly replacing the file revokes all signed browser sessions.
+- Secret modes are initialization defaults, not a runtime policy engine. Set a newly created directory to `0700` and a newly created key to `0600`; on later starts, do not audit, repair, reject, or regenerate because an operator changed owner/mode. Preserve the existing API-key mode across its required atomic content rotations.
 - Default to a host-only `HttpOnly; SameSite=Strict` persistent cookie. Cookies ignore ports, so the same hostname survives a random-port restart without broadening host authority.
 - Cross-server reuse is opt-in through one dedicated parent DNS domain. Every trusted sibling uses the identical key and `server.session_cookie_domain`; requests must be HTTPS and inside that domain, and cookies are always Secure.
 - A shared Domain cookie makes every included sibling part of one administrator trust boundary. Never use a public suffix, mixed-trust parent, raw IP fleet, localStorage, or a browser-stored administrator key. Prefer one stable reverse-proxy hostname when available.

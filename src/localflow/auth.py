@@ -4,7 +4,9 @@ import hashlib
 import hmac
 import os
 import secrets
+import stat
 import time
+from contextlib import suppress
 from pathlib import Path
 
 from fastapi import HTTPException, Request, WebSocket, status
@@ -28,38 +30,17 @@ class AuthManager:
         for path in (self.admin_path, self.api_path):
             if not path.exists():
                 self._atomic_secret(path, secrets.token_urlsafe(48))
-        self.check_permissions()
 
     def _atomic_secret(self, path: Path, value: str) -> None:
+        existing_mode: int | None = None
+        if os.name != "nt":
+            with suppress(FileNotFoundError):
+                existing_mode = stat.S_IMODE(path.lstat().st_mode)
         temporary = path.with_suffix(".new")
         temporary.write_text(value, encoding="ascii")
         if os.name != "nt":
-            os.chmod(temporary, 0o600)
+            os.chmod(temporary, existing_mode if existing_mode is not None else 0o600)
         os.replace(temporary, path)
-
-    def check_permissions(self) -> None:
-        if os.name == "nt":
-            return
-        directory = self.directory.lstat()
-        if (
-            self.directory.is_symlink()
-            or not self.directory.is_dir()
-            or directory.st_uid != os.getuid()
-            or directory.st_mode & 0o077
-        ):
-            raise PermissionError(
-                f"secret directory must be owner-owned mode 0700: {self.directory}"
-            )
-        for path in (self.admin_path, self.api_path):
-            metadata = path.lstat()
-            if (
-                path.is_symlink()
-                or not path.is_file()
-                or metadata.st_uid != os.getuid()
-                or metadata.st_nlink != 1
-                or metadata.st_mode & 0o077
-            ):
-                raise PermissionError(f"secret must be a regular owner-only file: {path}")
 
     def exchange_admin(self, key: str) -> tuple[str, str]:
         expected = self.admin_path.read_text(encoding="ascii").strip()
