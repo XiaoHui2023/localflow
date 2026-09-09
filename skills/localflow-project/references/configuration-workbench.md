@@ -28,11 +28,12 @@ WAI-ARIA disclosure supplies the interaction contract (`button`, `aria-expanded`
 - Closing/reopening and leaving/returning to Tasks preserves file, mode, and unfinished inputs.
 - Save is disabled before an edit and immediately after a successful save, but enabled for any byte-changing edit even when diagnosis fails.
 - Switching among configuration files restores each unsaved byte buffer and its base version. File and ancestor-folder dirty dots disappear only after save, delete, or an explicit external-version choice; rename/move remaps them.
+- Direct disk writes use the same path-scoped refresh for valid and invalid YAML. Invalid events carry the new content version and load the real bytes plus Problems into a clean editor; a dirty per-file draft remains untouched and receives a conflict notice. A notice without refreshing invalid disk content is not synchronization.
 - Every edit produces at most one current diagnosis after the debounce window; an older response cannot overwrite a newer edit. Invalid YAML has a Monaco error marker and a bottom Problems row with line/column; selecting it returns focus to that position without changing mode. Saving the invalid draft remains possible.
 - Live and terminal-state xterm text contains the task bytes and contains no application-authored connection/replay sentences.
 - A Case row is the primary increment target: pointer-down adds exactly one immediately, then repeats only after 550 ms and accelerates in bounded stages. There is no separate plus button. The decrement appears only above zero, shares the repeat state machine, and cannot bubble into row increment. Keyboard activation increments once; Ctrl/Cmd click edits the explicit group; wheel and focus never change counts.
 
-Fault mutants restore right-side grid order, the long label, icon-only run, remote `space-between` actions, or synthetic `term.writeln` status. Each must make the browser gate fail.
+Fault mutants restore right-side grid order, the long label, icon-only run, remote `space-between` actions, synthetic `term.writeln` status, or an invalid-file event that only shows a notice without loading the changed bytes. Each must make the browser gate fail.
 
 For the element-level inspection, copy-feedback, and draft identity rationale, read [run inspection and draft decisions](run-inspection-and-drafts.md).
 

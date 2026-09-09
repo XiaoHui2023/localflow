@@ -95,11 +95,7 @@ class SubprocessExecutor:
                 **kwargs,
             )
         except BaseException as exc:
-            log.write(
-                lifecycle_line(
-                    "executor.start_failed", error=f"{type(exc).__name__}: {exc}"
-                )
-            )
+            log.write(lifecycle_line("executor.start_failed", error=f"{type(exc).__name__}: {exc}"))
             log.close()
             raise
         log.write(lifecycle_line("process.started", pid=process.pid))
@@ -249,9 +245,7 @@ class SystemdExecutor:
                 ]
             )
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        with BoundedLogWriter(
-            log_path, self.task_log_max_bytes, self.keep_free_bytes
-        ) as log:
+        with BoundedLogWriter(log_path, self.task_log_max_bytes, self.keep_free_bytes) as log:
             log.write(lifecycle_line("executor.starting", backend="systemd", unit=unit))
             try:
                 process = await asyncio.create_subprocess_exec(
@@ -264,9 +258,7 @@ class SystemdExecutor:
                     )
             except BaseException as exc:
                 log.write(
-                    lifecycle_line(
-                        "executor.start_failed", error=f"{type(exc).__name__}: {exc}"
-                    )
+                    lifecycle_line("executor.start_failed", error=f"{type(exc).__name__}: {exc}")
                 )
                 raise
             log.write(lifecycle_line("executor.accepted", unit=unit))
@@ -275,14 +267,7 @@ class SystemdExecutor:
     async def wait(self, task_id: str) -> int:
         result = self.root / "runtime" / "instances" / f"{task_id}.exit"
         while True:
-            process = await asyncio.create_subprocess_exec(
-                "systemctl",
-                "--user",
-                "is-active",
-                "--quiet",
-                f"localflow-task-{task_id}.service",
-            )
-            inactive = await process.wait() != 0
+            inactive = not await self._unit_owns_process_tree(f"localflow-task-{task_id}.service")
             if result.exists() and inactive:
                 return int(result.read_text(encoding="ascii").strip())
             if inactive:
@@ -301,10 +286,36 @@ class SystemdExecutor:
     async def is_running(self, task: TaskRecord) -> bool:
         if not task.executor_ref:
             return False
+        return await self._unit_owns_process_tree(task.executor_ref)
+
+    async def _unit_owns_process_tree(self, unit: str) -> bool:
+        """Treat every nonterminal systemd state, including deactivating, as owned."""
         process = await asyncio.create_subprocess_exec(
-            "systemctl", "--user", "is-active", "--quiet", task.executor_ref
+            "systemctl",
+            "--user",
+            "show",
+            "--property=LoadState",
+            "--property=ActiveState",
+            unit,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
-        return await process.wait() == 0
+        stdout, stderr = await process.communicate()
+        if process.returncode:
+            detail = stderr.decode(errors="replace").strip()
+            raise RuntimeError(detail or f"could not inspect systemd unit {unit}")
+        values = dict(
+            line.split("=", 1)
+            for line in stdout.decode(errors="replace").splitlines()
+            if "=" in line
+        )
+        if "LoadState" not in values or "ActiveState" not in values:
+            raise RuntimeError(f"incomplete systemd state for {unit}")
+        load_state = values["LoadState"].strip()
+        active_state = values["ActiveState"].strip()
+        if load_state == "not-found":
+            return False
+        return active_state not in {"inactive", "failed"}
 
     async def _control(self, task_id: str, payload: bytes) -> bool:
         path = control_socket_path(self.root, task_id)

@@ -29,6 +29,20 @@ class FlakyWaitExecutor(SubprocessExecutor):
         return await super().wait(task_id)
 
 
+class DelayedStartExecutor(SubprocessExecutor):
+    """Hold launch ownership transfer open to exercise controller shutdown."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.entered = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def start(self, task, log_path):
+        self.entered.set()
+        await self.release.wait()
+        return await super().start(task, log_path)
+
+
 @pytest.mark.asyncio
 async def test_mutex_queue_and_logs(root: Path) -> None:
     root.mkdir()
@@ -138,6 +152,37 @@ async def test_transient_wait_failure_never_marks_a_live_process_terminal(root: 
         assert result.state == "succeeded"
         assert result.exit_code == 0
     finally:
+        await service.stop()
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_shutdown_waits_for_inflight_launch_then_cleans_process_group(root: Path) -> None:
+    root.mkdir()
+    store = Store(root / "runtime" / "localflow.db")
+    executor = DelayedStartExecutor()
+    service = TaskService(root, store, executor, max_concurrency=1)
+    task = service.submit(
+        TaskCreate(
+            name="inflight-launch",
+            working_directory=str(root),
+            command=[sys.executable, "-c", "import time; time.sleep(30)"],
+        )
+    )
+    await service.start()
+    try:
+        await asyncio.wait_for(executor.entered.wait(), timeout=1)
+        shutdown = asyncio.create_task(service.shutdown_all(timeout_seconds=0.05))
+        await asyncio.sleep(0.02)
+        assert not shutdown.done()
+        executor.release.set()
+        await asyncio.wait_for(shutdown, timeout=3)
+        result = store.get_task(task.id)
+        assert result.state == "cancelled"
+        assert result.interrupt_stage in {"stop:0:signal", "sigkill"}
+        assert not await executor.is_running(result)
+    finally:
+        executor.release.set()
         await service.stop()
         store.close()
 
@@ -358,9 +403,9 @@ async def test_verification_result_is_frozen_from_run_log(root: Path) -> None:
         "labels": ["nightly"],
         "custom_texts": ["Case: ${case}", "Seed: ${seed}"],
     }
-    draft = registry.expand_config(
-        document, {"cases": ["case-a"], "seed": 1}, {"root": str(root)}
-    )[0]
+    draft = registry.expand_config(document, {"cases": ["case-a"], "seed": 1}, {"root": str(root)})[
+        0
+    ]
     store = Store(root / "runtime" / "localflow.db")
     service = TaskService(
         root,

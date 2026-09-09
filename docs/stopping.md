@@ -29,7 +29,7 @@ stop:
 
 ## 干净终态
 
-第一次停止请求会把任务原子地改为 `stopping`，网页显示“退出中”；此状态仍占用并发位和互斥键。Ubuntu 生产执行器使用 systemd 瞬态服务并设置 `KillMode=control-group`、`SendSIGKILL=yes`。动作耗尽后向完整 cgroup 发送 SIGKILL，并以 2 至 10 秒的低频退避循环重新确认、必要时重发。只有执行器同时确认单元 inactive 且取得退出结果，任务才会成为 `cancelled`；未确认时保持“退出中”并记录重试事件，不伪报结束。等待结果通道发生临时错误时，控制器先重新探测进程所有权；进程仍存活就退避重试，不得把仍在运行的任务标为 `lost`。
+第一次停止请求会把任务原子地改为 `stopping`，网页显示“退出中”；此状态仍占用并发位和互斥键。Ubuntu 生产执行器使用 systemd 瞬态服务并设置 `KillMode=control-group`、`SendSIGKILL=yes`。动作耗尽后向完整 cgroup 发送 SIGKILL，并以 2 至 10 秒的低频退避循环重新确认、必要时重发。存活判断读取 systemd 的明确 `ActiveState`：`activating`、`active`、`reloading`、`deactivating` 等状态都继续等待，不能把 `systemctl is-active` 的非零退出码直接解释成 cgroup 已空。只有执行器同时确认单元进入 `inactive`、`failed` 或 `not-found` 且取得退出结果，任务才会成为 `cancelled`；未确认时保持“退出中”并记录重试事件，不伪报结束。等待结果通道发生临时错误时，控制器先重新探测进程所有权；进程仍存活就退避重试，不得把仍在运行的任务标为 `lost`。
 
 控制服务重启后会恢复 `starting`、`running` 和 `stopping` 三类任务。已经结束的进程按真实退出记录收敛；仍在运行的任务恢复等待器和停止协议。极端的 Linux 不可中断睡眠（D 状态）无法被任何信号立即终止，此时 LocalFlow 会继续显示“退出中”并低频重试，而不会欺骗性地释放队列。
 
@@ -39,7 +39,7 @@ stop:
 
 ## LocalFlow 本体停机
 
-直接运行的 LocalFlow 忽略终端 `Ctrl+C`、`SIGTERM` 和 `SIGHUP`，防止误按、终端断开或普通 kill 让任务失管。管理员在网页“设置”页点击“退出”并确认；systemd 单元仍以 `KillSignal=SIGUSR1` 支持服务管理。收到显式停机后，HTTP 服务停止接收新请求，队列任务取消，运行任务执行各自停止协议；60 秒后仍存活的任务会取消尚未完成的柔和序列、把快照阶段推进为 `sigkill`，再对完整进程组/cgroup 清理，避免旧序列与强杀并发覆盖事实。只有任务进程树已确认结束，控制器才退出并删除运行身份文件。
+直接运行的 LocalFlow 忽略终端 `Ctrl+C`、`SIGTERM` 和 `SIGHUP`，防止误按、终端断开或普通 kill 让任务失管。管理员在网页“设置”页点击“退出”并确认；systemd 单元仍以 `KillSignal=SIGUSR1` 支持服务管理。收到显式停机后，HTTP 服务停止接收新请求，任务调度器先关闭并等待已经派发的启动动作完成进程所有权交接；随后取消队列任务，运行任务执行各自停止协议。60 秒后仍存活的任务会取消尚未完成的柔和序列、把快照阶段推进为 `sigkill`，再对完整进程组/cgroup 清理，避免旧序列与强杀并发覆盖事实。这样不会出现停机快照完成后才晚到的 systemd 单元。只有任务进程树已确认结束，控制器才退出并删除运行身份文件。
 
 这一设计借鉴 systemd 的两层停止语义：`TimeoutStopSec=` 到期后才升级到 `SIGKILL`，支持通知型服务持续发送超时扩展；LocalFlow 将同一思想用于不了解 systemd 通知协议的任意终端任务，但只把任务自身新增输出视为插件显式选择的进展信号，并额外保留硬上限。cgroup 仍是进程树所有权与最终清理的唯一权威，PID 或主进程退出不能替代单元 inactive 证明。
 

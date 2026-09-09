@@ -9,7 +9,8 @@ Use this topic when a task is slow to exit, appears hung, leaves descendants, lo
 3. If and only if the application emits trustworthy cleanup progress, the plugin may set `extend_timeout_on_output: true` and a finite `max_timeout_seconds`. New bytes reset the quiet window but never the hard deadline.
 4. After the final graceful action, kill the complete systemd cgroup, not a remembered child PID. Keep `stopping` until both the unit is inactive and an exit result is available.
 5. A result-channel exception is not an exit fact. Probe ownership; retry with bounded backoff while the process tree remains alive. Use `lost` only when neither a live owner nor a result exists.
-6. Controller shutdown owns a global graceful budget. At expiry it cancels competing soft sequences, records `sigkill`, cleans every remaining cgroup, and waits for proof rather than abandoning ownership.
+6. Controller shutdown first closes scheduling and awaits every already-dispatched launcher so no unit can appear after its active-task snapshot. It then owns a global graceful budget. At expiry it cancels competing soft sequences, records `sigkill`, cleans every remaining cgroup, and waits for proof rather than abandoning ownership.
+7. Never interpret the boolean exit status of `systemctl is-active` as proof that a cgroup is gone: `deactivating` can also be non-success. Read the explicit `ActiveState`; treat every state except `inactive`, `failed`, or `not-found` conservatively as still owned.
 
 ## AI terminal intervention
 
@@ -25,6 +26,8 @@ Use this topic when a task is slow to exit, appears hung, leaves descendants, lo
 - A graceful task emits cleanup progress longer than its quiet window and exits naturally with code 0.
 - A noisy non-terminating task reaches the hard bound, is SIGKILLed, and leaves an empty cgroup.
 - A controller-wide shutdown cancels soft sequences, kills an uncooperative parent plus descendant, records `sigkill`, and proves the unit inactive.
+- A delayed in-flight launcher blocks shutdown snapshotting until ownership transfer completes, after which its complete process group is cleaned.
+- A systemd state classifier keeps `deactivating` non-terminal and accepts only explicit inactive/failed/not-found ownership states.
 - An injected wait-channel failure while the process remains live retries and reaches the true exit code.
 - Signed HTTP tests cover arbitrary terminal bytes, Ctrl+C, resize, offset logs and terminal-state rejection; administrator browser tests separately cover WebSocket ACK.
 

@@ -1827,13 +1827,9 @@ function Config({ theme }) {
       });
     };
     events.addEventListener("config.changed", changed);
+    events.addEventListener("config.invalid", changed);
     events.addEventListener("config.deleted", removed);
     events.addEventListener("plugins.changed", pluginChanged);
-    events.addEventListener("config.invalid", (event) => {
-      const data = JSON.parse(event.data);
-      if (`config/${data.path}` === filePathRef.current)
-        setNotice(`配置无效：${data.error}`);
-    });
     return () => events.close();
   }, [reload, open]);
   const selectedPlugin = plugins.find((item) => item.name === file?.plugin);

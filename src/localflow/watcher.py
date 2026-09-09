@@ -96,7 +96,11 @@ class DirectoryWatcher:
                     self.store.append_event(
                         None,
                         "config.invalid",
-                        {"path": relative, "error": f"{type(exc).__name__}: {exc}"},
+                        {
+                            "path": relative,
+                            "version": version,
+                            "error": f"{type(exc).__name__}: {exc}",
+                        },
                     )
             self._config_versions = current
             plugin_versions = self._scan_plugin_versions()

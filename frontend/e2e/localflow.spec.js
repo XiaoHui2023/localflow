@@ -157,7 +157,7 @@ async function runAcceptance(page) {
   await page.goto("/");
   await page.getByRole("tab", { name: "设置" }).click();
   const loginKey = page.getByLabel("管理员秘钥");
-  if (await loginKey.count()) {
+  if (await loginKey.isVisible()) {
     await loginKey.fill(currentAdminKey());
     await page.getByRole("button", { name: "登录", exact: true }).click();
   }
@@ -928,11 +928,47 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(saveButton).toBeEnabled();
   await saveButton.click();
   await expect(saveButton).toBeDisabled();
+  fs.writeFileSync(
+    path.join(qaRoot, "config", "command", "qa-command.yaml"),
+    "valid: external-clean\n",
+  );
+  await expect(blankEditor.locator(".view-lines")).toContainText(
+    "valid: external-clean",
+    { timeout: 3_000 },
+  );
+  await expect(page.getByRole("status")).toContainText("已同步外部修改");
+  fs.writeFileSync(
+    path.join(qaRoot, "config", "command", "qa-command.yaml"),
+    "broken: [\n",
+  );
+  await expect(blankEditor.locator(".view-lines")).toContainText("broken: [", {
+    timeout: 3_000,
+  });
+  await expect(page.locator(".problems-panel")).toBeVisible();
+  await expect(page.locator(".monaco-editor .squiggly-error")).toBeVisible();
+  await blankEditor.locator("textarea").press("Control+a");
+  await page.keyboard.insertText("valid: true");
+  await saveButton.click();
+  await expect(saveButton).toBeDisabled();
   await blankEditor.locator("textarea").press("Control+a");
   await page.keyboard.insertText("valid: false\nunsaved: keep-me");
   const dirtyFile = page.locator('[data-file="config/command/qa-command.yaml"]');
   await expect(dirtyFile).toHaveAttribute("aria-label", /未保存/);
   await expect(dirtyFile.locator(".tree-dirty")).toBeVisible();
+  fs.writeFileSync(
+    path.join(qaRoot, "config", "command", "qa-command.yaml"),
+    "valid: external-during-draft\n",
+  );
+  await expect(page.getByRole("status")).toContainText("文件已在外部变化", {
+    timeout: 3_000,
+  });
+  await expect(blankEditor.locator(".view-lines")).toContainText(
+    "unsaved: keep-me",
+  );
+  fs.writeFileSync(
+    path.join(qaRoot, "config", "command", "qa-command.yaml"),
+    "valid: true",
+  );
   await page.locator('[data-file="config/command/hello-world.yaml"]').click();
   await page.locator('[data-file="config/command/qa-command.yaml"]').click();
   await expect(blankEditor.locator(".view-lines")).toContainText("unsaved: keep-me");
@@ -1381,6 +1417,8 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "case-delayed-press-repeat",
           "config-root-only",
           "config-free-save-inline-syntax",
+          "config-external-valid-invalid-live-sync",
+          "config-external-change-preserves-dirty-draft",
           "config-default-expanded",
           "config-dirty-save",
           "terminal-bounded-archive-search",

@@ -39,6 +39,9 @@ async def test_external_config_change_and_invalid_file_emit_events(root: Path) -
     kinds = [item.kind for item in store.events_after(0)]
     assert "config.changed" in kinds
     assert "config.invalid" in kinds
+    invalid = next(item for item in store.events_after(0) if item.kind == "config.invalid")
+    assert invalid.data["path"] == "broken.yaml"
+    assert invalid.data["version"] == ConfigRepository(root).read("broken.yaml").version
     store.close()
 
 

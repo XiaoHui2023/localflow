@@ -58,6 +58,7 @@ class TaskService:
         self.root, self.store, self.executor = root, store, executor
         self.max_concurrency = max_concurrency
         self._scheduler: asyncio.Task[None] | None = None
+        self._starters: dict[str, asyncio.Task[None]] = {}
         self._waiters: dict[str, asyncio.Task[None]] = {}
         self._interrupts: dict[str, asyncio.Task[None]] = {}
         self._interrupt_advances: dict[str, asyncio.Event] = {}
@@ -114,7 +115,9 @@ class TaskService:
                 command=json.dumps(record.command, ensure_ascii=False),
                 batch_id=batch_id,
             )
-        logger.info("batch queued batch_id=%s tasks=%s template=%s", batch_id, len(records), template)
+        logger.info(
+            "batch queued batch_id=%s tasks=%s template=%s", batch_id, len(records), template
+        )
         self._wake.set()
         return batch_id, records
 
@@ -127,9 +130,7 @@ class TaskService:
         return draft.model_copy(
             update={
                 "working_directory": frozen_directory,
-                "command": freeze_command_working_directory(
-                    draft.command, frozen_directory
-                ),
+                "command": freeze_command_working_directory(draft.command, frozen_directory),
             }
         )
 
@@ -162,6 +163,9 @@ class TaskService:
         self._wake.set()
         if self._scheduler:
             await self._scheduler
+        starters = list(self._starters.values())
+        if starters:
+            await asyncio.gather(*starters, return_exceptions=True)
         observers = [*self._waiters.values(), *self._interrupts.values()]
         for observer in observers:
             observer.cancel()
@@ -170,7 +174,23 @@ class TaskService:
 
     async def shutdown_all(self, timeout_seconds: float = 60) -> None:
         """Stop every queued/running task and verify that no process tree remains."""
-        active_states = [TaskState.QUEUED, TaskState.STARTING, TaskState.RUNNING, TaskState.STOPPING]
+        # Close the launch side of the lifecycle before taking the shutdown
+        # snapshot.  A task already handed to systemd-run must finish that
+        # ownership transfer before cleanup starts; otherwise its unit could
+        # appear after the final cgroup check.
+        self._stopping = True
+        self._wake.set()
+        if self._scheduler:
+            await self._scheduler
+        starters = list(self._starters.values())
+        if starters:
+            await asyncio.gather(*starters, return_exceptions=True)
+        active_states = [
+            TaskState.QUEUED,
+            TaskState.STARTING,
+            TaskState.RUNNING,
+            TaskState.STOPPING,
+        ]
         active = self.store.list_tasks(states=active_states, limit=10_000, ascending=True)
         for task in active:
             await self.interrupt(task.id)
@@ -337,7 +357,11 @@ class TaskService:
                 for key in task.mutex_keys:
                     holders.setdefault(key, []).append(task.id)
                 held.update(task.mutex_keys)
-                asyncio.create_task(self._start(task.id))
+                starter = asyncio.create_task(self._start(task.id), name=f"task-start-{task.id}")
+                self._starters[task.id] = starter
+                starter.add_done_callback(
+                    lambda _finished, task_id=task.id: self._starters.pop(task_id, None)
+                )
                 capacity -= 1
 
     async def _start(self, task_id: str) -> None:
@@ -392,9 +416,7 @@ class TaskService:
                         task_id,
                         failures,
                     )
-                    logger.debug(
-                        "task wait exception task_id=%s", task_id, exc_info=True
-                    )
+                    logger.debug("task wait exception task_id=%s", task_id, exc_info=True)
                     self.store.append_event(
                         task_id,
                         "task.wait_error",
@@ -748,8 +770,8 @@ class TaskService:
                 text = combined.decode("utf-8", errors="replace")
                 overlap_lines = overlap.count(b"\n")
                 for match in pattern.finditer(text):
-                    before = text[:match.start()]
-                    through = text[:match.end()]
+                    before = text[: match.start()]
+                    through = text[: match.end()]
                     relative = len(before.encode("utf-8", errors="replace")) - len(overlap)
                     relative_end = len(through.encode("utf-8", errors="replace")) - len(overlap)
                     # A hit wholly inside the overlap was already reported. A hit
@@ -765,11 +787,13 @@ class TaskService:
                         len(text) if right_break < 0 else right_break,
                         match.end() + 240,
                     )
-                    items.append({
-                        "offset": max(0, absolute + relative),
-                        "line": lines_seen - overlap_lines + before.count("\n") + 1,
-                        "preview": text[left:right].rstrip("\r")[:400],
-                    })
+                    items.append(
+                        {
+                            "offset": max(0, absolute + relative),
+                            "line": lines_seen - overlap_lines + before.count("\n") + 1,
+                            "preview": text[left:right].rstrip("\r")[:400],
+                        }
+                    )
                 lines_seen += raw.count(b"\n")
                 absolute += len(raw)
                 overlap = combined[-4096:]
