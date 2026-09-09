@@ -37,7 +37,7 @@ from .auth import AuthManager
 from .config_diagnostics import ConfigDiagnosis, diagnose_config, syntax_error_diagnosis
 from .config_repository import ConfigConflict, ConfigRepository
 from .executor import SubprocessExecutor, SystemdExecutor, systemd_user_manager_available
-from .models import BatchCreate, RunCreate, TaskCreate, TaskDraft, TaskRecord
+from .models import BatchCreate, RunCreate, TaskCreate, TaskDraft, TaskRecord, command_for_log
 from .plugins import PluginRegistry
 from .service import TaskService
 from .settings import Settings, initialize_root, load_settings
@@ -122,6 +122,7 @@ def _summary(task: TaskRecord) -> dict[str, Any]:
 
 def _detail(task: TaskRecord, root: Path) -> dict[str, Any]:
     value = task.model_dump(mode="json")
+    value["display_command"] = command_for_log(task.command, task.working_directory)
     log_path = root / "logs" / task.id / "output.log"
     value["log_path"] = str(log_path)
     try:

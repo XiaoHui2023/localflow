@@ -38,6 +38,7 @@
   background: color-mix(in srgb,var(--surface-subtle) 55%,var(--surface));
   contain: layout paint style;
   transition: border-color 70ms ease-out, background-color 70ms ease-out, box-shadow 70ms ease-out;
+  cursor: pointer;
 }
 
 .case-item:hover,
@@ -70,6 +71,7 @@
   background: transparent;
   color: var(--text);
   text-align: left;
+  cursor: pointer;
 }
 
 .case-main:focus { outline: none; }

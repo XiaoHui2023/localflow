@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 import shlex
 from pathlib import Path
@@ -207,8 +209,8 @@ class Verification:
         items.append({
             "name": "labels",
             "label": "标签",
-            "value": ", ".join(labels) if labels else "未配置",
-            "kind": "text",
+            "value": labels,
+            "kind": "tokens",
             "severity": "info",
             "message": None,
         })
@@ -283,7 +285,12 @@ class Verification:
                     for item in dynamic.resolve(values.get("labels", ["verification", case_name]))
                 ]
                 mutex_keys = [str(item) for item in dynamic.resolve(values.get("mutex_keys", []))]
-                mutex_keys.extend(f"tag:{label}" for label in labels)
+                queue_identity = json.dumps(
+                    [case_name, sorted(labels)], ensure_ascii=False, separators=(",", ":")
+                )
+                mutex_keys.append(
+                    "verification:" + hashlib.sha256(queue_identity.encode()).hexdigest()[:24]
+                )
                 if isinstance(command_template, str):
                     command_source = command_template.replace("${case}", shlex.quote(case_name))
                     command = dynamic.resolve(command_source)

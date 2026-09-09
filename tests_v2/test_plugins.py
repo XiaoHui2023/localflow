@@ -118,7 +118,7 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     assert task.command.count("--case") == task.command.count("--seed") == 1
     assert task.command[task.command.index("--case") + 1] == "case-a"
     assert task.command[task.command.index("--seed") + 1] == "${seed}"
-    assert "tag:nightly" in task.mutex_keys
+    assert any(key.startswith("verification:") for key in task.mutex_keys)
 
     make_task = registry.expand_config(
         {
@@ -182,6 +182,35 @@ def test_verification_command_uses_only_variables_explicitly_requested(
     assert task.working_directory == str(root.resolve())
     assert "--case" not in task.command
     assert "--seed" not in task.command
+
+
+def test_verification_queue_identity_requires_same_case_and_complete_label_set(
+    root: Path,
+) -> None:
+    initialize_root(root)
+    registry = PluginRegistry(root / "plugins")
+    registry.load()
+
+    def expand(case: str, labels: list[str]):
+        return registry.expand_config(
+            {
+                "plugin": "verification",
+                "case_directory": str(root / "cases"),
+                "working_directory": ".",
+                "command": "true",
+                "labels": labels,
+            },
+            {"cases": [case]},
+            {"root": str(root)},
+        )[0]
+
+    same_left = expand("case-a", ["nightly", "gpu"])
+    same_reordered = expand("case-a", ["gpu", "nightly"])
+    different_case = expand("case-b", ["nightly", "gpu"])
+    partial_labels = expand("case-a", ["nightly"])
+    assert same_left.mutex_keys == same_reordered.mutex_keys
+    assert same_left.mutex_keys != different_case.mutex_keys
+    assert same_left.mutex_keys != partial_labels.mutex_keys
 
 
 def test_verification_resolves_yaml_root_variables_after_include(root: Path) -> None:

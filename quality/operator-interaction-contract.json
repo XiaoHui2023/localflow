@@ -4,7 +4,7 @@
       "path": "../frontend/src/App.jsx",
       "required": [
         "label=\"终端输出\"",
-        "if \\(!event\\.ctrlKey && !event\\.metaKey\\) beginRepeat\\(event, name, 1\\)",
+        "!event\\.target\\.closest\\(\"\\.case-step\\.decrease\"\\)",
         "setTimeout\\(repeat, 550\\)",
         "api\\.searchLog",
         "message\\.type === \"caught_up\"",
@@ -20,7 +20,11 @@
         "data-custom-text=\\{customText \\|\\| undefined\\}",
         "className=\"tree-dirty\"",
         "draftsRef\\.current\\.get\\(path\\)",
-        "className=\"copy-affordance\"",
+        "item\\.kind === \"tokens\"",
+        "className=\"inspection-tokens\"",
+        "task\\.display_command \\|\\| task\\.command",
+        "localflow-explorer-collapsed",
+        "initialOpenState=\\{initialTreeOpenState\\.current\\}",
         "item\\.check === \"availability\" && item\\.severity === \"error\"",
         "data-terminal-group=\"active\"",
         "data-terminal-group=\"history\"",
@@ -38,7 +42,10 @@
         "copy-confirm",
         "检查通过",
         "<i className=\\{`tone-\\$\\{taskTone\\(task\\)\\}`\\} />",
-        "className=\"case-step increase\""
+        "className=\"case-step increase\"",
+        "className=\"copy-affordance\"",
+        "只读历史",
+        "className=\"terminal-entry-state\""
       ]
     },
     {
@@ -52,8 +59,8 @@
     },
     {
       "path": "../plugins/verification.py",
-      "required": ["ConfigDict\\(extra=\"allow\"\\)", "compile_logs", "run_logs", "custom_texts", "working_directory / path", "runtime\\[\"自定义文本\"\\]", "deferred_variables = \\{\"case\", \"seed\"\\}", "\"check\": \"availability\"", "\"value\": str\\(value\\)"],
-      "forbidden": ["deferred_variables = \\{\"case\", \"seed\", \"run\"\\}", "command_entry"]
+      "required": ["ConfigDict\\(extra=\"allow\"\\)", "compile_logs", "run_logs", "custom_texts", "working_directory / path", "runtime\\[\"自定义文本\"\\]", "deferred_variables = \\{\"case\", \"seed\"\\}", "\"check\": \"availability\"", "\"value\": str\\(value\\)", "\"kind\": \"tokens\"", "sha256\\(queue_identity"],
+      "forbidden": ["deferred_variables = \\{\"case\", \"seed\", \"run\"\\}", "command_entry", "mutex_keys\\.extend\\(f\"tag:"]
     },
     {
       "path": "../src/localflow/builtin_plugins/verification.py.example",
@@ -72,6 +79,16 @@
     {
       "path": "../frontend/e2e/legacy-browser.mjs",
       "required": ["getAttribute\\(\"aria-expanded\"\\)\\) !== \"true\"", "configToggle\\.click\\(\\)"]
+    },
+    {
+      "path": "../frontend/src/extra.css",
+      "required": ["fresh-dot[^}]+background:var\\(--accent\\)", "inspection-token", "copy-value code\\{[^}]+padding:5px 8px"],
+      "forbidden": ["fresh-dot[^}]+background:var\\(--danger\\)", "copy-affordance", "copy-confirm"]
+    },
+    {
+      "path": "../frontend/src/round6.css",
+      "required": ["grid-template-columns:\\s*clamp\\(248px,22vw,320px\\)", "terminal-entry\\.has-unread\\{grid-template-columns:minmax\\(0,1fr\\) 10px"],
+      "forbidden": ["terminal-readonly", "terminal-entry-icon", "terminal-entry\\.state-running \\.terminal-entry-name"]
     }
   ]
 }

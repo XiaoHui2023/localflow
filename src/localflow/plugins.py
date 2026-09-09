@@ -20,7 +20,6 @@ from .models import (
     TaskCreate,
     TaskRecord,
     TaskStatus,
-    detected_login_shell,
     freeze_command_working_directory,
 )
 from .variables import resolve_config_tree
@@ -64,11 +63,19 @@ class InspectionItem(BaseModel):
 
     name: str = Field(min_length=1, pattern=r"^[A-Za-z_][A-Za-z0-9_]*$")
     label: str | None = Field(default=None, min_length=1, max_length=80)
-    value: str
-    kind: Literal["text", "path", "command"] = "text"
+    value: str | list[str]
+    kind: Literal["text", "path", "command", "tokens"] = "text"
     check: Literal["none", "availability"] = "none"
     severity: Literal["ok", "info", "warning", "error"] = "info"
     message: str | None = None
+
+    @model_validator(mode="after")
+    def validate_value_shape(self) -> InspectionItem:
+        if self.kind == "tokens" and not isinstance(self.value, list):
+            raise ValueError("tokens inspection values must be a string list")
+        if self.kind != "tokens" and not isinstance(self.value, str):
+            raise ValueError("non-token inspection values must be strings")
+        return self
 
 
 def run_field(name: str, component: str, **options: Any) -> dict[str, Any]:
@@ -484,27 +491,13 @@ class PluginRegistry:
         }]
         command = values.get("command")
         if isinstance(command, str) and command.strip():
-            shell = values.get("shell")
-            selected_shell = shell if isinstance(shell, str) else detected_login_shell()
-            items.append({
-                "name": "shell",
-                "label": "Shell",
-                "value": selected_shell,
-                "kind": "command",
-                "severity": "info",
-                "message": (
-                    "配置显式选择；加载该 Shell 的交互启动配置"
-                    if isinstance(shell, str)
-                    else "根据服务用户自动选择；加载交互启动配置"
-                ),
-            })
             items.append({
                 "name": "command",
                 "label": "命令",
                 "value": command,
                 "kind": "command",
                 "severity": "ok",
-                "message": f"由 {selected_shell} -ic 执行",
+                "message": None,
             })
         elif isinstance(command, list) and command:
             executable = str(command[0])

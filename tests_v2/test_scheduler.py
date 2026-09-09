@@ -383,7 +383,8 @@ async def test_verification_result_is_frozen_from_run_log(root: Path) -> None:
         "自定义文本": ["Case: case-a", "Seed: 1"],
         "运行日志": [str(run_log)],
     }
-    assert result.mutex_keys == ["tag:nightly"]
+    assert len(result.mutex_keys) == 1
+    assert result.mutex_keys[0].startswith("verification:")
     await service.stop()
     store.close()
 

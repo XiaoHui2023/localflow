@@ -61,6 +61,22 @@ def test_direct_task_freezes_relative_working_directory_against_runtime_root(
     assert task["working_directory"] == str((root / "external-project").resolve())
 
 
+def test_task_detail_hides_executor_wrapper_from_display_command(
+    admin: TestClient, root: Path
+) -> None:
+    task_id = admin.post(
+        "/api/v1/tasks",
+        json={
+            "name": "operator-command",
+            "working_directory": str(root),
+            "command": "make all CASE=smoke SEED=7",
+        },
+    ).json()["task_id"]
+    task = admin.get(f"/api/v1/tasks/{task_id}").json()
+    assert task["display_command"] == "make all CASE=smoke SEED=7"
+    assert task["command"][1] == "-ic"
+
+
 def test_one_request_inline_configuration_uses_plugin_and_creates_batch(
     admin: TestClient, root: Path
 ) -> None:

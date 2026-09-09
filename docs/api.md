@@ -58,6 +58,8 @@
 
 成功返回 `202 Accepted`，正文含 `task_id`、可直接跟随的 `task.href`、`state` 和 `created_at`；`Location` 指向任务状态资源，`Retry-After: 1` 给出初始轮询提示。配置式批量运行同样返回兼容的 `task_ids`，并额外返回有序 `tasks[{id,href}]`、`batch.href` 和指向批次资源的 `Location`。这些链接都是站内相对路径，Agent 不需要猜 URL。
 
+任务详情中的 `command` 是不可变执行快照，可能包含 LocalFlow 为交互 Shell 与工作目录生成的 argv；`display_command` 是面向操作员的原始用户命令。网页必须显示 `display_command`，Agent 在复现执行时使用 `command`，不得把二者互相覆盖。
+
 停止动作的 `timeout_seconds` 默认是固定等待。对会持续输出可信清理进度的程序，可设置 `extend_timeout_on_output: true`；每次新增输出会重置静默窗口，但必须同时给出不小于它的 `max_timeout_seconds` 硬上限。这样慢速正常退出可以继续，静默卡死或无限刷输出仍会被完整 cgroup 强杀。调用 `/interrupt` 返回 `stopping` 只代表请求已进入状态机；继续读取任务，直到执行器确认进程树消失后才会出现终态。
 
 字符串命令自动使用服务账号的 `$SHELL`，缺失时使用 passwd 登录 Shell，并以 `<shell> -ic` 读取 `.bashrc`、`.cshrc`、`.zshrc`、`config.fish` 等该 Shell 的交互启动文件，从而支持函数和别名；公共字段 `"shell": "/bin/bash"` 可显式覆盖自动选择。执行用户命令前核心会恢复请求中冻结的工作目录。参数数组禁止同时提供 `shell`，始终按精确 argv 执行且不读取启动文件。
@@ -127,7 +129,7 @@
 | `POST` | `/workspace/copies` | 复制文件、目录或软链接 | signed-client 或 admin |
 | `DELETE` | `/workspace/entries/{path}` | 删除文件、目录或软链接 | signed-client 或 admin |
 
-配置读取的 `diagnosis` 只描述 YAML/TOML/JSON 语法和受限导入是否可解析；`run_diagnosis` 才描述插件运行合同。保存不受两类诊断阻断，始终按 `If-Match` 做同目录临时文件、`fsync` 与原子替换；版本不符返回 `412`。外部写入和编辑中的无效文件均可保留原文并在编辑区内联显示错误。`POST /api/v1/config/files/{path}/inspection` 接受与运行相同的 `inputs`，由插件返回只读审查项 `{name,label,value,kind,check,severity,message}`；`check` 为 `none` 或 `availability`。它与发现钩子一样有五秒上限，不创建任务。
+配置读取的 `diagnosis` 只描述 YAML/TOML/JSON 语法和受限导入是否可解析；`run_diagnosis` 才描述插件运行合同。保存不受两类诊断阻断，始终按 `If-Match` 做同目录临时文件、`fsync` 与原子替换；版本不符返回 `412`。外部写入和编辑中的无效文件均可保留原文并在编辑区内联显示错误。`POST /api/v1/config/files/{path}/inspection` 接受与运行相同的 `inputs`，由插件返回只读审查项 `{name,label,value,kind,check,severity,message}`；`kind: tokens` 时 `value` 是字符串数组并由宿主渲染为不可复制词缀，其余类型的 `value` 是字符串；`check` 为 `none` 或 `availability`。它与发现钩子一样有五秒上限，不创建任务。
 
 这些接口覆盖配置的创建、读取、保存、移动、重命名、删除、诊断、发现、检查、预演与运行。AI Agent 的最短可靠链路是：读取 `/plugins/{name}` 的两个 JSON Schema → 列出并读取配置 → 调用 `discover` 取得动态 Case → 用目标 `inputs` 调用 `plan` → 使用新的 `Idempotency-Key` 正式提交。无需保存文件时使用 `/runs`；需要长期复用时调用配置文件的 `/runs`。两条正式路径都原子创建批次并返回相同响应形状。
 

@@ -28,7 +28,7 @@ For task-page configuration disclosure, contextual edit/run controls, or termina
 - Do not publish or mutate external systems unless the user separately authorizes it.
 - Search equivalent implementations, examples, starter files and packaging inputs together. Add a failure mutant that removes the required surface so an older receipt cannot silently remain valid.
 
-For inspection information hierarchy, failure-only availability indicators, template-stable operator text, copy feedback, and dirty-draft identity, read `references/run-inspection-and-drafts.md`.
+For inspection information hierarchy, typed non-copyable tags, failure-only availability indicators, user-authored command display, template-stable operator text, iconless whole-value copy feedback, and dirty-draft identity, read `references/run-inspection-and-drafts.md`. For the cross-project necessity/cost audit behind these decisions, also read the user-root `modern-web-interface-design/references/operator-information-evaluation.md` topic.
 
 For terminal-list grouping, unread-output semantics, lifecycle color use, and the distinction between observable log growth and guessed idleness, read `references/terminal-list-state-model.md`.
 

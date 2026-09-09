@@ -447,6 +447,24 @@ test("plugin configuration console remains concise and operable in Edge", async 
   const freshDot = doneRow.locator(".fresh-dot");
   await expect(freshDot).toBeVisible({ timeout: 10_000 });
   await expect(freshDot).toHaveAttribute("aria-label", "新完成");
+  const freshColors = await freshDot.evaluate((node) => {
+    const root = document.documentElement;
+    const normalize = (value) => {
+      const probe = document.createElement("i");
+      probe.style.color = value;
+      document.body.appendChild(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    };
+    return {
+      actual: getComputedStyle(node).backgroundColor,
+      accent: normalize(getComputedStyle(root).getPropertyValue("--accent")),
+      danger: normalize(getComputedStyle(root).getPropertyValue("--danger")),
+    };
+  });
+  expect(freshColors.actual).toBe(freshColors.accent);
+  expect(freshColors.actual).not.toBe(freshColors.danger);
   await expect(doneRow.locator(":scope > i:not(.fresh-dot)")).toHaveCount(0);
   await doneRow.focus();
   await expect(freshDot).toBeVisible();
@@ -465,9 +483,12 @@ test("plugin configuration console remains concise and operable in Edge", async 
   ).toBeLessThanOrEqual(2);
   await expect(doneRow.locator("time")).toBeVisible();
   await expect(page.locator(".task-item.open .detail-time")).toContainText(
-    "开始时间",
+    "开始",
   );
-  await expect(page.locator(".task-item.open .detail-time time")).toBeVisible();
+  const detailTime = page.locator(".task-item.open .detail-time time");
+  await expect(detailTime).toBeVisible();
+  await expect(detailTime).toHaveAttribute("datetime", /.+/);
+  await expect(detailTime).toHaveAttribute("title", /.+/);
   await expect(page.locator(".task-item.open .detail-time button")).toHaveCount(
     0,
   );
@@ -531,7 +552,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   expect(hoverBorder).not.toBe(accent);
   await reportValue.click();
   await expect(reportShell).toHaveAttribute("data-copied", "true");
-  await expect(reportValue.locator(".copy-affordance .lucide-check")).toBeVisible();
+  await expect(reportValue.locator(".copy-affordance")).toHaveCount(0);
   const afterCopy = await reportValue.boundingBox();
   expect(afterCopy).toEqual(beforeCopy);
   expect(await page.evaluate(() => window.__localflowCopiedText)).toBe(
@@ -563,9 +584,13 @@ test("plugin configuration console remains concise and operable in Edge", async 
     .locator(".terminal-page .terminal-entry")
     .filter({ hasText: "qa-terminal" });
   await expect(liveTerminalEntry).toHaveAttribute("data-terminal-state", "running");
-  await expect(liveTerminalEntry.locator(".terminal-entry-state")).toHaveText(
-    "运行中",
+  await expect(liveTerminalEntry.locator(".terminal-entry-state")).toHaveCount(0);
+  await expect(liveTerminalEntry.locator("svg")).toHaveCount(0);
+  const terminalRailWidth = await page.locator(".terminal-page > aside").evaluate(
+    (node) => node.getBoundingClientRect().width,
   );
+  expect(terminalRailWidth).toBeGreaterThanOrEqual(248);
+  expect(terminalRailWidth).toBeLessThanOrEqual(320);
   await expect(liveTerminalEntry.locator(".terminal-entry-label")).toHaveText([
     "browser",
     "terminal",
@@ -754,7 +779,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
     .filter({ hasText: "qa-terminal" });
   await expect(historyTerminal).toBeVisible();
   await historyTerminal.click();
-  await expect(page.getByText("只读历史", { exact: true })).toBeVisible();
+  await expect(page.getByText("只读历史", { exact: true })).toHaveCount(0);
   await expect(page.locator(".terminal-actions")).toHaveCount(0);
   await expect(page.locator(".terminal-page .xterm-rows")).toContainText(
     "qa-terminal-ready",
@@ -956,6 +981,12 @@ test("plugin configuration console remains concise and operable in Edge", async 
   ]);
   await expect(page.locator(".inspection-item.severity-error")).toHaveCount(0);
   await expect(page.locator(".inspection-state")).toHaveCount(0);
+  const labelInspection = page.locator(".inspection-item").filter({ hasText: "标签" });
+  await expect(labelInspection.locator(".inspection-token")).toHaveText([
+    "verification",
+  ]);
+  await expect(labelInspection.locator(".copy-value")).toHaveCount(0);
+  await expect(page.getByText("Shell", { exact: true })).toHaveCount(0);
   const previewCustomText = page
     .locator('.inspection-item[data-custom-text="true"]')
     .filter({ hasText: "Case: ${case}" })
@@ -964,14 +995,14 @@ test("plugin configuration console remains concise and operable in Edge", async 
     page.locator('.inspection-item[data-custom-text="true"] > span:first-child'),
   ).toHaveCount(0);
   await expect(previewCustomText).toBeVisible();
-  await expect(previewCustomText.locator(".copy-affordance")).toBeVisible();
+  await expect(previewCustomText.locator(".copy-affordance")).toHaveCount(0);
   await previewCustomText.click();
-  await expect(previewCustomText.locator(".copy-affordance")).toBeVisible();
+  await expect(previewCustomText.locator(".copy-affordance")).toHaveCount(0);
   expect(await page.evaluate(() => window.__localflowCopiedText)).toBe(
     "Case: ${case}",
   );
   await expect(page.getByLabel("搜索 Case")).toHaveCount(0);
-  await expect(page.locator(".case-count output")).toHaveText(["0", "0", "0"]);
+  await expect(page.locator(".case-count output")).toHaveCount(0);
   await expect(page.locator(".case-step.decrease")).toHaveCount(0);
   await expect(page.locator(".case-step.increase")).toHaveCount(0);
   await expect(
@@ -1006,7 +1037,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
     .first()
     .evaluate((node) => getComputedStyle(node).borderColor);
   expect(focusedCaseBorder).not.toBe(idleCaseBorder);
-  await expect(page.locator(".case-count output").first()).toHaveText("0");
+  await expect(page.locator(".case-count output")).toHaveCount(0);
   const caseTransitions = await page
     .locator(".case-item")
     .first()
@@ -1026,12 +1057,16 @@ test("plugin configuration console remains concise and operable in Edge", async 
   const caseA = page.locator('[data-case="case-a"]');
   await caseA.hover();
   await page.mouse.wheel(0, -100);
-  await expect(caseA.locator(".case-count output")).toHaveText("0");
+  await expect(caseA.locator(".case-count output")).toHaveCount(0);
   await page.mouse.wheel(0, 100);
-  await expect(caseA.locator(".case-count output")).toHaveText("0");
+  await expect(caseA.locator(".case-count output")).toHaveCount(0);
   const caseB = page.locator('[data-case="case-b"]');
   const increaseB = caseB.getByRole("button", { name: /增加 case-b 次数/ });
   await increaseB.click();
+  await expect(caseB.locator(".case-count output")).toHaveText("1");
+  await caseB.locator(".case-count output").click();
+  await expect(caseB.locator(".case-count output")).toHaveText("2");
+  await caseB.getByRole("button", { name: "减少 case-b 次数" }).click();
   await expect(caseB.locator(".case-count output")).toHaveText("1");
   await expect(
     page.locator('.inspection-item[data-custom-text="true"] .copy-value'),
@@ -1065,7 +1100,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(page.locator('[data-case="case-b"] .case-count output')).toHaveText(String(heldCount));
   for (let index = 0; index < heldCount; index += 1)
     await page.getByRole("button", { name: "减少 case-b 次数" }).click();
-  await expect(page.locator(".case-count output")).toHaveText(["0", "0", "0"]);
+  await expect(page.locator(".case-count output")).toHaveCount(0);
   await expect(page.locator(".case-step.decrease")).toHaveCount(0);
   const caseGrid = await page.locator(".case-list").boundingBox();
   await page.mouse.move(caseGrid.x + 4, caseGrid.y + 4);
@@ -1077,8 +1112,8 @@ test("plugin configuration console remains concise and operable in Edge", async 
   );
   await page.mouse.up();
   await expect(page.locator('.case-main[aria-pressed="true"]')).toHaveCount(3);
-  await expect(page.locator(".case-count output")).toHaveText(["0", "0", "0"]);
-  const groupIncrease = page.getByRole("button", { name: /增加 case-a 次数，应用到已框选 Case/ });
+  await expect(page.locator(".case-count output")).toHaveCount(0);
+  const groupIncrease = page.getByRole("button", { name: /增加 case-a 次数.*应用到已框选 Case/ });
   await groupIncrease.click();
   await groupIncrease.click();
   await groupIncrease.click();
@@ -1124,7 +1159,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   expect((await genericRunResponse).json()).resolves.toMatchObject({
     count: 2,
   });
-  await expect(page.locator(".case-count output")).toHaveText(["0", "0"]);
+  await expect(page.locator(".case-count output")).toHaveCount(0);
   await page.locator('[data-file="config/command/hello-world.yaml"]').click();
   await expect(page.getByRole("button", { name: "编辑" })).toBeVisible();
   const headerBeforeNotice = await page
@@ -1142,6 +1177,18 @@ test("plugin configuration console remains concise and operable in Edge", async 
     explorerBeforeNotice,
   );
   await expect(configNotice).toHaveCount(0, { timeout: 5_000 });
+  const rememberedFolder = page.locator('[data-file="folder:config/verification"]');
+  await rememberedFolder.click();
+  await expect(page.locator('[data-file="config/verification/demo.yaml"]')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() =>
+    localStorage.getItem("localflow-explorer-collapsed"),
+  )).toContain("folder:config/verification");
+  await page.getByRole("tab", { name: "终端" }).click();
+  await page.getByRole("tab", { name: "任务" }).click();
+  await openRunPanel(page);
+  await expect(page.locator('[data-file="config/verification/demo.yaml"]')).toHaveCount(0);
+  await page.locator('[data-file="folder:config/verification"]').click();
+  await expect(page.locator('[data-file="config/verification/demo.yaml"]')).toBeVisible();
   await page.screenshot({
     path: path.join(evidence, "admin-config-explorer-dark.png"),
     fullPage: true,
@@ -1150,6 +1197,16 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(page.getByRole("button", { name: /hello-world/ })).toBeVisible({
     timeout: 20_000,
   });
+  const helloTask = page
+    .locator(".task-item")
+    .filter({ has: page.locator(".task-name b", { hasText: "hello-world" }) })
+    .first();
+  await helloTask.locator(".task-row").click();
+  const displayedCommand = helloTask.locator('.copy-field').filter({ hasText: "命令" });
+  await expect(displayedCommand.locator("code")).not.toBeEmpty();
+  await expect(displayedCommand).not.toContainText("/bin/");
+  await expect(displayedCommand).not.toContainText(" -ic ");
+  await expect(displayedCommand).not.toContainText("cd ");
 
   await expect(page.getByRole("tab", { name: "插件" })).toHaveCount(0);
   await expect(page.getByRole("tab", { name: "API" })).toHaveCount(0);

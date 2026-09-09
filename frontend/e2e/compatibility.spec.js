@@ -151,7 +151,7 @@ test("Ubuntu browser can operate the released web console", async ({
     .filter({ hasText: `${browserName}-compat-terminal` });
   await expect(historyTerminal).toBeVisible();
   await historyTerminal.click();
-  await expect(page.getByText("只读历史", { exact: true })).toBeVisible();
+  await expect(page.getByText("只读历史", { exact: true })).toHaveCount(0);
   await expect(page.locator(".terminal-actions")).toHaveCount(0);
   await expect(page.locator(".terminal-page .xterm-rows")).toContainText(
     "terminal-compat-ready",

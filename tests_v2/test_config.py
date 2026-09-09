@@ -137,9 +137,10 @@ def test_config_api_exposes_only_runnable_configuration_tree(admin: TestClient, 
     assert items["working_directory"]["check"] == "availability"
     assert items["case_directory"]["severity"] == "ok"
     assert items["case_directory"]["check"] == "availability"
-    assert items["shell"]["value"].startswith("/")
-    assert "自动选择" in items["shell"]["message"]
+    assert "shell" not in items
     assert "command_entry" not in items
+    assert items["labels"]["kind"] == "tokens"
+    assert items["labels"]["value"] == ["verification"]
     assert items["custom_text_0"]["value"] == "Case: ${case}"
     assert items["custom_text_1"]["value"] == "Seed: ${seed}"
 

@@ -108,13 +108,13 @@ TaskDraft(
 
 ## 随安装提供的插件
 
-- `verification.py`：配置 Case 路径后自动发现 Case，支持明确增减按钮、延迟长按连发、框选同步调整、逐 Case 次数以及留空随机/手工种子；每次运行形成独立任务。插件只提供 `${case}` 与 `${seed}`，可使用任意子集或完全不用；其它变量必须来自合并后的配置树。每个显示标签同时生成 `tag:<标签>` 互斥键，因此任一标签相同的仿真按队列串行。
+- `verification.py`：配置 Case 路径后自动发现 Case，支持整行增加、减号减少、延迟长按连发、框选同步调整、逐 Case 次数以及留空随机/手工种子；每次运行形成独立任务。插件只提供 `${case}` 与 `${seed}`，可使用任意子集或完全不用；其它变量必须来自合并后的配置树。插件用 Case 名称与完整标签集合的稳定摘要生成一个自动互斥键，因此只有 Case 和全部标签同时相同的仿真自动串行；用户显式 `mutex_keys` 仍可表达许可证等额外资源约束。
 - `command.py`：生产插件。只需名称、工作目录和命令，示例优先使用字符串，也兼容精确 argv 列表，适合直接代为执行一条命令。
 - `verification.py`：生产插件。发现 Case、展开逐 Case 任务、在入队事务中分配递增 seed 并判定 VCS/UVM 结果。
 
 其它状态、交互退出和通用选择器插件只作为测试夹具在质检时动态写入隔离目录，不进入首启内容或 Linux 发布包。
 
-插件可选实现 inspect(values, context)，返回只读检查项列表。宿主总会先显示公共工作目录与完整命令，再合并插件项；不得从完整字符串命令重复提取“命令入口”。每项声明稳定 name、可选 label、字符串 value、text/path/command 类型、ok/info/warning/error 严重级别、可选说明，以及 none（默认）或 availability 检查策略。网页只在 availability + error 时显示叉号；成功与普通信息不显示图案。检查钩子不得修改配置、扫描多层无界目录或长期阻塞；网页与 API 使用同一有界调用。
+插件可选实现 inspect(values, context)，返回只读检查项列表。宿主总会先显示公共工作目录与完整命令，再合并插件项；不得从完整字符串命令重复提取“命令入口”。每项声明稳定 name、可选 label、value、text/path/command/tokens 类型、ok/info/warning/error 严重级别、可选说明，以及 none（默认）或 availability 检查策略；`tokens` 的 value 是字符串列表，其余类型是字符串。网页只在 availability + error 时显示叉号；成功与普通信息不显示图案。检查钩子不得修改配置、扫描多层无界目录或长期阻塞；网页与 API 使用同一有界调用。
 
 停止协议和人在环终端的完整合同分别见 [停止与残留进程保证](stopping.md) 和 [交互终端](terminal.md)。
 

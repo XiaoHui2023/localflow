@@ -90,7 +90,8 @@ def test_verification_inspection_shows_resolved_logs_without_requiring_files(
     items = {item["name"]: item for item in response.json()["items"]}
     assert items["compile_logs"]["severity"] == "info"
     assert items["run_logs"]["severity"] == "info"
-    assert items["labels"]["value"] == "smoke"
+    assert items["labels"]["kind"] == "tokens"
+    assert items["labels"]["value"] == ["smoke"]
     assert items["compile_logs"]["value"] == str(project / "logs" / "case-a.compile.log")
     assert items["run_logs"]["value"] == str(project / "logs" / "case-a.run.log")
 

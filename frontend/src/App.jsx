@@ -533,9 +533,6 @@ function CopyValue({ label, value, customText = false }) {
             aria-label={`${label ? `${label}，` : customText ? `${text}，` : ""}${copied ? "已复制" : "点击复制"}`}
           >
             <code>{text}</code>
-            <span className="copy-affordance" aria-hidden="true">
-              {copied ? <Check /> : <Copy />}
-            </span>
           </button>
         </Hint>
         <span className="copy-status" role="status">
@@ -565,11 +562,13 @@ function TaskDetail({ task, role, interrupt }) {
     <div className="detail">
       <div className="details">
         <div className="detail-time">
-          <span>开始时间</span>
-          <time>{showTime(task.started_at)}</time>
+          <span><Clock3 aria-hidden="true" />开始</span>
+          <time dateTime={task.started_at || undefined} title={task.started_at || undefined}>
+            {showTime(task.started_at)}
+          </time>
         </div>
-        {task.command && (
-          <CopyValue label="命令" value={task.command.join(" ")} />
+        {(task.display_command || task.command) && (
+          <CopyValue label="命令" value={task.display_command || task.command.join(" ")} />
         )}
         <CopyValue label="工作目录" value={task.working_directory} />
         <CopyValue label="终端输出" value={task.log_path} />
@@ -811,9 +810,8 @@ function TerminalPage({ tasks, role, theme }) {
         <span className="terminal-entry-text">
           <b className="terminal-entry-name">{task.name}</b>
           <span className="terminal-entry-meta">
-            <small className="terminal-entry-state">{taskLabel(task)}</small>
             {task.labels?.map((label) => (
-              <em className="terminal-entry-label" key={label}>
+              <em className="terminal-entry-label" key={label} title={label}>
                 {label}
               </em>
             ))}
@@ -891,9 +889,7 @@ function TerminalPage({ tasks, role, theme }) {
                     </button>
                   </span>
                 </div>
-              ) : (
-                <span className="terminal-readonly">只读历史</span>
-              )}
+              ) : null}
             </header>
             <span className="terminal-status" role="status">
               {notice}
@@ -1265,18 +1261,23 @@ function CasePicker({ field, filePath, values, discoverValues, setValues }) {
               className={`case-item ${amount ? "has-count" : ""} ${isScoped ? "scoped" : ""}`}
               data-case={name}
               key={name}
+              onPointerDown={(event) => {
+                if (
+                  !event.ctrlKey &&
+                  !event.metaKey &&
+                  !event.target.closest(".case-step.decrease")
+                )
+                  beginRepeat(event, name, 1);
+              }}
+              onPointerUp={stopRepeat}
+              onPointerCancel={stopRepeat}
+              onLostPointerCapture={stopRepeat}
             >
               <button
                 type="button"
                 className="case-main"
                 aria-pressed={isScoped}
-                aria-label={`增加 ${name} 次数${isScoped ? "，应用到已框选 Case" : ""}`}
-                onPointerDown={(event) => {
-                  if (!event.ctrlKey && !event.metaKey) beginRepeat(event, name, 1);
-                }}
-                onPointerUp={stopRepeat}
-                onPointerCancel={stopRepeat}
-                onLostPointerCapture={stopRepeat}
+                aria-label={`增加 ${name} 次数，当前 ${amount} 次${isScoped ? "，应用到已框选 Case" : ""}`}
                 onClick={(event) => {
                   if (event.ctrlKey || event.metaKey) select(event, name);
                   else if (event.detail === 0) step(name, 1);
@@ -1284,8 +1285,8 @@ function CasePicker({ field, filePath, values, discoverValues, setValues }) {
               >
                 <span>{name}</span>
               </button>
-              <div className="case-count" role="group" aria-label={`${name} 运行次数`}>
-                {amount > 0 && (
+              {amount > 0 && (
+                <div className="case-count" role="group" aria-label={`${name} 运行次数`}>
                   <button
                     type="button"
                     className="case-step decrease"
@@ -1298,9 +1299,9 @@ function CasePicker({ field, filePath, values, discoverValues, setValues }) {
                   >
                     <Minus />
                   </button>
-                )}
-                <output aria-live="polite">{amount}</output>
-              </div>
+                  <output aria-live="polite">{amount}</output>
+                </div>
+              )}
             </div>
           );
         })}
@@ -1362,6 +1363,7 @@ function InspectionItems({ items, error }) {
     <div className="inspection-grid">
       {items.map((item) => {
         const customText = item.name.startsWith("custom_text_");
+        const tokens = item.kind === "tokens" && Array.isArray(item.value);
         const unavailable =
           item.check === "availability" && item.severity === "error";
         return (
@@ -1371,7 +1373,18 @@ function InspectionItems({ items, error }) {
           data-custom-text={customText || undefined}
         >
           {!customText && <span>{item.label || item.name}</span>}
-          <CopyValue value={item.value} customText={customText} />
+          {tokens ? (
+            <div
+              className="inspection-tokens"
+              aria-label={`${item.label || item.name}：${item.value.length ? item.value.join("，") : "未配置"}`}
+            >
+              {item.value.length ? item.value.map((value, index) => (
+                <span className="inspection-token" key={`${value}-${index}`}>{value}</span>
+              )) : <span className="inspection-empty">未配置</span>}
+            </div>
+          ) : (
+            <CopyValue value={item.value} customText={customText} />
+          )}
           <span className="inspection-status-slot">
             {unavailable && (
               <Hint label={item.message || "不可用"}>
@@ -1513,6 +1526,19 @@ function readConfigMemory() {
   }
 }
 
+function readExplorerOpenState() {
+  try {
+    const collapsed = JSON.parse(
+      localStorage.getItem("localflow-explorer-collapsed") || "[]",
+    );
+    return Object.fromEntries(
+      (Array.isArray(collapsed) ? collapsed : []).map((id) => [id, false]),
+    );
+  } catch {
+    return {};
+  }
+}
+
 function Config({ theme }) {
   const filePathRef = useRef();
   const inspectionControllerRef = useRef();
@@ -1546,6 +1572,8 @@ function Config({ theme }) {
   const [treeOpen, setTreeOpen] = useState(false);
   const [treeSize, setTreeSize] = useState({ width: 260, height: 600 });
   const treeHost = useRef();
+  const treeRef = useRef();
+  const initialTreeOpenState = useRef(readExplorerOpenState());
   const markDirty = useCallback((path, dirty) => {
     setDirtyPaths((current) => {
       if (dirty === current.has(path)) return current;
@@ -2072,6 +2100,7 @@ function Config({ theme }) {
         </header>
         <div className="tree-host" ref={treeHost}>
           <Tree
+            ref={treeRef}
             data={buildTree(files, diagnostics, dirtyPaths)}
             width={treeSize.width}
             height={treeSize.height}
@@ -2079,6 +2108,18 @@ function Config({ theme }) {
             indent={16}
             overscanCount={8}
             openByDefault
+            initialOpenState={initialTreeOpenState.current}
+            onToggle={(id) => {
+              setTimeout(() => {
+                const current = readExplorerOpenState();
+                if (treeRef.current?.isOpen(id)) delete current[id];
+                else current[id] = false;
+                localStorage.setItem(
+                  "localflow-explorer-collapsed",
+                  JSON.stringify(Object.keys(current).slice(-512)),
+                );
+              }, 0);
+            }}
             selection={
               selectedEntry?.kind === "directory"
                 ? `folder:${selectedPath}`
