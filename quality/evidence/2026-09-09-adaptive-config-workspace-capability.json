@@ -1,0 +1,152 @@
+{
+  "capability_id": "localflow-adaptive-config-task-workspace",
+  "owner": "task-workspace-responsive-layout",
+  "problem": "When the window is too narrow for two useful panes, the expanded configuration workbench and task pane are stacked and both remain incomplete.",
+  "scope": "task-page disclosure, wide dual-pane geometry, intermediate single-pane switching, narrow reflow, state preservation, accessibility, and fixed-browser compatibility",
+  "baseline": "At 1100px and below the open configuration panel uses 72vh while the task pane remains visible below it.",
+  "benchmarks": [
+    "WAI-ARIA disclosure with aria-expanded and aria-controls",
+    "VS Code left primary sidebar with explicit visibility toggle",
+    "Material 3 adaptive list-detail and supporting-pane layouts",
+    "Microsoft adaptive list-details guidance"
+  ],
+  "advantages": [
+    "The current semantic disclosure, state ownership, tree and editor remain intact",
+    "Wide screens retain simultaneous task context",
+    "Intermediate screens give the active configuration workflow the full width",
+    "No new dependency or unsupported container-query runtime is required"
+  ],
+  "disadvantages": [
+    "Tasks are intentionally hidden while configuration is expanded at intermediate widths",
+    "Returning to tasks requires one meaningful disclosure activation",
+    "A fixed breakpoint must be derived from viable pane widths and browser-tested"
+  ],
+  "limitations": [
+    "Chrome 84 and Firefox 78 exclude CSS container queries as the primary mechanism",
+    "Compact widths still require explorer/editor reflow inside configuration",
+    "Drag resizing and persistent custom widths are outside this request"
+  ],
+  "defects": [
+    "intermediate expanded state reveals two vertically incomplete work surfaces",
+    "task content remains reachable by scrolling while configuration is active"
+  ],
+  "bottlenecks": [
+    "the pane switch must not unmount configuration state",
+    "hidden task content must leave visual layout and accessibility exposure",
+    "the same CSS must work in current and fixed legacy browsers"
+  ],
+  "metrics": [
+    {
+      "name": "intermediate active panes",
+      "unit": "visible panes",
+      "direction": "lower",
+      "threshold": "exactly 1 at 1000px and 760px while configuration is expanded",
+      "measurement": "Playwright visibility and bounding-box assertions",
+      "evidence": "frontend/e2e/localflow.spec.js"
+    },
+    {
+      "name": "wide active panes",
+      "unit": "visible panes",
+      "direction": "equal",
+      "threshold": "exactly 2 at 1440px with configuration left of tasks",
+      "measurement": "Playwright bounding boxes",
+      "evidence": "frontend/e2e/localflow.spec.js"
+    },
+    {
+      "name": "page overflow",
+      "unit": "pixels",
+      "direction": "lower",
+      "threshold": "0 at 1440, 1000, 760 and 390px",
+      "measurement": "document scrollWidth minus clientWidth",
+      "evidence": "frontend/e2e/localflow.spec.js"
+    },
+    {
+      "name": "return-to-task interaction tax",
+      "unit": "disclosure activations",
+      "direction": "equal",
+      "threshold": "1",
+      "measurement": "click and keyboard browser paths",
+      "evidence": "frontend/e2e/localflow.spec.js"
+    }
+  ],
+  "hypotheses": [
+    "A single active pane below the viable dual-pane width is clearer than a vertical stack of incomplete workspaces",
+    "Keeping configuration mounted while hiding the sibling task pane preserves drafts and run state",
+    "A legacy-compatible media query expresses the adaptive strategy without a component dependency"
+  ],
+  "allowed_variables": [
+    "task workspace media-query grid",
+    "task pane visibility in expanded intermediate state",
+    "browser geometry and accessibility assertions",
+    "responsive workspace documentation and interaction contract"
+  ],
+  "stages": [
+    {
+      "id": "oracle",
+      "input": "existing stacked intermediate layout",
+      "output": "failing assertions for one-pane focus and one-action task reveal",
+      "checker": "Playwright baseline",
+      "rollback": "research and adaptive ownership model",
+      "allowed_variables": ["test viewport", "visibility assertions", "geometry assertions"]
+    },
+    {
+      "id": "layout",
+      "input": "accepted responsive contract",
+      "output": "wide dual-pane and intermediate single-pane CSS",
+      "checker": "current Edge responsive journey",
+      "rollback": "round7 responsive rules",
+      "allowed_variables": ["grid areas", "pane display", "height", "border"]
+    },
+    {
+      "id": "compatibility",
+      "input": "current-browser success",
+      "output": "fixed Chrome 84 and Firefox 78 acceptance",
+      "checker": "formal browser quality runner",
+      "rollback": "unsupported CSS or state transition owner",
+      "allowed_variables": ["legacy-compatible CSS", "legacy browser assertions"]
+    }
+  ],
+  "hard_gates": [
+    "known stacked intermediate baseline is rejected",
+    "expanded intermediate state exposes configuration but not tasks",
+    "one toggle activation exposes tasks at full available width",
+    "configuration state survives collapse and reopen",
+    "wide and compact layouts retain zero horizontal overflow",
+    "current and fixed browser gates pass"
+  ],
+  "failure_fixtures": [
+    "1000px open workspace renders configuration above a visible task pane",
+    "task pane retains a positive bounding box while the intermediate config pane is active"
+  ],
+  "success_fixtures": [
+    "1440px renders configuration left of tasks",
+    "1000px and 760px render only the expanded configuration pane",
+    "one toggle activation reveals a full-width task pane",
+    "390px reflows explorer above editor without overflow"
+  ],
+  "fault_injections": [
+    "restore the intermediate run-then-tasks grid",
+    "remove task-pane suppression from the open intermediate state",
+    "hide the configuration component by unmounting it",
+    "replace the legacy media query with a container-query-only rule"
+  ],
+  "rollback": "Return to the earliest failing oracle, layout or compatibility owner and invalidate dependent browser evidence.",
+  "iteration_budget": {
+    "max_rounds": 3,
+    "max_time": "3h",
+    "review_trigger": "second failure of the pane ownership model or any fixed-browser regression"
+  },
+  "stop_conditions": [
+    "failure baseline rejected and current UI accepted",
+    "all accessibility, responsive and state-preservation gates pass",
+    "project and user-root Skill writebacks validate",
+    "exact release artifact passes browser and consumer gates"
+  ],
+  "promotion_decision": {
+    "destination": "modern-web-interface-design/references/operator-interaction-solution-catalog.md",
+    "reason": "Adaptive dual-pane to focused single-pane transitions recur across operator workbenches.",
+    "independent_trigger": false,
+    "repeatable_validation": true
+  },
+  "writeback": "Keep LocalFlow breakpoints in the project Skill and add the generic focused-pane adaptive pattern to the user-root interaction catalog."
+}

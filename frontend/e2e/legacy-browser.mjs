@@ -27,6 +27,7 @@ async function diagnostics() {
   return { bootErrors, consoleErrors, consoleLogSupported };
 }
 try {
+  await driver.manage().window().setRect({ width: 1000, height: 900 });
   await driver.get(baseUrl);
   await driver.wait(async () => (await driver.findElements(By.css("#root > *"))).length > 0, 30_000);
   step = "open settings";
@@ -55,6 +56,25 @@ try {
   await config.click();
   await driver.findElement(By.xpath("//button[normalize-space()='编辑']")).click();
   await driver.wait(until.elementLocated(By.css(".monaco-editor")), 30_000);
+  step = "verify adaptive focused panes";
+  const editorValue = await driver.executeScript(
+    "const model = window.monaco && window.monaco.editor.getModels()[0]; if (!model) return null; model.setValue(model.getValue() + '\\n# unsaved adaptive draft'); return model.getValue()",
+  );
+  const paneDisplay = async (selector) => driver.executeScript(
+    "return getComputedStyle(document.querySelector(arguments[0])).display",
+    selector,
+  );
+  if (await paneDisplay(".task-pane") !== "none") throw new Error("task pane must be hidden while configuration is open at 1000px");
+  await configToggle.click();
+  await driver.wait(async () => (await configToggle.getAttribute("aria-expanded")) === "false", 10_000);
+  if (await paneDisplay(".task-pane") === "none") throw new Error("task pane must be visible after configuration is collapsed");
+  await configToggle.click();
+  await driver.wait(async () => (await configToggle.getAttribute("aria-expanded")) === "true", 10_000);
+  if (await paneDisplay(".task-pane") !== "none") throw new Error("task pane must hide again when configuration reopens");
+  const restoredEditorValue = await driver.executeScript(
+    "return window.monaco && window.monaco.editor.getModels()[0].getValue()",
+  );
+  if (restoredEditorValue !== editorValue) throw new Error("unsaved configuration editor state changed across pane switching");
   step = "collect diagnostics";
   const { bootErrors, consoleErrors, consoleLogSupported } = await diagnostics();
   if (bootErrors.length || consoleErrors.length) throw new Error([...bootErrors, ...consoleErrors].join("\n"));

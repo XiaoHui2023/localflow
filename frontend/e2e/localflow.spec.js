@@ -226,6 +226,10 @@ async function runAcceptance(page) {
 
   const taskId = accepted.task_ids[0];
   await page.getByRole("tab", { name: "任务" }).click();
+  const configToggle = page.getByRole("button", { name: "配置" });
+  if ((await configToggle.getAttribute("aria-expanded")) === "true")
+    await configToggle.click();
+  await expect(configToggle).toHaveAttribute("aria-expanded", "false");
   const row = page.getByRole("button", { name: /hello-world-feedback/ });
   await expect(row).toBeVisible();
   const assertOrderedCells = async () => {
@@ -530,11 +534,15 @@ test("plugin configuration console remains concise and operable in Edge", async 
     ).toBeLessThanOrEqual(1);
   };
   await assertCompactDetail();
+  await runPanelToggle.click();
+  await expect(runPanelToggle).toHaveAttribute("aria-expanded", "false");
   await page.setViewportSize({ width: 760, height: 800 });
   await assertCompactDetail();
   await page.setViewportSize({ width: 390, height: 844 });
   await assertCompactDetail();
   await page.setViewportSize({ width: 1440, height: 960 });
+  await runPanelToggle.click();
+  await expect(runPanelToggle).toHaveAttribute("aria-expanded", "true");
   const reportValue = page
     .locator(".task-item.open .copy-value")
     .filter({ hasText: "qa://finished" });
@@ -866,10 +874,32 @@ test("plugin configuration console remains concise and operable in Edge", async 
   expect(workbenchActions.x - (workbenchName.x + workbenchName.width)).toBeLessThanOrEqual(32);
   await expect(page.locator(".workbench-actions")).toContainText("编辑");
   await expect(page.locator(".workbench-actions")).toContainText("运行");
+  const selectedConfigName = await page
+    .locator(".workbench-context > span")
+    .textContent();
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await expect(page.locator("#run-panel")).toBeVisible();
+  await expect(page.locator(".task-pane")).toBeHidden();
+  const focusedRun = await page.locator("#run-panel").boundingBox();
+  const focusedContent = await page.locator(".app-content").boundingBox();
+  expect(focusedRun.x).toBeCloseTo(focusedContent.x, 0);
+  expect(focusedRun.width).toBeCloseTo(focusedContent.width, 0);
+  await runPanelToggle.click();
+  await expect(page.locator("#run-panel")).toBeHidden();
+  await expect(page.locator(".task-pane")).toBeVisible();
+  const revealedTasks = await page.locator(".task-pane").boundingBox();
+  expect(revealedTasks.x).toBeCloseTo(focusedContent.x, 0);
+  expect(revealedTasks.width).toBeCloseTo(focusedContent.width, 0);
+  await runPanelToggle.focus();
+  await runPanelToggle.press("Enter");
+  await expect(page.locator("#run-panel")).toBeVisible();
+  await expect(page.locator(".task-pane")).toBeHidden();
+  await expect(page.locator(".workbench-context > span")).toHaveText(
+    selectedConfigName,
+  );
   await page.setViewportSize({ width: 760, height: 900 });
-  const mediumTasks = await page.locator(".task-pane").boundingBox();
-  const mediumRun = await page.locator("#run-panel").boundingBox();
-  expect(mediumRun.y + mediumRun.height).toBeLessThanOrEqual(mediumTasks.y + 1);
+  await expect(page.locator("#run-panel")).toBeVisible();
+  await expect(page.locator(".task-pane")).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   await page.setViewportSize({ width: 390, height: 844 });
   const narrowExplorer = await page.locator("#run-panel .explorer").boundingBox();
@@ -1419,6 +1449,8 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "config-free-save-inline-syntax",
           "config-external-valid-invalid-live-sync",
           "config-external-change-preserves-dirty-draft",
+          "config-adaptive-focused-pane",
+          "config-one-action-task-reveal",
           "config-default-expanded",
           "config-dirty-save",
           "terminal-bounded-archive-search",

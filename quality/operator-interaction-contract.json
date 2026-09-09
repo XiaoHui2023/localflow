@@ -78,7 +78,7 @@
     },
     {
       "path": "../frontend/e2e/legacy-browser.mjs",
-      "required": ["getAttribute\\(\"aria-expanded\"\\)\\) !== \"true\"", "configToggle\\.click\\(\\)"]
+      "required": ["setRect\\(\\{ width: 1000, height: 900 \\}\\)", "verify adaptive focused panes", "task pane must be hidden while configuration is open at 1000px", "unsaved adaptive draft", "unsaved configuration editor state changed across pane switching"]
     },
     {
       "path": "../frontend/src/extra.css",
@@ -89,6 +89,11 @@
       "path": "../frontend/src/round6.css",
       "required": ["grid-template-columns:\\s*clamp\\(248px,22vw,320px\\)", "terminal-entry\\.has-unread\\{grid-template-columns:minmax\\(0,1fr\\) 10px"],
       "forbidden": ["terminal-readonly", "terminal-entry-icon", "terminal-entry\\.state-running \\.terminal-entry-name"]
+    },
+    {
+      "path": "../frontend/src/round7.css",
+      "required": ["@media\\(max-width:1100px\\)", "\\.task-workspace\\.run-open \\.task-pane\\{display:none\\}", "\\.run-panel\\{height:100vh;min-height:520px\\}"],
+      "forbidden": ["grid-template-areas:\"run\" \"tasks\"", "height:72vh", "height:78vh"]
     }
   ]
 }

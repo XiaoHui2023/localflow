@@ -26,14 +26,14 @@ html[data-theme="dark"] .run-panel .run-action.idle:hover{background:#1f6feb}
 .run-panel-toggle svg{width:17px;height:17px;flex:0 0 auto;stroke-width:1.9}
 
 @media(max-width:1100px){
-  .task-workspace.run-open{grid-template-areas:"run" "tasks";grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(520px,72vh) auto}
-  .task-workspace.run-open .task-pane{border-left:0;border-top:1px solid var(--border)}
-  .run-panel{height:72vh;min-height:520px}
+  .task-workspace.run-open{min-height:0;grid-template-areas:"run";grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(520px,100vh)}
+  .task-workspace.run-open .task-pane{display:none}
+  .run-panel{height:100vh;min-height:520px}
   .run-panel>.config-explorer{grid-template-columns:290px minmax(0,1fr)}
 }
 @media(max-width:680px){
-  .task-workspace.run-open{grid-template-rows:minmax(560px,78vh) auto}
-  .run-panel{height:78vh;min-height:560px;overflow:auto}
+  .task-workspace.run-open{grid-template-rows:minmax(560px,100vh)}
+  .run-panel{height:100vh;min-height:560px;overflow:auto}
   .run-panel>.config-explorer{height:auto;min-height:100%;grid-template-columns:1fr;grid-template-rows:220px minmax(340px,1fr)}
   .run-panel .explorer{height:220px;border-right:0;border-bottom:1px solid var(--border)}
   .run-panel .config-workbench{height:auto;min-height:340px}
