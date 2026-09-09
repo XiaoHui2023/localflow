@@ -15,13 +15,26 @@
         "monaco\\.editor\\.setModelMarkers",
         "className=\"problems-panel\"",
         "diagnosisControllerRef\\.current\\?\\.abort",
+        "request !== openRequestRef\\.current",
+        "cleanSyncBase !== undefined",
+        "contentRef\\.current !== cleanSyncBase",
         "window\\.addEventListener\\(\"pointerup\", stop, true\\)",
         "repeatRef\\.current !== state",
         "data-custom-text=\\{customText \\|\\| undefined\\}",
         "className=\"tree-dirty\"",
         "draftsRef\\.current\\.get\\(path\\)",
+        "draft \\|\\| !value\\.content",
+        "if \\(next === contentRef\\.current\\) return",
         "item\\.kind === \"tokens\"",
         "className=\"inspection-tokens\"",
+        "item\\.kind === \"code-list\"",
+        "className=\"inspection-code-list\"",
+        "inspectConfig\\(filePath, \\{\\}",
+        "data\\.affected_paths",
+        "className=\"configuration-debug\"",
+        "treeRef\\.current\\?\\.edit\\(id\\)",
+        "disableEdit",
+        "onBlur=\\{\\(\\) => node\\.reset\\(\\)\\}",
         "task\\.display_command \\|\\| task\\.command",
         "localflow-explorer-collapsed",
         "initialOpenState=\\{initialTreeOpenState\\.current\\}",
@@ -45,7 +58,8 @@
         "className=\"case-step increase\"",
         "className=\"copy-affordance\"",
         "只读历史",
-        "className=\"terminal-entry-state\""
+        "className=\"terminal-entry-state\"",
+        "onDoubleClick"
       ]
     },
     {
@@ -58,13 +72,23 @@
       "required": ["/logs/search", "\"type\": \"caught_up\"", "run_diagnosis"]
     },
     {
+      "path": "../src/localflow/config_diagnostics.py",
+      "required": ["declared_plugin_fields = set\\(config_model\\.model_fields\\)", "if key in declared_plugin_fields"],
+      "forbidden": ["if key not in COMMON_CONFIG_FIELDS"]
+    },
+    {
+      "path": "../src/localflow/plugins.py",
+      "required": ["def _plugin_fields_schema", "schema\\[\"additionalProperties\"\\] = True", "\"additionalProperties\": True", "_SUPPORTED_DEFERRED_VARIABLES = \\{\"case\", \"seed\"\\}", "resolve_config_tree\\(document, deferred, \\{\\}\\)"],
+      "forbidden": ["additional_properties = plugin_schema\\.get\\(\"additionalProperties\"", "\"scripts_dir\": str\\(root", "\"cases_dir\": str\\(root"]
+    },
+    {
       "path": "../plugins/verification.py",
-      "required": ["ConfigDict\\(extra=\"allow\"\\)", "compile_logs", "run_logs", "custom_texts", "working_directory / path", "runtime\\[\"自定义文本\"\\]", "deferred_variables = \\{\"case\", \"seed\"\\}", "\"check\": \"availability\"", "\"value\": str\\(value\\)", "\"kind\": \"tokens\"", "sha256\\(queue_identity"],
+      "required": ["ConfigDict\\(extra=\"allow\"\\)", "compile_logs", "run_logs", "custom_texts", "working_directory / path", "runtime\\[\"自定义文本\"\\]", "deferred_variables = \\{\"case\", \"seed\"\\}", "\"check\": \"availability\"", "\"kind\": \"code-list\"", "\"kind\": \"tokens\"", "selected_case = \"\\$\\{case\\}\"", "\"seed\": \"\\$\\{seed\\}\"", "sha256\\(queue_identity"],
       "forbidden": ["deferred_variables = \\{\"case\", \"seed\", \"run\"\\}", "command_entry", "mutex_keys\\.extend\\(f\"tag:"]
     },
     {
       "path": "../src/localflow/builtin_plugins/verification.py.example",
-      "required": ["\"check\": \"availability\"", "\"value\": str\\(value\\)"],
+      "required": ["\"check\": \"availability\"", "\"kind\": \"code-list\"", "selected_case = \"\\$\\{case\\}\""],
       "forbidden": ["command_entry"]
     },
     {
@@ -92,7 +116,7 @@
     },
     {
       "path": "../frontend/src/round7.css",
-      "required": ["@media\\(max-width:1100px\\)", "\\.task-workspace\\.run-open \\.task-pane\\{display:none\\}", "\\.run-panel\\{height:100vh;min-height:520px\\}"],
+      "required": ["\\.task-workspace\\.run-open \\.task-pane\\{display:none\\}", "\\.task-workspace\\.split-ready\\.run-open", "minmax\\(830px,3fr\\)", "minmax\\(410px,2fr\\)", "\\.run-panel\\{height:100vh;min-height:520px\\}"],
       "forbidden": ["grid-template-areas:\"run\" \"tasks\"", "height:72vh", "height:78vh"]
     }
   ]

@@ -103,6 +103,44 @@ class ConfigRepository:
                         included, included.read_text(encoding="utf-8"), visited
                     )
 
+    def dependencies(self, relative: str) -> set[Path]:
+        """Return every direct and transitive include target for one config.
+
+        Missing targets are retained in the set so creating, deleting, or fixing an
+        include can still invalidate its upstream configurations.
+        """
+        dependencies: set[Path] = set()
+        visited: set[Path] = set()
+
+        def visit(path: Path) -> None:
+            resolved = path.resolve()
+            if resolved in visited:
+                return
+            visited.add(resolved)
+            if path.suffix.lower() not in {".yaml", ".yml"}:
+                return
+            try:
+                content = path.read_text(encoding="utf-8")
+            except OSError:
+                return
+            for match in self._include_pattern.finditer(content):
+                for raw in match.group(1).split():
+                    included = (path.parent / raw.strip("'\"")).resolve()
+                    dependencies.add(included)
+                    visit(included)
+
+        visit(self._resolve(relative))
+        return dependencies
+
+    def affected_by(self, relative: str) -> list[str]:
+        """Return configs whose resolved result can change with ``relative``."""
+        changed = self._resolve(relative)
+        affected = {relative}
+        for candidate in self.list():
+            if candidate != relative and changed in self.dependencies(candidate):
+                affected.add(candidate)
+        return sorted(affected)
+
     def parse(self, relative: str, content: str | None = None) -> Any:
         path = self._resolve(relative)
         source = path.read_text(encoding="utf-8") if content is None else content

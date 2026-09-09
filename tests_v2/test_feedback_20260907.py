@@ -63,6 +63,25 @@ def test_workspace_save_is_not_blocked_by_plugin_diagnostics(
     ]
 
 
+def test_live_diagnosis_returns_resolved_document_and_run_errors(admin) -> None:
+    response = admin.post(
+        "/api/v1/config/files/debug.yaml/diagnosis",
+        json={
+            "content": "plugin: command\nlabels: wrong\nvisible: ${answer}\nvariables:\n  answer: 42\n"
+        },
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert result["diagnosis"]["valid"] is True
+    assert result["document"]["visible"] == "${answer}"
+    assert result["resolved_document"]["visible"] == 42
+    assert result["plugin"] == "command"
+    assert result["run_diagnosis"]["runnable"] is False
+    assert any("labels" in item for item in result["run_diagnosis"]["errors"])
+    assert any("working_directory" in item for item in result["run_diagnosis"]["errors"])
+    assert any("command" in item for item in result["run_diagnosis"]["errors"])
+
+
 def test_verification_inspection_shows_resolved_logs_without_requiring_files(
     admin: TestClient, root: Path
 ) -> None:
@@ -76,8 +95,8 @@ def test_verification_inspection_shows_resolved_logs_without_requiring_files(
         "case_directory: cases\n"
         "command: make run\n"
         "labels: [smoke]\n"
-        "compile_logs: ['logs/${case}.compile.log']\n"
-        "run_logs: ['logs/${case}.run.log']\n",
+        "compile_logs: ['logs/${case}.compile.log', 'logs/${case}.lint.log']\n"
+        "run_logs: ['logs/${case}.run.log', 'logs/${case}.trace.log']\n",
         encoding="utf-8",
     )
 
@@ -92,8 +111,16 @@ def test_verification_inspection_shows_resolved_logs_without_requiring_files(
     assert items["run_logs"]["severity"] == "info"
     assert items["labels"]["kind"] == "tokens"
     assert items["labels"]["value"] == ["smoke"]
-    assert items["compile_logs"]["value"] == str(project / "logs" / "case-a.compile.log")
-    assert items["run_logs"]["value"] == str(project / "logs" / "case-a.run.log")
+    assert items["compile_logs"]["kind"] == "code-list"
+    assert items["run_logs"]["kind"] == "code-list"
+    assert items["compile_logs"]["value"] == [
+        str(project / "logs" / "${case}.compile.log"),
+        str(project / "logs" / "${case}.lint.log"),
+    ]
+    assert items["run_logs"]["value"] == [
+        str(project / "logs" / "${case}.run.log"),
+        str(project / "logs" / "${case}.trace.log"),
+    ]
 
 
 def test_configured_working_directory_owns_relative_side_effects(

@@ -41,6 +41,7 @@ The run surface answers: “What exactly will LocalFlow run, and is any required
 - A shell command is a complete string contract. Never derive a second “entry” row from its first token.
 - Shell choice and injected cwd wrapper are executor mechanics. Retain them in the durable API command array, but add a user-facing display command derived by removing only LocalFlow's known wrapper.
 - Labels use the typed `tokens` inspection kind; the host renders pills and no copy action. Do not overload `text` with comma-separated multi-values.
+- Ordered multi-line inspection values use `code-list`; the host renders one row-level stack containing one code block and copy target per element. Never stringify or whitespace-join the array.
 - Verification custom text remains template-shaped in run review: case and seed placeholders do not react to selection. Per-task expansion still freezes real values.
 - Draft identity is the logical resource path. Rename/move remaps all affected keys; delete removes them; save and explicit conflict resolution clear them.
 - Dirty state is byte equality against the loaded base, independent of syntax diagnosis.

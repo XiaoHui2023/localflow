@@ -1,0 +1,23 @@
+{
+  "error_id": "localflow-config-sync-stale-view-race",
+  "fingerprint": "workspace GET returns newer bytes while the selected Monaco model retains the previous clean version",
+  "owner": "configuration-editor-state",
+  "earliest_stage": "event-to-open state projection",
+  "symptom": "Disk bytes and diagnosis refresh, but Monaco sometimes retains the prior saved text.",
+  "root_cause": "Concurrent opens and reuse of explicit-selection mode changes allowed stale identity or an unintended view transition during external synchronization.",
+  "baseline": {"artifact": "quality/evidence/browser test trace", "expected": "server returns external-clean while editor still shows valid true"},
+  "failure_baseline": {"artifact": "quality/evidence/browser failing trace", "expected": "external-clean response with stale valid true editor"},
+  "success_baseline": {"artifact": "quality/evidence/browser/browser-receipt.json", "expected": "direct and indirect sync plus dirty preservation pass"},
+  "fix": "Use monotonically increasing open identities, clean-baseline revalidation, server-byte ownership for clean sync, and preserve the current view mode.",
+  "failure_classes": ["state_escape", "ownership_escape", "oracle_escape"],
+  "invariants": ["latest request alone commits", "new typing is never overwritten", "sync never changes edit/run mode", "explicit clean selection opens run"],
+  "tests": ["direct external overwrite", "recursive include update", "dirty-draft preservation", "clean reselect default run"],
+  "mutants": ["remove request identity", "reuse drafts during clean sync", "switch mode during background sync"],
+  "steps": ["reproduce with direct disk overwrite", "inspect response payload and editor state", "separate request, content and view ownership", "rerun current and fixed browsers"],
+  "hard_gates": ["Edge full journey", "Chrome 84", "Firefox 78", "operator interaction contract"],
+  "rollback": "Return to the event-to-open projection owner and invalidate browser evidence if any stale or destructive sync recurs.",
+  "exit_criteria": ["direct disk bytes appear within the bounded watcher interval", "dirty input survives", "background sync preserves mode", "all browser gates pass"],
+  "known_issue_regressions": ["late old GET overwrites new response", "programmatic Monaco update creates a ghost draft", "background sync changes edit mode to run mode"],
+  "evidence": ["quality/evidence/browser/browser-receipt.json", "frontend/e2e/localflow.spec.js"],
+  "writeback": "configuration-workbench.md records source projection and view-mode ownership separately."
+}

@@ -272,6 +272,57 @@ def test_verification_only_exposes_case_and_seed_as_runtime_variables(root: Path
     assert task.command[-1].endswith("&& echo case-a 41")
 
 
+def test_command_variables_come_only_from_the_merged_configuration(root: Path) -> None:
+    initialize_root(root)
+    registry = PluginRegistry(root / "plugins")
+    registry.load()
+    base = {
+        "plugin": "command",
+        "name": "site command",
+        "working_directory": ".",
+    }
+
+    for implicit in ("root", "scripts_dir", "cases_dir"):
+        with pytest.raises(ValueError, match=f"unknown variable: {implicit}"):
+            registry.expand_config(
+                {**base, "command": f"echo ${{{implicit}}}"},
+                {},
+                {"root": str(root)},
+            )
+
+    task = registry.expand_config(
+        {
+            **base,
+            "command": "echo ${site_message} ${site_paths.logs}",
+            "site_message": "configured",
+            "site_paths": {"logs": "artifacts"},
+        },
+        {},
+        {"root": str(root)},
+    )[0]
+    assert task.command[-1].endswith("&& echo configured artifacts")
+
+
+def test_plugin_metadata_rejects_nonportable_deferred_variables(root: Path) -> None:
+    directory = root / "plugins"
+    directory.mkdir(parents=True)
+    (directory / "deferred.py").write_text(
+        "from localflow.plugins import plugin\n"
+        "@plugin('deferred')\n"
+        "class Deferred:\n"
+        " run_fields=[]\n"
+        " deferred_variables={'run'}\n"
+        " def expand(self, values, context): return []\n",
+        encoding="utf-8",
+    )
+    registry = PluginRegistry(directory)
+    registry.load()
+    assert not registry.plugins
+    assert "unsupported deferred variables: ['run']" in next(
+        iter(registry.diagnostics.values())
+    )
+
+
 def test_verification_rejects_an_implicit_controller_working_directory(root: Path) -> None:
     initialize_root(root)
     registry = PluginRegistry(root / "plugins")
@@ -379,12 +430,15 @@ def test_command_task_resolves_config_variables(root: Path) -> None:
     task = registry.expand_config(
         {
             "plugin": "command",
-            "name": "${name}",
             "working_directory": ".",
             "command": ["echo", "${message}"],
             "labels": ["${label}"],
             "mutex_keys": ["license:${label}"],
-            "variables": {"name": "configured-job", "message": "hello", "label": "nightly"},
+            "name": "${job_name}",
+            "job_name": "configured-job",
+            "message": "hello",
+            "label": "nightly",
+            "site_owned": {"toolchain": "custom"},
         },
         {},
         {"root": str(root)},
@@ -395,6 +449,17 @@ def test_command_task_resolves_config_variables(root: Path) -> None:
     assert task.labels == ["nightly"]
     assert task.mutex_keys == ["license:nightly"]
     assert task.plugin_snapshot["name"] == "command"
+
+
+def test_every_plugin_configuration_schema_accepts_site_owned_keys(root: Path) -> None:
+    initialize_root(root)
+    registry = PluginRegistry(root / "plugins")
+    registry.load()
+    for description in registry.describe():
+        api = description["api"]
+        assert api["configuration_schema"]["additionalProperties"] is True
+        assert api["plugin_fields_schema"]["additionalProperties"] is True
+        assert api["input_schema"]["additionalProperties"] is False
 
 
 def test_plugin_input_model_must_match_run_field_contract(root: Path) -> None:

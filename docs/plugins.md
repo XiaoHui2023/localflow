@@ -56,10 +56,14 @@ api_inputs = {
 任务使用哪个插件只由配置顶层的 `plugin` 字段决定。插件可声明：
 
 - `required_common_fields`：该插件要求出现的公共字段集合。
-- `config_model`：只描述插件专属字段的 Pydantic 模型；建议 `extra="forbid"`，使拼错字段立即出现在配置诊断中。
+- `config_model`：只描述并校验插件专属字段；顶层其它键属于站点自定义变量，不送入该模型，也不因模型的 `extra` 策略报错。
 - `input_model`：只描述本次运行输入的 Pydantic 模型；字段必须对应 `run_fields` 及其次数辅助字段。
 
-公共字段由核心统一校验，不要在 `config_model` 中重复声明。`shell` 也是公共字段，只对字符串 `command` 有效；插件只传递配置值，核心在省略时根据服务用户自动选择登录 Shell，统一转换为 `<shell> -ic` 并在 rc 载入后恢复冻结工作目录。插件不得自行拼接 `source ~/.bashrc`、猜测登录 Shell 或把参数列表重新送入 Shell。已有的第三方插件若未提供 `config_model` 仍可装载，但配置页只能完成公共字段与插件存在性诊断，并会显示能力降级警告；新增插件应提供模型，才能形成完整 API schema。模型的 `extra` 策略是插件运行合同：字段集合封闭时使用 `forbid`，需要保留站点、仿真器或命令插值自定义值时使用 `allow`；宿主生成的 JSON Schema 必须沿用该策略，不能一律写成 `additionalProperties: false`。内置验证插件采用 `allow`，因此 `root`、`extra_inputs` 等额外配置会原样进入解析值，而网页本次运行请求仍只允许 `run_fields`。
+公共字段由核心统一校验，不要在 `config_model` 中重复声明。所有插件的完整配置都允许任意站点键：configlib 在整棵 include 合并树上解析这些变量，核心保留它们并把完整解析值传给 `expand`，但插件模型只接收自己声明的字段。因此 `extra="forbid"` 可继续用于捕获插件模型内部错误，却不能拒绝 `root`、`extra_inputs`、工具链参数等站点键；宿主公开的完整配置与插件字段 JSON Schema 均以 `additionalProperties: true` 如实表达这一边界。若插件需要判断某个站点键，可在 `validate_config(document)` 中按语义检查，而不是封闭全部未知键。本次运行 `inputs` 是另一条边界，仍由 `input_model`/`run_fields` 严格拒绝未知输入。
+
+扩展键不等于宿主隐式变量。所有变量必须由当前 YAML 或其直接、间接 include 合并结果定义；LocalFlow 不为 command、verification 或第三方插件注入 `root`、`scripts_dir`、`cases_dir`，也不把本次 `inputs` 当作配置变量。插件唯一可声明的延迟占位符是 `${case}` 与 `${seed}`；其它未知变量会使配置保持可见但不可运行，便于在同一编辑工作台修正。需要路径别名时应在 YAML 中显式定义，例如 `project_root: /srv/sim` 后引用 `${project_root}`。
+
+`shell` 是公共字段，只对字符串 `command` 有效；插件只传递配置值，核心在省略时根据服务用户自动选择登录 Shell，统一转换为 `<shell> -ic` 并在 rc 载入后恢复冻结工作目录。插件不得自行拼接 `source ~/.bashrc`、猜测登录 Shell 或把参数列表重新送入 Shell。已有的第三方插件若未提供 `config_model` 仍可装载，但配置页只能完成公共字段与插件存在性诊断，并会显示能力降级警告；新增插件应提供模型，才能形成完整 API schema。
 
 ## 字段与候选项发现
 

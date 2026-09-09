@@ -82,15 +82,26 @@ class DirectoryWatcher:
             # makes link targets and AI-authored disk edits observable everywhere.
             current = self._scan_config_versions()
             for relative in self._config_versions.keys() - current.keys():
-                self.store.append_event(None, "config.deleted", {"path": relative})
+                self.store.append_event(
+                    None,
+                    "config.deleted",
+                    {"path": relative, "affected_paths": self.config.affected_by(relative)},
+                )
             for relative, version in current.items():
                 if self._config_versions.get(relative) == version:
                     continue
+                affected_paths = self.config.affected_by(relative)
                 try:
                     content = self.config.read(relative).content
                     self.config.validate(relative, content)
                     self.store.append_event(
-                        None, "config.changed", {"path": relative, "version": version}
+                        None,
+                        "config.changed",
+                        {
+                            "path": relative,
+                            "version": version,
+                            "affected_paths": affected_paths,
+                        },
                     )
                 except Exception as exc:
                     self.store.append_event(
@@ -99,6 +110,7 @@ class DirectoryWatcher:
                         {
                             "path": relative,
                             "version": version,
+                            "affected_paths": affected_paths,
                             "error": f"{type(exc).__name__}: {exc}",
                         },
                     )

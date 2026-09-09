@@ -1,6 +1,9 @@
 /* The configuration workbench expands from its left-side disclosure control. */
 .task-workspace{min-height:100vh;display:grid;grid-template-areas:"tasks";grid-template-columns:minmax(0,1fr);background:var(--bg)}
-.task-workspace.run-open{grid-template-areas:"run tasks";grid-template-columns:minmax(520px,48vw) minmax(360px,1fr)}
+.task-workspace.run-open{min-height:0;grid-template-areas:"run";grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(520px,100vh)}
+.task-workspace.run-open .task-pane{display:none}
+.task-workspace.split-ready.run-open{grid-template-areas:"run tasks";grid-template-columns:minmax(830px,3fr) minmax(410px,2fr);grid-template-rows:auto}
+.task-workspace.split-ready.run-open .task-pane{display:block}
 .task-pane{position:relative;grid-area:tasks;min-width:0}
 .task-workspace.run-open .task-pane{border-left:1px solid var(--border)}
 .task-workspace.run-open .workspace{width:100%;padding-inline:24px}
@@ -25,12 +28,7 @@ html[data-theme="dark"] .run-panel .run-action.idle:hover{background:#1f6feb}
 .run-panel-toggle.active::after{content:"";position:absolute;left:-8px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--accent)}
 .run-panel-toggle svg{width:17px;height:17px;flex:0 0 auto;stroke-width:1.9}
 
-@media(max-width:1100px){
-  .task-workspace.run-open{min-height:0;grid-template-areas:"run";grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(520px,100vh)}
-  .task-workspace.run-open .task-pane{display:none}
-  .run-panel{height:100vh;min-height:520px}
-  .run-panel>.config-explorer{grid-template-columns:290px minmax(0,1fr)}
-}
+.run-panel{height:100vh;min-height:520px}
 @media(max-width:680px){
   .task-workspace.run-open{grid-template-rows:minmax(560px,100vh)}
   .run-panel{height:100vh;min-height:560px;overflow:auto}

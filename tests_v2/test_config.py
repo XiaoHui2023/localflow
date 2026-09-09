@@ -109,6 +109,121 @@ def test_config_imports_and_layered_diagnosis(root: Path) -> None:
         plugins,
     )
     assert extensible.runnable, extensible.errors
+    command_extensible = diagnose_config(
+        {
+            "plugin": "command",
+            "name": "site command",
+            "working_directory": ".",
+            "command": "echo ${site_message}",
+            "site_message": "hello from a site-owned variable",
+            "extra_inputs": {"toolchain": "custom"},
+        },
+        plugins,
+    )
+    assert command_extensible.runnable, command_extensible.errors
+
+    for implicit_name in ("root", "scripts_dir", "cases_dir"):
+        implicit = diagnose_config(
+            {
+                "plugin": "command",
+                "name": "portable command",
+                "working_directory": ".",
+                "command": f"echo ${{{implicit_name}}}",
+            },
+            plugins,
+        )
+        assert not implicit.runnable
+        assert any(
+            f"unknown variable: {implicit_name}" in item for item in implicit.errors
+        )
+    explicit_root = diagnose_config(
+        {
+            "plugin": "command",
+            "name": "explicit site root",
+            "working_directory": ".",
+            "command": "echo ${root}",
+            "root": "/srv/site-owned",
+        },
+        plugins,
+    )
+    assert explicit_root.runnable, explicit_root.errors
+
+    unknown_variable = diagnose_config(
+        {
+            "plugin": "verification",
+            "case_directory": "cases",
+            "working_directory": ".",
+            "command": "echo ${missing}",
+        },
+        plugins,
+    )
+    assert not unknown_variable.runnable
+    assert any("unknown variable: missing" in item for item in unknown_variable.errors)
+    deferred_variables = diagnose_config(
+        {
+            "plugin": "verification",
+            "case_directory": "cases",
+            "working_directory": ".",
+            "command": "echo ${case} ${seed}",
+        },
+        plugins,
+    )
+    assert deferred_variables.runnable, deferred_variables.errors
+
+
+def test_third_party_forbid_model_validates_only_its_declared_fields(root: Path) -> None:
+    initialize_root(root)
+    (root / "plugins" / "site.py").write_text(
+        "from pydantic import BaseModel, ConfigDict\n"
+        "from localflow.plugins import plugin\n"
+        "class Config(BaseModel):\n"
+        " model_config=ConfigDict(extra='forbid')\n"
+        " tool: str\n"
+        "@plugin('site')\n"
+        "class Site:\n"
+        " config_model=Config\n"
+        " required_common_fields={'working_directory','command'}\n"
+        " run_fields=[]\n"
+        " def expand(self, values, context): return []\n",
+        encoding="utf-8",
+    )
+    plugins = PluginRegistry(root / "plugins")
+    plugins.load()
+    diagnosis = diagnose_config(
+        {
+            "plugin": "site",
+            "working_directory": ".",
+            "command": "echo ${site_value}",
+            "tool": "simulator",
+            "site_value": "custom",
+            "extra_inputs": {"wave": True},
+        },
+        plugins,
+    )
+    assert diagnosis.runnable, diagnosis.errors
+    site = next(item for item in plugins.describe() if item["name"] == "site")
+    assert site["api"]["configuration_schema"]["additionalProperties"] is True
+    assert site["api"]["plugin_fields_schema"]["additionalProperties"] is True
+
+
+def test_folded_shell_command_never_leaks_configlib_composition_sentinels(
+    root: Path,
+) -> None:
+    initialize_root(root)
+    source = root / "config" / "verification" / "folded-command.yaml"
+    source.write_text(
+        "plugin: verification\n"
+        "case_directory: cases\n"
+        "working_directory: .\n"
+        "command: >-\n"
+        "  make all\n"
+        "  CASE=${case}\n"
+        "  ${seed}\n",
+        encoding="utf-8",
+    )
+    document = ConfigRepository(root).parse("verification/folded-command.yaml")
+    assert document["command"] == "make all CASE=${case} ${seed}"
+    assert "__configlib_" not in document["command"]
 
 
 def test_config_api_exposes_only_runnable_configuration_tree(admin: TestClient, root: Path) -> None:

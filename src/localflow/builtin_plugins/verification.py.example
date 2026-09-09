@@ -181,10 +181,10 @@ class Verification:
             "severity": severity,
             "message": message,
         }]
-        selected_case = next(iter(values.get("cases", [])), "${case}")
+        selected_case = "${case}"
         preview_values = {
             "case": selected_case,
-            "seed": values.get("seed") or "${seed}",
+            "seed": "${seed}",
         }
         def preview(value):
             result = str(value)
@@ -200,8 +200,8 @@ class Verification:
             items.append({
                 "name": name,
                 "label": label,
-                "value": "\n".join(resolved) if resolved else "未配置",
-                "kind": "path",
+                "value": resolved,
+                "kind": "code-list",
                 "severity": "info",
                 "message": "仅展示解析结果；运行前不检查文件是否存在",
             })

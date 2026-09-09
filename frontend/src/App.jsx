@@ -982,11 +982,10 @@ function TreeNode({ node, style, dragHandle }) {
         className={`tree-node state-${state} ${node.isSelected ? "selected" : ""}`}
         style={style}
         ref={dragHandle}
-        onClick={() => {
+        onClick={(event) => {
           node.select();
-          if (node.isInternal) node.toggle();
+          if (node.isInternal && event.detail === 1) node.toggle();
         }}
-        onDoubleClick={() => !node.data.readonly && node.edit()}
       >
         {node.isInternal ? (
           node.isOpen ? (
@@ -1003,10 +1002,18 @@ function TreeNode({ node, style, dragHandle }) {
             aria-label="名称"
             ref={node.editInputRef}
             defaultValue={displayName}
-            onBlur={(event) => submit(event.currentTarget.value)}
+            onBlur={() => node.reset()}
             onKeyDown={(event) => {
-              if (event.key === "Enter") submit(event.currentTarget.value);
-              if (event.key === "Escape") node.reset();
+              if (event.key === "Enter") {
+                event.preventDefault();
+                event.stopPropagation();
+                submit(event.currentTarget.value);
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                node.reset();
+              }
             }}
           />
         ) : (
@@ -1364,6 +1371,7 @@ function InspectionItems({ items, error }) {
       {items.map((item) => {
         const customText = item.name.startsWith("custom_text_");
         const tokens = item.kind === "tokens" && Array.isArray(item.value);
+        const codeList = item.kind === "code-list" && Array.isArray(item.value);
         const unavailable =
           item.check === "availability" && item.severity === "error";
         return (
@@ -1380,6 +1388,12 @@ function InspectionItems({ items, error }) {
             >
               {item.value.length ? item.value.map((value, index) => (
                 <span className="inspection-token" key={`${value}-${index}`}>{value}</span>
+              )) : <span className="inspection-empty">未配置</span>}
+            </div>
+          ) : codeList ? (
+            <div className="inspection-code-list">
+              {item.value.length ? item.value.map((value, index) => (
+                <CopyValue value={value} key={`${value}-${index}`} />
               )) : <span className="inspection-empty">未配置</span>}
             </div>
           ) : (
@@ -1403,6 +1417,58 @@ function InspectionItems({ items, error }) {
         );
       })}
     </div>
+  );
+}
+
+function ConfigurationDebug({ preview }) {
+  const diagnosis = preview?.run_diagnosis || preview?.diagnosis;
+  const errors = diagnosis?.errors || [];
+  const document = preview?.resolved_document || preview?.document;
+  return (
+    <section className="configuration-debug" aria-label="配置调试" role="region">
+      <header>
+        <TriangleAlert aria-hidden="true" />
+        <div>
+          <b>配置无效</b>
+          <span>修复下列问题后即可运行</span>
+        </div>
+        <strong>{errors.length}</strong>
+      </header>
+      <div className="configuration-debug-body">
+        <section className="configuration-issues" aria-label="配置问题">
+          <h3>问题</h3>
+          {errors.length ? (
+            <ul>
+              {errors.map((message, index) => {
+                const separator = message.indexOf(":");
+                return (
+                  <li key={`${message}-${index}`}>
+                    <CircleX aria-hidden="true" />
+                    <code>{separator > 0 ? message.slice(0, separator) : "yaml"}</code>
+                    <span>{separator > 0 ? message.slice(separator + 1).trim() : message}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : <p>暂无可用诊断</p>}
+        </section>
+        <section className="configuration-resolution" aria-label="YAML 解析结果">
+          <h3>YAML 解析结果</h3>
+          {document && typeof document === "object" && !Array.isArray(document) ? (
+            <dl>
+              {Object.entries(document).map(([key, value]) => (
+                <div key={key}>
+                  <dt>{key}</dt>
+                  <dd><code>{typeof value === "string" ? value : JSON.stringify(value)}</code></dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <p>YAML 语法或导入尚未形成可解析的配置树。</p>
+          )}
+        </section>
+      </div>
+    </section>
   );
 }
 
@@ -1436,7 +1502,7 @@ function RunFields({
     const timer = setTimeout(
       () =>
         api
-          .inspectConfig(filePath, inputs, controller.signal)
+          .inspectConfig(filePath, {}, controller.signal)
           .then((result) => {
             if (active) {
               setInspection(result.items);
@@ -1456,7 +1522,7 @@ function RunFields({
       if (inspectionControllerRef.current === controller)
         inspectionControllerRef.current = undefined;
     };
-  }, [filePath, inputs, inspectionControllerRef]);
+  }, [filePath, inspectionControllerRef]);
   return (
     <div className="run-surface">
       <InspectionItems items={inspection} error={inspectionError} />
@@ -1550,12 +1616,15 @@ function Config({ theme }) {
   const fileRef = useRef();
   const draftsRef = useRef(new Map());
   const localVersionsRef = useRef(new Map());
+  const openRequestRef = useRef(0);
   const pluginsRef = useRef([]);
   const [files, setFiles] = useState([]);
   const [diagnostics, setDiagnostics] = useState({});
   const [editorDiagnosis, setEditorDiagnosis] = useState();
   const [plugins, setPlugins] = useState([]);
   const [file, setFile] = useState();
+  const [preview, setPreview] = useState();
+  const [inspectionRevision, setInspectionRevision] = useState(0);
   const [selectedPath, setSelectedPath] = useState();
   const [clipboard, setClipboard] = useState();
   const [content, setContent] = useState("");
@@ -1627,9 +1696,17 @@ function Config({ theme }) {
     setDiagnostics(result.diagnostics || {});
     return result.items;
   }, []);
-  const open = useCallback(async (path, restore = true) => {
+  const open = useCallback(async (path, restore = true, cleanSyncBase) => {
+    const request = ++openRequestRef.current;
     const serverValue = await api.workspaceFile(path);
-    const draft = draftsRef.current.get(path);
+    if (request !== openRequestRef.current) return serverValue;
+    if (
+      cleanSyncBase !== undefined &&
+      contentRef.current !== cleanSyncBase
+    )
+      return serverValue;
+    const draft =
+      cleanSyncBase === undefined ? draftsRef.current.get(path) : undefined;
     const value = draft?.file || serverValue;
     const stored = restore ? readConfigMemory().files?.[path] : undefined;
     const remembered = stored?.version === value.version ? stored : undefined;
@@ -1639,17 +1716,21 @@ function Config({ theme }) {
     baseContentRef.current = draft?.baseContent ?? value.content;
     setSelectedPath(path);
     setFile(value);
+    setPreview(value);
     setContent(contentRef.current);
     const plugin = pluginsRef.current.find((item) => item.name === value.plugin);
     setValues(
       remembered?.values || withoutCaseSelections(plugin, value.document || {}),
     );
     setEditorDiagnosis(draft?.diagnosis || value.diagnosis);
-    setMode(
-      path.startsWith("config/")
-        ? remembered?.mode || (value.run_diagnosis?.runnable ? "use" : "edit")
-        : "edit",
-    );
+    if (cleanSyncBase === undefined)
+      setMode(
+        path.startsWith("config/")
+          ? draft || !value.content
+            ? "edit"
+            : "use"
+          : "edit",
+      );
     setRunStatus("idle");
     setNotice(
       draft && draft.file.version !== serverValue.version
@@ -1712,7 +1793,10 @@ function Config({ theme }) {
           controller.signal,
         )
         .then((result) => {
-          if (!controller.signal.aborted) setEditorDiagnosis(result.diagnosis);
+          if (!controller.signal.aborted) {
+            setEditorDiagnosis(result.diagnosis);
+            setPreview(result);
+          }
         })
         .catch((error) =>
           error.name === "AbortError"
@@ -1790,29 +1874,71 @@ function Config({ theme }) {
       }
       reload()
         .then((items) => {
+          const affected = (data.affected_paths || [data.path]).map(
+            (item) => `config/${item}`,
+          );
           if (
-            path !== filePathRef.current ||
-            !items.some((item) => item.path === path)
+            !affected.includes(filePathRef.current) ||
+            !items.some((item) => item.path === filePathRef.current)
           )
             return undefined;
           if (contentRef.current !== baseContentRef.current) {
-            setNotice("文件已在外部变化，请先保存或重新打开");
-            return undefined;
+            return api
+              .diagnoseConfig(
+                filePathRef.current.replace(/^config\//, ""),
+                contentRef.current,
+              )
+              .then((result) => {
+                setEditorDiagnosis(result.diagnosis);
+                setPreview(result);
+                setInspectionRevision((value) => value + 1);
+                setNotice(
+                  path === filePathRef.current
+                    ? "文件已在外部变化；已保留未保存编辑并重新检查"
+                    : "配置依赖已变化；已保留未保存编辑并重新检查",
+                );
+              });
           }
-          return open(path).then(() => setNotice("已同步外部修改"));
+          const cleanBase = baseContentRef.current;
+          return open(filePathRef.current, false, cleanBase).then(() => {
+            setInspectionRevision((value) => value + 1);
+            setNotice(path === filePathRef.current ? "已同步外部修改" : "已同步配置依赖");
+          });
         })
         .catch((error) => setNotice(`同步失败：${error.message}`));
     };
-    const removed = () =>
-      reload().then((items) => {
+    const removed = (event) => {
+      const data = JSON.parse(event.data);
+      const affected = (data.affected_paths || [data.path]).map(
+        (item) => `config/${item}`,
+      );
+      return reload().then((items) => {
         if (
           filePathRef.current &&
           !items.some((item) => item.path === filePathRef.current)
         ) {
           setFile(undefined);
           filePathRef.current = undefined;
+          return undefined;
         }
+        if (!affected.includes(filePathRef.current)) return undefined;
+        if (contentRef.current !== baseContentRef.current)
+          return api
+            .diagnoseConfig(
+              filePathRef.current.replace(/^config\//, ""),
+              contentRef.current,
+            )
+            .then((result) => {
+              setEditorDiagnosis(result.diagnosis);
+              setPreview(result);
+              setNotice("配置依赖已删除；已保留未保存编辑并重新检查");
+            });
+        const cleanBase = baseContentRef.current;
+        return open(filePathRef.current, false, cleanBase).then(() =>
+          setNotice("已同步配置依赖"),
+        );
       });
+    };
     const pluginChanged = () => {
       return api.plugins().then((result) => {
         pluginsRef.current = result.items;
@@ -1823,7 +1949,10 @@ function Config({ theme }) {
           setNotice("插件已更新；保存或重新打开后刷新运行检查");
           return undefined;
         }
-        return open(current).then(() => setNotice("已同步外部修改"));
+        const cleanBase = baseContentRef.current;
+        return open(current, false, cleanBase).then(() =>
+          setNotice("已同步外部修改"),
+        );
       });
     };
     events.addEventListener("config.changed", changed);
@@ -1832,10 +1961,13 @@ function Config({ theme }) {
     events.addEventListener("plugins.changed", pluginChanged);
     return () => events.close();
   }, [reload, open]);
-  const selectedPlugin = plugins.find((item) => item.name === file?.plugin);
+  const effectiveConfig = preview || file;
+  const selectedPlugin = plugins.find(
+    (item) => item.name === effectiveConfig?.plugin,
+  );
   const runDisabled =
     dirtyPaths.has(file?.path) ||
-    !file?.run_diagnosis?.runnable ||
+    !effectiveConfig?.run_diagnosis?.runnable ||
     selectedPlugin?.fields.some(
       (field) =>
         field.required &&
@@ -1863,6 +1995,20 @@ function Config({ theme }) {
     const parent = source.slice(0, source.lastIndexOf("/") + 1);
     await move(source, `${parent}${name}`);
   };
+  const beginRename = () => {
+    if (!selectedPath || selectedEntry?.readonly) return;
+    const id = selectedEntry?.kind === "directory"
+      ? `folder:${selectedPath}`
+      : selectedPath;
+    treeRef.current?.edit(id);
+    requestAnimationFrame(() => {
+      const input = treeHost.current?.querySelector(
+        `[data-file="${CSS.escape(id)}"] input`,
+      );
+      input?.focus();
+      input?.select();
+    });
+  };
   const onMove = async ({ dragIds, parentId }) => {
     const targetFolder = parentId?.replace(/^folder:/, "") || "";
     for (const raw of dragIds) {
@@ -1872,6 +2018,7 @@ function Config({ theme }) {
   };
   const save = async () => {
     try {
+      const activeMode = mode;
       const saved = await api.saveWorkspaceFile(
         file.path,
         contentRef.current,
@@ -1881,6 +2028,7 @@ function Config({ theme }) {
       draftsRef.current.delete(saved.path);
       markDirty(saved.path, false);
       await open(saved.path, false);
+      setMode(activeMode);
       setNotice("已保存");
     } catch (error) {
       if (error.status === 412) {
@@ -1993,11 +2141,7 @@ function Config({ theme }) {
         });
     } else if (event.key === "F2") {
       event.preventDefault();
-      document
-        .querySelector(
-          `[data-file="${CSS.escape(selectedEntry?.kind === "directory" ? `folder:${selectedPath}` : selectedPath)}"]`,
-        )
-        ?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      beginRename();
     } else if (event.key === "Delete" && !selectedEntry?.readonly) {
       event.preventDefault();
       setDeleting(true);
@@ -2073,13 +2217,7 @@ function Config({ theme }) {
               aria-label="重命名"
               title="重命名"
               disabled={!selectedPath || selectedEntry?.readonly}
-              onClick={() =>
-                document
-                  .querySelector(
-                    `[data-file="${CSS.escape(selectedEntry?.kind === "directory" ? `folder:${selectedPath}` : selectedPath)}"]`,
-                  )
-                  ?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }))
-              }
+              onClick={beginRename}
             >
               <Pencil />
             </button>
@@ -2129,6 +2267,7 @@ function Config({ theme }) {
             }}
             onRename={rename}
             onMove={onMove}
+            disableEdit
           >
             {TreeNode}
           </Tree>
@@ -2148,7 +2287,7 @@ function Config({ theme }) {
                 <span>{pathLeaf(file.path)}</span>
               </div>
               <div className="workbench-actions" role="group" aria-label="配置操作">
-                  {mode === "edit" && selectedPlugin && (
+                  {mode === "edit" && file.path.startsWith("config/") && (
                     <button
                       className="secondary"
                       onClick={() => {
@@ -2193,7 +2332,9 @@ function Config({ theme }) {
                           ? "已创建"
                           : runStatus === "submitting"
                             ? "提交中"
-                            : "运行"}
+                            : effectiveConfig?.run_diagnosis?.runnable
+                              ? "运行"
+                              : "配置无效"}
                       </span>
                     </button>
                   )}
@@ -2201,24 +2342,18 @@ function Config({ theme }) {
             </header>
             {mode === "use" ? (
               <div className="use-config">
-                {file.run_diagnosis?.errors?.length > 0 && (
-                  <div className="config-diagnosis" role="alert">
-                    <b>运行配置有误</b>
-                    <ul>
-                      {file.run_diagnosis.errors.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
+                {effectiveConfig?.run_diagnosis?.runnable && selectedPlugin ? (
+                  <RunFields
+                    key={`${file.version}:${inspectionRevision}`}
+                    plugin={selectedPlugin}
+                    filePath={file.path.replace(/^config\//, "")}
+                    values={values}
+                    setValues={setValues}
+                    inspectionControllerRef={inspectionControllerRef}
+                  />
+                ) : (
+                  <ConfigurationDebug preview={effectiveConfig} />
                 )}
-                <RunFields
-                  key={file.version}
-                  plugin={selectedPlugin}
-                  filePath={file.path.replace(/^config\//, "")}
-                  values={values}
-                  setValues={setValues}
-                  inspectionControllerRef={inspectionControllerRef}
-                />
               </div>
             ) : conflict ? (
               <div className="conflict">
@@ -2263,6 +2398,7 @@ function Config({ theme }) {
                   }}
                   onChange={(value) => {
                     const next = value || "";
+                    if (next === contentRef.current) return;
                     contentRef.current = next;
                     setContent(next);
                     const path = filePathRef.current;
@@ -2618,6 +2754,8 @@ export default function App() {
   const [runOpen, setRunOpen] = useState(
     () => sessionStorage.getItem("localflow-run-panel") !== "closed",
   );
+  const [taskWorkspaceNode, setTaskWorkspaceNode] = useState();
+  const [splitReady, setSplitReady] = useState(false);
   const refresh = useCallback(async () => {
     try {
       const [state, result] = await Promise.all([api.status(), api.tasks()]);
@@ -2651,6 +2789,19 @@ export default function App() {
   useEffect(() => {
     sessionStorage.setItem("localflow-run-panel", runOpen ? "open" : "closed");
   }, [runOpen]);
+  useEffect(() => {
+    if (!taskWorkspaceNode) {
+      setSplitReady(false);
+      return undefined;
+    }
+    const update = () =>
+      setSplitReady(taskWorkspaceNode.getBoundingClientRect().width >= 1240);
+    update();
+    if (!window.ResizeObserver) return undefined;
+    const observer = new ResizeObserver(update);
+    observer.observe(taskWorkspaceNode);
+    return () => observer.disconnect();
+  }, [taskWorkspaceNode]);
   const groups = useMemo(
     () => ({
       running: tasks.filter((task) =>
@@ -2760,7 +2911,11 @@ export default function App() {
           tabIndex="0"
         >
           {page === "tasks" && (
-            <section className={`task-workspace ${runOpen ? "run-open" : ""}`}>
+            <section
+              ref={setTaskWorkspaceNode}
+              data-layout={splitReady ? "split" : "focused"}
+              className={`task-workspace ${runOpen ? "run-open" : ""} ${splitReady ? "split-ready" : ""}`}
+            >
               <div className="task-pane">
                 <section className="workspace">
                   {definitions.length === 0 ? (

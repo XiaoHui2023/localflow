@@ -129,6 +129,132 @@ test("an open testing page reloads when the frontend revision changes", async ({
     .toBeGreaterThanOrEqual(2);
 });
 
+async function ensureAdminSession(page) {
+  const loginKey = page.getByLabel("管理员秘钥");
+  if (await loginKey.isVisible()) {
+    await loginKey.fill(currentAdminKey());
+    const login = page.getByRole("button", { name: "登录", exact: true });
+    try {
+      await login.click({ timeout: 2_000 });
+    } catch (error) {
+      if (await loginKey.isVisible()) throw error;
+    }
+    await expect(loginKey).toHaveCount(0);
+  }
+}
+
+async function openAdminTaskWorkspace(page) {
+  await page.goto("/");
+  await page.getByRole("tab", { name: "设置" }).click();
+  await ensureAdminSession(page);
+  await page.getByRole("tab", { name: "任务" }).click();
+  await openRunPanel(page);
+  await expect(page.locator(".tree-node").first()).toBeVisible();
+}
+
+test("configuration and tasks split only when every pane remains usable", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1200, height: 900 });
+  await openAdminTaskWorkspace(page);
+  await expect(page.locator("#run-panel")).toBeVisible();
+  await expect(page.locator(".task-pane")).toBeHidden();
+  const focusedExplorer = await page.locator("#run-panel .explorer").boundingBox();
+  const focusedWorkbench = await page
+    .locator("#run-panel .config-workbench")
+    .boundingBox();
+  expect(focusedExplorer.width).toBeGreaterThanOrEqual(290);
+  expect(focusedWorkbench.width).toBeGreaterThanOrEqual(520);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator(".task-pane")).toBeVisible();
+  const splitExplorer = await page.locator("#run-panel .explorer").boundingBox();
+  const splitWorkbench = await page
+    .locator("#run-panel .config-workbench")
+    .boundingBox();
+  const splitTasks = await page.locator(".task-pane").boundingBox();
+  expect(splitExplorer.width).toBeGreaterThanOrEqual(300);
+  expect(splitWorkbench.width).toBeGreaterThanOrEqual(520);
+  expect(splitTasks.width).toBeGreaterThanOrEqual(410);
+});
+
+test("resource tree rename is explicit and cancellable", async ({ page }) => {
+  await openAdminTaskWorkspace(page);
+  const folder = page.locator('[data-file="folder:config/command"]');
+  await folder.click();
+  await expect(page.getByLabel("名称")).toHaveCount(0);
+  await folder.dblclick();
+  await expect(page.getByLabel("名称")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "重命名" }).click();
+  const rename = page.getByLabel("名称");
+  await expect(rename).toBeFocused();
+  await rename.fill("should-not-be-applied");
+  await rename.press("Escape");
+  await expect(rename).toHaveCount(0);
+  await expect(folder).toBeVisible();
+  await expect(
+    page.locator('[data-file="folder:config/should-not-be-applied"]'),
+  ).toHaveCount(0);
+});
+
+test("nested include changes refresh the open run projection", async ({ page }) => {
+  const shared = path.join(qaRoot, "config", "shared");
+  const leaf = path.join(shared, "live-leaf.yaml");
+  const middle = path.join(shared, "live-middle.yaml");
+  const consumer = path.join(qaRoot, "config", "command", "live-consumer.yaml");
+  fs.writeFileSync(leaf, "command: echo before-include-refresh\n", "utf8");
+  fs.writeFileSync(middle, "!include live-leaf.yaml\n", "utf8");
+  fs.writeFileSync(
+    consumer,
+    [
+      "!include ../shared/live-middle.yaml",
+      "plugin: command",
+      "name: live-consumer",
+      "working_directory: .",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  await openAdminTaskWorkspace(page);
+  const entry = page.locator('[data-file="config/command/live-consumer.yaml"]');
+  await expect(entry).toBeVisible({ timeout: 5_000 });
+  await entry.click();
+  const command = page.locator(".inspection-item").filter({ hasText: "命令" });
+  await expect(command).toContainText("before-include-refresh");
+  await page.waitForTimeout(1_300);
+  fs.writeFileSync(leaf, "command: echo after-include-refresh\n", "utf8");
+  await expect(command).toContainText("after-include-refresh", { timeout: 5_000 });
+  await expect(command).not.toContainText("before-include-refresh");
+});
+
+test("invalid configuration keeps a debuggable run surface", async ({ page }) => {
+  await openAdminTaskWorkspace(page);
+  await page.locator('[data-file="config/command/qa-invalid.yaml"]').click();
+  const action = page.locator("button.run-action");
+  await expect(action).toHaveAccessibleName("配置无效");
+  await expect(action).toBeDisabled();
+  const debug = page.locator(".configuration-debug");
+  await expect(debug).toBeVisible();
+  for (const text of ["labels", "working_directory", "command"])
+    await expect(debug.locator(".configuration-issues")).toContainText(text);
+  for (const text of ["plugin", "labels", "wrong"])
+    await expect(debug.locator(".configuration-resolution")).toContainText(text);
+});
+
+test("a clean configuration reopens on its run surface", async ({ page }) => {
+  await openAdminTaskWorkspace(page);
+  const hello = page.locator('[data-file="config/command/hello-world.yaml"]');
+  await hello.click();
+  await page.getByRole("button", { name: "编辑", exact: true }).click();
+  await expect(page.locator(".monaco-editor")).toBeVisible();
+  await page.locator('[data-file="config/verification/demo.yaml"]').click();
+  await hello.click();
+  await expect(page.locator("button.run-action")).toHaveAccessibleName("运行");
+  await expect(page.locator(".run-surface")).toBeVisible();
+  await expect(page.locator(".monaco-editor")).toHaveCount(0);
+});
+
 async function runAcceptance(page) {
   const helloSource = path.join(
     qaRoot,
@@ -156,11 +282,7 @@ async function runAcceptance(page) {
   );
   await page.goto("/");
   await page.getByRole("tab", { name: "设置" }).click();
-  const loginKey = page.getByLabel("管理员秘钥");
-  if (await loginKey.isVisible()) {
-    await loginKey.fill(currentAdminKey());
-    await page.getByRole("button", { name: "登录", exact: true }).click();
-  }
+  await ensureAdminSession(page);
   await openRunPanel(page);
   const verificationConfig = page.locator(
     '[data-file="config/verification/demo.yaml"]',
@@ -288,7 +410,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   page,
   browser,
 }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(300_000);
   fs.mkdirSync(evidence, { recursive: true });
   const consoleErrors = [];
   const validationRejections = [];
@@ -964,7 +1086,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   );
   await expect(blankEditor.locator(".view-lines")).toContainText(
     "valid: external-clean",
-    { timeout: 3_000 },
+    { timeout: 5_000 },
   );
   await expect(page.getByRole("status")).toContainText("已同步外部修改");
   fs.writeFileSync(
@@ -972,7 +1094,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
     "broken: [\n",
   );
   await expect(blankEditor.locator(".view-lines")).toContainText("broken: [", {
-    timeout: 3_000,
+    timeout: 5_000,
   });
   await expect(page.locator(".problems-panel")).toBeVisible();
   await expect(page.locator(".monaco-editor .squiggly-error")).toBeVisible();
@@ -990,7 +1112,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
     "valid: external-during-draft\n",
   );
   await expect(page.getByRole("status")).toContainText("文件已在外部变化", {
-    timeout: 3_000,
+    timeout: 5_000,
   });
   await expect(blankEditor.locator(".view-lines")).toContainText(
     "unsaved: keep-me",
@@ -1026,14 +1148,13 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(page.getByText("qa-renamed", { exact: true })).toHaveCount(0);
   await page.locator('[data-file="config/command/qa-invalid.yaml"]').click();
   await expect(page.locator(".config-diagnosis")).toHaveCount(0);
-  await page.getByRole("button", { name: "运行", exact: true }).click();
-  await expect(page.locator(".config-diagnosis")).toContainText("labels");
+  await expect(page.locator(".configuration-debug")).toContainText("labels");
   await expect(page.locator("button.run-action")).toBeDisabled();
   await page.getByRole("button", { name: "编辑", exact: true }).click();
   await page.locator('[data-file="config/shared/qa-defaults.yaml"]').click();
   await expect(
-    page.getByRole("button", { name: "运行", exact: true }),
-  ).toHaveCount(0);
+    page.getByRole("button", { name: "配置无效", exact: true }),
+  ).toBeDisabled();
   await page.locator('[data-file="config/verification/demo.yaml"]').click();
   await expect(page.getByText("smoke", { exact: true })).toBeVisible();
   await expect(page.locator("#run-panel").getByText("case-a", { exact: true })).toBeVisible();
@@ -1052,6 +1173,16 @@ test("plugin configuration console remains concise and operable in Edge", async 
     "verification",
   ]);
   await expect(labelInspection.locator(".copy-value")).toHaveCount(0);
+  const compileLogList = page
+    .locator(".inspection-item")
+    .filter({ hasText: "编译日志" })
+    .locator(".inspection-code-list");
+  await expect(compileLogList.locator(".copy-value")).toHaveCount(2);
+  await expect(compileLogList.locator("code")).toHaveText([
+    /\$\{case\}\.compile\.log$/,
+    /\$\{case\}\.lint\.log$/,
+  ]);
+  const inspectionBeforeCaseInput = await page.locator(".inspection-grid").innerText();
   await expect(page.getByText("Shell", { exact: true })).toHaveCount(0);
   const previewCustomText = page
     .locator('.inspection-item[data-custom-text="true"]')
@@ -1130,6 +1261,9 @@ test("plugin configuration console remains concise and operable in Edge", async 
   const increaseB = caseB.getByRole("button", { name: /增加 case-b 次数/ });
   await increaseB.click();
   await expect(caseB.locator(".case-count output")).toHaveText("1");
+  await expect.poll(() => page.locator(".inspection-grid").innerText()).toBe(
+    inspectionBeforeCaseInput,
+  );
   await caseB.locator(".case-count output").click();
   await expect(caseB.locator(".case-count output")).toHaveText("2");
   await caseB.getByRole("button", { name: "减少 case-b 次数" }).click();

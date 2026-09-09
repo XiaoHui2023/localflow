@@ -137,6 +137,8 @@ def main() -> int:
         settings_path.write_text(yaml.safe_dump(settings, sort_keys=False), encoding="utf-8")
         task_path = root / "config" / "verification" / "demo.yaml"
         task = load_config_raw(task_path)
+        task["compile_logs"].append("artifacts/${case}.lint.log")
+        task["run_logs"].append("artifacts/${case}.trace.log")
         command = shlex.split(task["command"]) if isinstance(task["command"], str) else task["command"]
         command[0] = sys.executable
         task["command"] = command
@@ -182,6 +184,7 @@ class GenericPicker:
     title = "通用选择器质检"
     example = {
         "plugin": "generic-picker",
+        "root": ".",
         "job_directory": "${root}/qa-cases",
         "command": ["python3", "-c", "pass"],
     }
@@ -217,6 +220,7 @@ class GenericPicker:
             yaml.safe_dump(
                 {
                     "plugin": "generic-picker",
+                    "root": str(root),
                     "job_directory": "${root}/qa-cases",
                     "command": [sys.executable, "-c", "pass"],
                 },

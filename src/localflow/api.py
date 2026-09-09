@@ -914,12 +914,20 @@ def create_app(
                     document = config.parse(relative)
                     diagnosis = ConfigDiagnosis(kind="generic", valid=True, runnable=False)
                     run_diagnosis = diagnose_config(document, plugins)
+                    try:
+                        resolved_document = plugins.resolve_config_document(
+                            document, str(root)
+                        )
+                    except (KeyError, TypeError, ValueError):
+                        resolved_document = None
                 except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
                     document = None
+                    resolved_document = None
                     diagnosis = syntax_error_diagnosis(error)
                     run_diagnosis = diagnosis
                 result.update(
                     document=document,
+                    resolved_document=resolved_document,
                     plugin=document.get("plugin") if isinstance(document, dict) else None,
                     diagnosis=diagnosis.model_dump(),
                     run_diagnosis=run_diagnosis.model_dump(),
@@ -1004,14 +1012,22 @@ def create_app(
                 document = config.parse(path)
                 diagnosis = ConfigDiagnosis(kind="generic", valid=True, runnable=False)
                 run_diagnosis = diagnose_config(document, plugins)
+                try:
+                    resolved_document = plugins.resolve_config_document(
+                        document, str(root)
+                    )
+                except (KeyError, TypeError, ValueError):
+                    resolved_document = None
             except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
                 document = None
+                resolved_document = None
                 diagnosis = syntax_error_diagnosis(error)
                 run_diagnosis = diagnosis
             plugin_name = document.get("plugin") if isinstance(document, dict) else None
             return {
                 **item.__dict__,
                 "document": document,
+                "resolved_document": resolved_document,
                 "plugin": plugin_name,
                 "plugin_loaded": plugin_name in plugins.plugins if plugin_name else False,
                 "diagnosis": diagnosis.model_dump(),
@@ -1041,11 +1057,28 @@ def create_app(
         _actor: str = Depends(require_submitter),
     ):
         try:
-            config.parse(path, payload.content)
+            document = config.parse(path, payload.content)
             diagnosis = ConfigDiagnosis(kind="generic", valid=True, runnable=False)
+            run_diagnosis = diagnose_config(document, plugins)
+            try:
+                resolved_document = plugins.resolve_config_document(
+                    document, str(root)
+                )
+            except (KeyError, TypeError, ValueError):
+                resolved_document = None
         except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
+            document = None
+            resolved_document = None
             diagnosis = syntax_error_diagnosis(error)
-        return {"diagnosis": diagnosis.model_dump()}
+            run_diagnosis = diagnosis
+        plugin_name = document.get("plugin") if isinstance(document, dict) else None
+        return {
+            "document": document,
+            "resolved_document": resolved_document,
+            "plugin": plugin_name,
+            "diagnosis": diagnosis.model_dump(),
+            "run_diagnosis": run_diagnosis.model_dump(),
+        }
 
     @app.post("/api/v1/config/files/{path:path}/move")
     async def config_move(
@@ -1162,7 +1195,7 @@ def create_app(
                 return {"items": [], "errors": diagnosis.errors}
             items = await plugins.inspect_config(
                 document,
-                payload.inputs,
+                {},
                 {"root": str(root), "config_path": path},
             )
         except KeyError:

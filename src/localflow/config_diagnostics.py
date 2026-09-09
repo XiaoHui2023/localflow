@@ -80,7 +80,12 @@ def diagnose_config(document: Any, plugins: PluginRegistry) -> ConfigDiagnosis:
 
     present = sorted(COMMON_CONFIG_FIELDS.intersection(document))
     if not present:
-        return ConfigDiagnosis(kind="generic", valid=True, runnable=False)
+        return ConfigDiagnosis(
+            kind="generic",
+            valid=False,
+            runnable=False,
+            errors=["plugin: field required for runnable configuration"],
+        )
 
     errors: list[str] = []
     warnings: list[str] = []
@@ -93,10 +98,10 @@ def diagnose_config(document: Any, plugins: PluginRegistry) -> ConfigDiagnosis:
     if "plugin" not in document:
         return ConfigDiagnosis(
             kind="fragment",
-            valid=not errors,
+            valid=False,
             runnable=False,
             common_fields=present,
-            errors=errors,
+            errors=[*errors, "plugin: field required for runnable configuration"],
         )
 
     if not isinstance(plugin_name, str) or not plugin_name:
@@ -119,8 +124,11 @@ def diagnose_config(document: Any, plugins: PluginRegistry) -> ConfigDiagnosis:
         if config_model is None:
             warnings.append(f"plugin {plugin_name} does not declare a plugin-field schema")
         else:
+            declared_plugin_fields = set(config_model.model_fields)
             plugin_values = {
-                key: value for key, value in document.items() if key not in COMMON_CONFIG_FIELDS
+                key: value
+                for key, value in document.items()
+                if key in declared_plugin_fields
             }
             try:
                 config_model.model_validate(plugin_values)
@@ -137,6 +145,10 @@ def diagnose_config(document: Any, plugins: PluginRegistry) -> ConfigDiagnosis:
                 errors.extend(plugin_errors)
             except (TypeError, ValueError) as error:
                 errors.append(f"plugin: configuration validation failed: {error}")
+        try:
+            plugins.validate_config_variables(document)
+        except (KeyError, TypeError, ValueError) as error:
+            errors.append(f"variables: {error}")
 
     return ConfigDiagnosis(
         kind="task",

@@ -25,6 +25,7 @@ from .models import (
 from .variables import resolve_config_tree
 
 _loading: list[tuple[str, str, type]] | None = None
+_SUPPORTED_DEFERRED_VARIABLES = {"case", "seed"}
 
 
 class RunFieldSpec(BaseModel):
@@ -64,17 +65,17 @@ class InspectionItem(BaseModel):
     name: str = Field(min_length=1, pattern=r"^[A-Za-z_][A-Za-z0-9_]*$")
     label: str | None = Field(default=None, min_length=1, max_length=80)
     value: str | list[str]
-    kind: Literal["text", "path", "command", "tokens"] = "text"
+    kind: Literal["text", "path", "command", "tokens", "code-list"] = "text"
     check: Literal["none", "availability"] = "none"
     severity: Literal["ok", "info", "warning", "error"] = "info"
     message: str | None = None
 
     @model_validator(mode="after")
     def validate_value_shape(self) -> InspectionItem:
-        if self.kind == "tokens" and not isinstance(self.value, list):
-            raise ValueError("tokens inspection values must be a string list")
-        if self.kind != "tokens" and not isinstance(self.value, str):
-            raise ValueError("non-token inspection values must be strings")
+        if self.kind in {"tokens", "code-list"} and not isinstance(self.value, list):
+            raise ValueError("list inspection values must be a string list")
+        if self.kind not in {"tokens", "code-list"} and not isinstance(self.value, str):
+            raise ValueError("scalar inspection values must be strings")
         return self
 
 
@@ -185,7 +186,7 @@ class PluginRegistry:
                     "configuration_schema": self._configuration_schema(
                         item.name, item.instance
                     ),
-                    "plugin_fields_schema": config_model.model_json_schema()
+                    "plugin_fields_schema": self._plugin_fields_schema(config_model)
                     if config_model is not None
                     else None,
                     "input_fields": item.instance.run_fields,
@@ -195,6 +196,12 @@ class PluginRegistry:
                 "statuses": getattr(item.instance, "statuses", {}),
             })
         return descriptions
+
+    @staticmethod
+    def _plugin_fields_schema(config_model: type[BaseModel]) -> dict[str, Any]:
+        schema = dict(config_model.model_json_schema())
+        schema["additionalProperties"] = True
+        return schema
 
     @staticmethod
     def _input_schema(instance: TemplatePlugin) -> dict[str, Any]:
@@ -240,19 +247,17 @@ class PluginRegistry:
         required = {"plugin", *getattr(instance, "required_common_fields", set())}
         definitions = dict(common.get("$defs", {}))
         config_model = getattr(instance, "config_model", None)
-        additional_properties: bool | dict[str, Any] = True
         if config_model is not None:
             plugin_schema = config_model.model_json_schema()
             properties.update(plugin_schema.get("properties", {}))
             required.update(plugin_schema.get("required", []))
             definitions.update(plugin_schema.get("$defs", {}))
-            additional_properties = plugin_schema.get("additionalProperties", False)
         schema: dict[str, Any] = {
             "title": f"{name} configuration",
             "type": "object",
             "properties": properties,
             "required": sorted(required),
-            "additionalProperties": additional_properties,
+            "additionalProperties": True,
         }
         if definitions:
             schema["$defs"] = definitions
@@ -276,6 +281,17 @@ class PluginRegistry:
         required = getattr(instance, "required_common_fields", set())
         if not isinstance(required, set) or any(not isinstance(item, str) for item in required):
             raise TypeError(f"plugin {name} required_common_fields must be a set of strings")
+        deferred = getattr(instance, "deferred_variables", set())
+        if not isinstance(deferred, set) or any(
+            not isinstance(item, str) for item in deferred
+        ):
+            raise TypeError(f"plugin {name} deferred_variables must be a set of strings")
+        unsupported_deferred = deferred - _SUPPORTED_DEFERRED_VARIABLES
+        if unsupported_deferred:
+            raise ValueError(
+                f"plugin {name} declares unsupported deferred variables: "
+                f"{sorted(unsupported_deferred)}"
+            )
         config_model = getattr(instance, "config_model", None)
         if config_model is not None and (
             not isinstance(config_model, type) or not issubclass(config_model, BaseModel)
@@ -423,21 +439,31 @@ class PluginRegistry:
         plugin_name = document.get("plugin")
         instance = self.plugins[plugin_name].instance
         deferred = set(getattr(instance, "deferred_variables", set()))
-        root = Path(context["root"])
-        external = (
-            {}
-            if plugin_name == "verification"
-            else {
-                "root": str(root),
-                "scripts_dir": str(root / "scripts"),
-                "cases_dir": str(root / "cases"),
-                **overrides,
-            }
-        )
-        resolved = resolve_config_tree(document, deferred, external)
+        resolved = resolve_config_tree(document, deferred, {})
         values = {key: value for key, value in resolved.items() if key not in {"plugin", "stop", "variables"}}
         values.update({key: value for key, value in overrides.items() if key not in {"plugin", "stop", "variables"}})
         return values
+
+    def resolve_config_document(
+        self, document: Any, root: str = "."
+    ) -> Any:
+        if not isinstance(document, dict):
+            return document
+        name = document.get("plugin")
+        if not isinstance(name, str) or name not in self.plugins:
+            return document
+        instance = self.plugins[name].instance
+        deferred = set(getattr(instance, "deferred_variables", set()))
+        return resolve_config_tree(document, deferred, {})
+
+    def validate_config_variables(self, document: dict[str, Any]) -> None:
+        """Resolve configuration-language variables without runtime inputs.
+
+        The only supported deferred variables, ``case`` and ``seed``, remain
+        placeholders when declared by a plugin. Everything else must be provided
+        by the merged configuration tree.
+        """
+        self.resolve_config_document(document)
 
     async def discover(
         self,

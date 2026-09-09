@@ -1,0 +1,65 @@
+{
+  "capability_id": "localflow-plugin-config-extension-boundary",
+  "owner": "core-configuration-diagnosis-and-plugin-registry",
+  "problem": "A forbid-extra plugin model rejects site-owned YAML variables as plugin Extra inputs.",
+  "scope": "all plugin configurations, configlib variables, generated schemas and strict run inputs",
+  "baseline": "The core sends every non-common key into the plugin model and inherits its closed extra policy.",
+  "benchmarks": ["JSON Schema additionalProperties", "configlib whole-tree variables", "Pydantic ownership boundaries"],
+  "advantages": ["one core rule covers every plugin", "custom keys reach expansion", "declared fields stay typed"],
+  "disadvantages": ["site-key spelling is not generically knowable", "semantic checks belong to validate_config"],
+  "limitations": ["unknown variable references still fail", "run inputs remain separately closed"],
+  "defects": ["command reports Extra inputs", "third-party models accidentally close the YAML language"],
+  "bottlenecks": ["configuration and run-input schemas need different extra policies"],
+  "metrics": [
+    {
+      "name": "extensible plugin families",
+      "unit": "families",
+      "direction": "equal",
+      "threshold": "command, verification and third-party forbid-extra",
+      "measurement": "diagnose_config tests",
+      "evidence": "tests_v2/test_config.py"
+    },
+    {
+      "name": "schema policy",
+      "unit": "booleans",
+      "direction": "equal",
+      "threshold": "configuration true, plugin fields true, run inputs false",
+      "measurement": "registry description assertions",
+      "evidence": "tests_v2/test_plugins.py"
+    }
+  ],
+  "hypotheses": ["validate only declared plugin fields", "pass the complete resolved tree to expansion"],
+  "allowed_variables": ["plugin-field projection", "schema openness", "tests and documentation"],
+  "stages": [
+    {
+      "id": "oracle",
+      "input": "forbid-extra plugin plus custom key",
+      "output": "reproducible false diagnosis",
+      "checker": "focused pytest",
+      "rollback": "failing projection mutant",
+      "allowed_variables": ["fixture plugin", "custom key"]
+    },
+    {
+      "id": "boundary",
+      "input": "declared plugin fields and complete YAML",
+      "output": "typed declared fields and extensible tree",
+      "checker": "command, verification and third-party tests",
+      "rollback": "configuration diagnosis owner",
+      "allowed_variables": ["field selection", "schema policy"]
+    }
+  ],
+  "hard_gates": ["custom command keys pass", "third-party required types remain checked", "unknown variables fail", "run inputs reject extras"],
+  "failure_fixtures": ["command site_message", "third-party ConfigDict extra=forbid"],
+  "success_fixtures": ["site_message resolves in command", "plugin tool field validates beside custom keys"],
+  "fault_injections": ["restore non-common-key projection", "close configuration schema", "open input schema"],
+  "rollback": "Fix the core boundary; never allowlist one key in one built-in plugin.",
+  "iteration_budget": {"max_rounds": 3, "max_time": "2h", "review_trigger": "second boundary failure"},
+  "stop_conditions": ["focused and full source tests pass", "browser and Linux gates pass", "release asset matches commit"],
+  "promotion_decision": {
+    "destination": "localflow-plugin-development/SKILL.md",
+    "reason": "configuration extensibility versus input strictness recurs for every plugin",
+    "independent_trigger": false,
+    "repeatable_validation": true
+  },
+  "writeback": "Document open configuration trees and closed run inputs in project plugin guidance."
+}
