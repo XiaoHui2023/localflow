@@ -43,6 +43,7 @@ import {
   Search,
   Send,
   Settings2,
+  Star,
   Sun,
   TerminalSquare,
   Trash2,
@@ -1605,7 +1606,20 @@ function readExplorerOpenState() {
   }
 }
 
-function Config({ theme }) {
+function readFavoriteConfigs() {
+  try {
+    const paths = JSON.parse(
+      localStorage.getItem("localflow-favorite-configs") || "[]",
+    );
+    return Array.isArray(paths)
+      ? paths.filter((path) => typeof path === "string").slice(0, 100)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function Config({ theme, explorerView }) {
   const filePathRef = useRef();
   const inspectionControllerRef = useRef();
   const diagnosisControllerRef = useRef();
@@ -1639,6 +1653,8 @@ function Config({ theme }) {
   const [createPath, setCreatePath] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [treeOpen, setTreeOpen] = useState(false);
+  const [favoritePaths, setFavoritePaths] = useState(readFavoriteConfigs);
+  const [recentConfigs, setRecentConfigs] = useState([]);
   const [treeSize, setTreeSize] = useState({ width: 260, height: 600 });
   const treeHost = useRef();
   const treeRef = useRef();
@@ -1694,7 +1710,22 @@ function Config({ theme }) {
     const result = await api.workspace();
     setFiles(result.items);
     setDiagnostics(result.diagnostics || {});
+    const available = new Set(
+      result.items
+        .filter((item) => item.kind === "file" && item.path.startsWith("config/"))
+        .map((item) => item.path),
+    );
+    setFavoritePaths((current) => {
+      const next = current.filter((path) => available.has(path));
+      return next.length === current.length ? current : next;
+    });
     return result.items;
+  }, []);
+  const reloadRecent = useCallback(async () => {
+    const result = await api.recentConfigs();
+    const items = Array.isArray(result.items) ? result.items : [];
+    setRecentConfigs(items);
+    return items;
   }, []);
   const open = useCallback(async (path, restore = true, cleanSyncBase) => {
     const request = ++openRequestRef.current;
@@ -1743,6 +1774,7 @@ function Config({ theme }) {
   useEffect(() => {
     Promise.all([
       reload(),
+      reloadRecent(),
       api.plugins().then((result) => {
         pluginsRef.current = result.items;
         setPlugins(result.items);
@@ -1757,7 +1789,13 @@ function Config({ theme }) {
         if (target) open(target);
       })
       .catch((error) => setNotice(error.message));
-  }, [reload, open]);
+  }, [reload, reloadRecent, open]);
+  useEffect(() => {
+    localStorage.setItem(
+      "localflow-favorite-configs",
+      JSON.stringify(favoritePaths),
+    );
+  }, [favoritePaths]);
   useEffect(() => {
     if (!file?.path) return;
     const memory = readConfigMemory();
@@ -1984,7 +2022,14 @@ function Config({ theme }) {
       filePathRef.current = target + filePathRef.current.slice(source.length);
     await api.moveWorkspace(source, target);
     remapDrafts(source, target);
-    await reload();
+    setFavoritePaths((current) =>
+      current.map((path) =>
+        path === source || path.startsWith(`${source}/`)
+          ? target + path.slice(source.length)
+          : path,
+      ),
+    );
+    await Promise.all([reload(), reloadRecent()]);
     setSelectedPath(target);
     if (movesOpenFile) await open(filePathRef.current);
     setNotice("已移动");
@@ -2045,6 +2090,7 @@ function Config({ theme }) {
         file.path.replace(/^config\//, ""),
         pluginInputs(selectedPlugin, values),
       );
+      await reloadRecent();
       setRunStatus("accepted");
       setValues((current) => withoutCaseSelections(selectedPlugin, current));
       setNotice(`已加入 ${result.count} 个任务`);
@@ -2097,6 +2143,11 @@ function Config({ theme }) {
     try {
       await api.deleteWorkspace(removedPath);
       forgetDrafts(removedPath);
+      setFavoritePaths((current) =>
+        current.filter(
+          (path) => path !== removedPath && !path.startsWith(`${removedPath}/`),
+        ),
+      );
       setDeleting(false);
       await reload();
       setSelectedPath(undefined);
@@ -2148,6 +2199,41 @@ function Config({ theme }) {
     }
   };
   const editorTheme = theme === "dark" ? "localflow-dark" : "vs";
+  const availableConfigPaths = new Set(
+    files
+      .filter((item) => item.kind === "file" && item.path.startsWith("config/"))
+      .map((item) => item.path),
+  );
+  const recentByPath = new Map(recentConfigs.map((item) => [item.path, item]));
+  const quickEntry = (path) => ({
+    path,
+    name: recentByPath.get(path)?.name || pathLeaf(path),
+    labels: recentByPath.get(path)?.labels || [],
+    last_used_at: recentByPath.get(path)?.last_used_at,
+  });
+  const favoriteConfigs = favoritePaths
+    .map((path, index) => ({ ...quickEntry(path), favoriteIndex: index }))
+    .filter((item) => availableConfigPaths.has(item.path))
+    .sort((left, right) => {
+      if (left.last_used_at && right.last_used_at)
+        return right.last_used_at.localeCompare(left.last_used_at);
+      if (left.last_used_at) return -1;
+      if (right.last_used_at) return 1;
+      return right.favoriteIndex - left.favoriteIndex;
+    });
+  const unpinnedRecentConfigs = recentConfigs.filter(
+    (item) =>
+      availableConfigPaths.has(item.path) && !favoritePaths.includes(item.path),
+  );
+  const isFavorite = Boolean(file?.path && favoritePaths.includes(file.path));
+  const toggleFavorite = () => {
+    if (!file?.path?.startsWith("config/")) return;
+    setFavoritePaths((current) =>
+      current.includes(file.path)
+        ? current.filter((path) => path !== file.path)
+        : [...current, file.path].slice(-100),
+    );
+  };
   const editorLanguage = file?.path.endsWith(".py")
     ? "python"
     : file?.path.endsWith(".md")
@@ -2159,119 +2245,172 @@ function Config({ theme }) {
           : "yaml";
   return (
     <div className="config-explorer" tabIndex="0" onKeyDown={keyAction}>
-      <aside className="explorer">
+      <aside
+        id="config-source-panel"
+        className="explorer"
+        data-explorer-view={explorerView}
+      >
         <header>
-          <span>资源</span>
-          <div>
-            <button
-              className="icon"
-              aria-label="新建文件"
-              title="新建文件"
-              onClick={() => {
-                setCreateKind("file");
-                setCreateOpen(true);
-              }}
-            >
-              <Plus />
-            </button>
-            <button
-              className="icon"
-              aria-label="新建目录"
-              title="新建目录"
-              onClick={() => {
-                setCreateKind("directory");
-                setCreateOpen(true);
-              }}
-            >
-              <FolderPlus />
-            </button>
-            <button
-              className="icon"
-              aria-label="复制"
-              title="复制"
-              disabled={!selectedPath}
-              onClick={() => setClipboard({ path: selectedPath, mode: "copy" })}
-            >
-              <Copy />
-            </button>
-            <button
-              className="icon"
-              aria-label="剪切"
-              title="剪切"
-              disabled={!selectedPath || selectedEntry?.readonly}
-              onClick={() => setClipboard({ path: selectedPath, mode: "cut" })}
-            >
-              <Scissors />
-            </button>
-            <button
-              className="icon"
-              aria-label="粘贴"
-              title="粘贴"
-              disabled={!clipboard || !selectedFolder}
-              onClick={place}
-            >
-              <ClipboardPaste />
-            </button>
-            <button
-              className="icon"
-              aria-label="重命名"
-              title="重命名"
-              disabled={!selectedPath || selectedEntry?.readonly}
-              onClick={beginRename}
-            >
-              <Pencil />
-            </button>
-            <button
-              className="icon danger-icon"
-              aria-label="删除"
-              title="删除"
-              disabled={!selectedPath || selectedEntry?.readonly}
-              onClick={() => setDeleting(true)}
-            >
-              <Trash2 />
-            </button>
-          </div>
+          <span>{explorerView === "quick" ? "快捷访问" : "资源"}</span>
+          {explorerView === "resources" && (
+            <div>
+              <button
+                className="icon"
+                aria-label="新建文件"
+                title="新建文件"
+                onClick={() => {
+                  setCreateKind("file");
+                  setCreateOpen(true);
+                }}
+              >
+                <Plus />
+              </button>
+              <button
+                className="icon"
+                aria-label="新建目录"
+                title="新建目录"
+                onClick={() => {
+                  setCreateKind("directory");
+                  setCreateOpen(true);
+                }}
+              >
+                <FolderPlus />
+              </button>
+              <button
+                className="icon"
+                aria-label="复制"
+                title="复制"
+                disabled={!selectedPath}
+                onClick={() => setClipboard({ path: selectedPath, mode: "copy" })}
+              >
+                <Copy />
+              </button>
+              <button
+                className="icon"
+                aria-label="剪切"
+                title="剪切"
+                disabled={!selectedPath || selectedEntry?.readonly}
+                onClick={() => setClipboard({ path: selectedPath, mode: "cut" })}
+              >
+                <Scissors />
+              </button>
+              <button
+                className="icon"
+                aria-label="粘贴"
+                title="粘贴"
+                disabled={!clipboard || !selectedFolder}
+                onClick={place}
+              >
+                <ClipboardPaste />
+              </button>
+              <button
+                className="icon"
+                aria-label="重命名"
+                title="重命名"
+                disabled={!selectedPath || selectedEntry?.readonly}
+                onClick={beginRename}
+              >
+                <Pencil />
+              </button>
+              <button
+                className="icon danger-icon"
+                aria-label="删除"
+                title="删除"
+                disabled={!selectedPath || selectedEntry?.readonly}
+                onClick={() => setDeleting(true)}
+              >
+                <Trash2 />
+              </button>
+            </div>
+          )}
         </header>
-        <div className="tree-host" ref={treeHost}>
-          <Tree
-            ref={treeRef}
-            data={buildTree(files, diagnostics, dirtyPaths)}
-            width={treeSize.width}
-            height={treeSize.height}
-            rowHeight={32}
-            indent={16}
-            overscanCount={8}
-            openByDefault
-            initialOpenState={initialTreeOpenState.current}
-            onToggle={(id) => {
-              setTimeout(() => {
-                const current = readExplorerOpenState();
-                if (treeRef.current?.isOpen(id)) delete current[id];
-                else current[id] = false;
-                localStorage.setItem(
-                  "localflow-explorer-collapsed",
-                  JSON.stringify(Object.keys(current).slice(-512)),
-                );
-              }, 0);
-            }}
-            selection={
-              selectedEntry?.kind === "directory"
-                ? `folder:${selectedPath}`
-                : selectedPath
-            }
-            onSelect={(nodes) => {
-              const node = nodes[0];
-              if (!node) return;
-              setSelectedPath(node.data.path);
-              if (!node.isInternal) open(node.data.path);
-            }}
-            onRename={rename}
-            onMove={onMove}
-            disableEdit
-          >
-            {TreeNode}
-          </Tree>
-        </div>
+        {explorerView === "resources" ? (
+          <div className="tree-host" ref={treeHost}>
+            <Tree
+              ref={treeRef}
+              data={buildTree(files, diagnostics, dirtyPaths)}
+              width={treeSize.width}
+              height={treeSize.height}
+              rowHeight={32}
+              indent={16}
+              overscanCount={8}
+              openByDefault
+              initialOpenState={initialTreeOpenState.current}
+              onToggle={(id) => {
+                setTimeout(() => {
+                  const current = readExplorerOpenState();
+                  if (treeRef.current?.isOpen(id)) delete current[id];
+                  else current[id] = false;
+                  localStorage.setItem(
+                    "localflow-explorer-collapsed",
+                    JSON.stringify(Object.keys(current).slice(-512)),
+                  );
+                }, 0);
+              }}
+              selection={
+                selectedEntry?.kind === "directory"
+                  ? `folder:${selectedPath}`
+                  : selectedPath
+              }
+              onSelect={(nodes) => {
+                const node = nodes[0];
+                if (!node) return;
+                setSelectedPath(node.data.path);
+                if (!node.isInternal) open(node.data.path);
+              }}
+              onRename={rename}
+              onMove={onMove}
+              disableEdit
+            >
+              {TreeNode}
+            </Tree>
+          </div>
+        ) : (
+          <div className="quick-configs">
+            {[
+              ["已收藏", favoriteConfigs, true],
+              ["最近使用", unpinnedRecentConfigs, false],
+            ].map(([heading, items, favorite]) =>
+              items.length ? (
+                <section className="quick-config-group" key={heading}>
+                  <h3>{heading}</h3>
+                  <ul aria-label={heading}>
+                    {items.map((item) => (
+                      <li key={item.path}>
+                        <button
+                          type="button"
+                          className={item.path === file?.path ? "active" : ""}
+                          aria-current={item.path === file?.path ? "true" : undefined}
+                          onClick={() => open(item.path)}
+                        >
+                          {favorite ? (
+                            <Star aria-hidden="true" />
+                          ) : (
+                            <Clock3 aria-hidden="true" />
+                          )}
+                          <span>
+                            <strong>{item.name}</strong>
+                            {item.labels.length > 0 && (
+                              <span className="quick-config-labels">
+                                {item.labels.map((label) => (
+                                  <em key={label}>{label}</em>
+                                ))}
+                              </span>
+                            )}
+                            <small>{item.path.replace(/^config\//, "")}</small>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null,
+            )}
+            {!favoriteConfigs.length && !unpinnedRecentConfigs.length && (
+              <p className="quick-config-empty">暂无快捷配置</p>
+            )}
+          </div>
+        )}
       </aside>
       <section className="config-workbench">
         {notice && (
@@ -2287,7 +2426,19 @@ function Config({ theme }) {
                 <span>{pathLeaf(file.path)}</span>
               </div>
               <div className="workbench-actions" role="group" aria-label="配置操作">
-                  {mode === "edit" && file.path.startsWith("config/") && (
+                {file.path.startsWith("config/") && (
+                  <button
+                    type="button"
+                    className={`secondary icon-only favorite-action ${isFavorite ? "active" : ""}`}
+                    aria-label={isFavorite ? "取消收藏" : "收藏配置"}
+                    aria-pressed={isFavorite}
+                    title={isFavorite ? "取消收藏" : "收藏配置"}
+                    onClick={toggleFavorite}
+                  >
+                    <Star aria-hidden="true" />
+                  </button>
+                )}
+                {mode === "edit" && file.path.startsWith("config/") && (
                     <button
                       className="secondary"
                       onClick={() => {
@@ -2754,6 +2905,14 @@ export default function App() {
   const [runOpen, setRunOpen] = useState(
     () => sessionStorage.getItem("localflow-run-panel") !== "closed",
   );
+  const [configSourceView, setConfigSourceView] = useState(
+    () => {
+      const remembered = sessionStorage.getItem("localflow-config-source-view");
+      return ["quick", "favorites"].includes(remembered)
+        ? "quick"
+        : "resources";
+    },
+  );
   const [taskWorkspaceNode, setTaskWorkspaceNode] = useState();
   const [splitReady, setSplitReady] = useState(false);
   const refresh = useCallback(async () => {
@@ -2789,6 +2948,9 @@ export default function App() {
   useEffect(() => {
     sessionStorage.setItem("localflow-run-panel", runOpen ? "open" : "closed");
   }, [runOpen]);
+  useEffect(() => {
+    sessionStorage.setItem("localflow-config-source-view", configSourceView);
+  }, [configSourceView]);
   useEffect(() => {
     if (!taskWorkspaceNode) {
       setSplitReady(false);
@@ -2899,6 +3061,21 @@ export default function App() {
               {runOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
               <span>配置</span>
             </button>
+            {runOpen && (
+              <button
+                className={`run-panel-toggle favorite-panel-toggle ${configSourceView === "quick" ? "active" : ""}`}
+                aria-pressed={configSourceView === "quick"}
+                aria-controls="config-source-panel"
+                onClick={() =>
+                  setConfigSourceView((view) =>
+                    view === "quick" ? "resources" : "quick",
+                  )
+                }
+              >
+                <Star aria-hidden="true" />
+                <span>快捷</span>
+              </button>
+            )}
           </div>
         )}
       </aside>
@@ -2950,7 +3127,7 @@ export default function App() {
               </div>
               {status?.role === "admin" && (
                 <aside id="run-panel" className="run-panel" hidden={!runOpen}>
-                  <Config theme={theme} />
+                  <Config theme={theme} explorerView={configSourceView} />
                 </aside>
               )}
             </section>

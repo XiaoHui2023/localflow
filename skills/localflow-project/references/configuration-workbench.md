@@ -16,6 +16,10 @@ Treat YAML configuration extensibility and run-input strictness as separate cont
 
 Treat plugin extensibility and variable provenance as separate contracts too. The host contributes no hidden `root`, directory, or run-input variables; only `case` and `seed` may be plugin-deferred. This prevents a permissive editor from becoming environment-dependent and makes an unknown placeholder a deterministic inline debug result.
 
+Call the reusable-configuration surface `快捷访问` and its compact navigation control `快捷`. “收藏” is only one ordering attribute, while “最近使用” is server-observed history; naming the whole surface 收藏/常用/最近 would incorrectly exclude one half of that model. Render a flat list rather than a file tree, split it into explicit `已收藏` then `最近使用` groups, and sort each group by the last accepted run submission descending. A never-run favorite falls back to newest favorite first. Identify each row with resolved configuration `name`, compact label tokens, then the config-relative path as disambiguation; fall back to the filename when YAML is currently invalid or has no name.
+
+Record run history on the server in the same accepted batch transaction so refreshes and different browsers see truthful usage rather than click telemetry. Keep favorites browser-local until the product has user identity and preference synchronization; cap them at 100. The current configuration owns one star action beside Edit/Run/Save with stable pressed semantics and accessible `收藏配置`/`取消收藏` names. In-app move/rename remaps both server history and browser favorites; delete and external disappearance suppress stale entries. The indented tertiary toggle exists only while configuration is expanded, swaps only the explorer rail, and keeps the workbench mounted.
+
 The terminal buffer contains only task log/process bytes. Connection, live/read-only state, and replay state belong to the terminal page header and accessibility status, never `xterm.write` or `xterm.writeln`.
 
 ## Candidate comparison
@@ -27,6 +31,11 @@ The terminal buffer contains only task log/process bytes. Connection, live/read-
 | Right supplementary panel | Preserves task width | Rejected: trigger and result occupy opposite edges |
 | Modal/drawer overlay | Strong temporary focus | Rejected for frequent wide-screen editing because it covers task context; not needed on phones while stack works |
 | Separate configuration page | Large editor area | Rejected: adds a navigation round trip and violates the unified Tasks workspace contract |
+| Grouped `快捷访问` rail | Combines truthful run history with personal pinning; direct reopen without file-tree traversal | Chosen; server history plus browser-local favorites |
+| Favorites-only rail | Simple personal collection | Rejected as the complete surface: previously used but unstarred YAML disappears |
+| Recent-only rail | Requires no explicit management | Rejected as the complete surface: important configurations drift downward |
+| Server-side shared favorites | Cross-browser/team sharing | Rejected until identity, ownership and synchronization semantics exist |
+| Favorite modal/dropdown | Compact chrome | Rejected: hides a frequent navigation collection and overlays the active workbench |
 
 WAI-ARIA disclosure supplies the interaction contract (`button`, `aria-expanded`, `aria-controls`). VS Code's primary sidebar/view-title actions supply the spatial and contextual-action model. Material persistent drawer/side-sheet guidance supports persistent wide layouts but does not justify adding a dependency when the current native control meets the contract.
 
@@ -36,6 +45,7 @@ WAI-ARIA disclosure supplies the interaction contract (`button`, `aria-expanded`
 - At 1000 and 760 px, open configuration is the only visible pane and spans the app content; one disclosure activation hides it and reveals the full-width task pane. At 390 px, explorer ends before editor begins inside configuration. All widths have zero overflow.
 - The disclosure has the exact visible name `配置`, starts expanded when no preference exists, retains one DOM location, and reports state through `aria-expanded`/`aria-controls`.
 - The selected file name and contextual action group are adjacent; `编辑` and `运行` are both visible labels and require no menu/navigation step.
+- `快捷` exists only while configuration is expanded, swaps only the explorer rail, and reports pressed state. `已收藏` precedes `最近使用`; a successfully submitted YAML appears without being starred, stars move it to the first group, and both groups use name/labels/path identity. Refresh preserves history and favorites, rename/move remaps them, and delete/external disappearance removes stale entries.
 - Closing/reopening and leaving/returning to Tasks preserves file, mode, and unfinished inputs.
 - Save is disabled before an edit and immediately after a successful save, but enabled for any byte-changing edit even when diagnosis fails.
 - Switching among configuration files restores each unsaved byte buffer and its base version. File and ancestor-folder dirty dots disappear only after save, delete, or an explicit external-version choice; rename/move remaps them.

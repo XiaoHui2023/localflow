@@ -873,6 +873,38 @@ def create_app(
         except KeyError:
             raise HTTPException(404, "batch not found") from None
 
+    @app.get("/api/v1/config/recent")
+    async def recent_configurations(
+        _actor: str = Depends(require_submitter),
+    ):
+        available = set(config.list())
+        items = []
+        for usage in store.list_recent_configurations():
+            path = usage["path"]
+            if path not in available:
+                continue
+            name = Path(path).name
+            labels: list[str] = []
+            try:
+                document = config.parse(path)
+                configured_name = document.get("name")
+                configured_labels = document.get("labels")
+                if isinstance(configured_name, str) and configured_name.strip():
+                    name = configured_name.strip()
+                if isinstance(configured_labels, list):
+                    labels = [item for item in configured_labels if isinstance(item, str)]
+            except (OSError, TypeError, ValueError, yaml.YAMLError):
+                pass
+            items.append(
+                {
+                    "path": f"config/{path}",
+                    "name": name,
+                    "labels": labels,
+                    "last_used_at": usage["last_used_at"],
+                }
+            )
+        return {"items": items}
+
     @app.get("/api/v1/config/files")
     async def config_files(_actor: str = Depends(require_submitter)):
         items = config.list()
@@ -959,6 +991,10 @@ def create_app(
     async def workspace_move(payload: WorkspaceTransfer, _actor: str = Depends(require_submitter)):
         try:
             workspace.move(payload.source, payload.target)
+            if payload.source.startswith("config/") and payload.target.startswith("config/"):
+                store.remap_configuration_history(
+                    payload.source.split("/", 1)[1], payload.target.split("/", 1)[1]
+                )
             return {"path": payload.target}
         except FileExistsError:
             raise HTTPException(409, "workspace target already exists") from None

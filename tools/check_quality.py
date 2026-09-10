@@ -54,6 +54,7 @@ BROWSER_ASSERTIONS = {
     "config-free-save-inline-syntax",
     "config-default-expanded",
     "config-dirty-save",
+    "config-quick-history",
     "terminal-bounded-archive-search",
     "case-marquee-scope-only",
     "case-group-relative-edit",
@@ -84,6 +85,7 @@ BROWSER_ASSERTIONS = {
 REQUIRED_SCREENSHOTS = {
     "anonymous-settings-login-light.png",
     "anonymous-settings-login-mobile.png",
+    "admin-common-configurations-light.png",
     "admin-config-explorer-dark.png",
     "admin-empty-light.png",
     "admin-mobile-390.png",

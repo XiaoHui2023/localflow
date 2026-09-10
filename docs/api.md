@@ -106,6 +106,7 @@
 | `GET` | `/plugins` | 全部插件的配置/输入 schema、网页字段与可运行示例 | signed-client 或 admin |
 | `GET` | `/plugins/{name}` | 单个插件的完整机器合同 | signed-client 或 admin |
 | `GET` | `/config/files` | 配置文件清单 | signed-client 或 admin |
+| `GET` | `/config/recent` | 最近成功提交过且仍存在的配置，按时间倒序返回名称、标签、路径与最后使用时间 | signed-client 或 admin |
 | `POST` | `/config/files` | 创建配置文件 | signed-client 或 admin |
 | `GET` | `/config/files/{path}` | 内容、合并结果、版本和分层诊断 | signed-client 或 admin |
 | `PUT` | `/config/files/{path}` | `If-Match` 条件保存 | signed-client 或 admin |

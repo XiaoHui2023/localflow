@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import os
 from pathlib import Path
 
 from watchfiles import awatch
@@ -76,6 +77,11 @@ class DirectoryWatcher:
             step=50,
             rust_timeout=1000,
             yield_on_timeout=True,
+            # watchfiles otherwise calls platform.uname() to auto-detect WSL.
+            # On Windows that invokes WMI and can block the whole async startup
+            # when the WMI provider is unhealthy. Native Windows watching does
+            # not need that probe.
+            force_polling=False if os.name == "nt" else None,
         ):
             # A bounded reconciliation is intentional: native watchers differ in
             # whether they follow nested symbolic links.  The one-second fallback

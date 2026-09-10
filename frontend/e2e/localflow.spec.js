@@ -132,7 +132,12 @@ test("an open testing page reloads when the frontend revision changes", async ({
 async function ensureAdminSession(page) {
   const loginKey = page.getByLabel("管理员秘钥");
   if (await loginKey.isVisible()) {
-    await loginKey.fill(currentAdminKey());
+    try {
+      await loginKey.fill(currentAdminKey(), { timeout: 2_000 });
+    } catch (error) {
+      if (!(await loginKey.isVisible())) return;
+      throw error;
+    }
     const login = page.getByRole("button", { name: "登录", exact: true });
     try {
       await login.click({ timeout: 2_000 });
@@ -342,13 +347,13 @@ async function runAcceptance(page) {
   const accepted = await response.json();
   await expect(runButton).toHaveAttribute("data-run-state", "accepted");
   await expect(runButton).toHaveAccessibleName("已创建");
-  await expect(page.getByRole("status")).toHaveText(
+  await expect(page.locator(".notice[role='status']")).toHaveText(
     `已加入 ${accepted.count} 个任务`,
   );
 
   const taskId = accepted.task_ids[0];
   await page.getByRole("tab", { name: "任务" }).click();
-  const configToggle = page.getByRole("button", { name: "配置" });
+  const configToggle = page.getByRole("button", { name: "配置", exact: true });
   if ((await configToggle.getAttribute("aria-expanded")) === "true")
     await configToggle.click();
   await expect(configToggle).toHaveAttribute("aria-expanded", "false");
@@ -401,7 +406,7 @@ async function runAcceptance(page) {
 
 async function openRunPanel(page) {
   await page.getByRole("tab", { name: "任务" }).click();
-  const toggle = page.getByRole("button", { name: "配置" });
+  const toggle = page.getByRole("button", { name: "配置", exact: true });
   if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
   await expect(page.locator("#run-panel")).toBeVisible();
 }
@@ -457,7 +462,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(page.getByRole("tab")).toHaveText(["任务", "设置"]);
-  await expect(page.getByRole("button", { name: "配置" })).toHaveCount(
+  await expect(page.getByRole("button", { name: "配置", exact: true })).toHaveCount(
     0,
   );
   await page.getByRole("tab", { name: "设置" }).click();
@@ -501,7 +506,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(page.getByRole("button", { name: "刷新" })).toHaveCount(0);
   await page.getByRole("tab", { name: "任务" }).click();
   await expect(page.getByText("暂无任务", { exact: true })).toBeVisible();
-  const runPanelToggle = page.getByRole("button", { name: "配置" });
+  const runPanelToggle = page.getByRole("button", { name: "配置", exact: true });
   await expect(runPanelToggle)
     .toHaveAttribute("aria-expanded", "true");
   await expect(runPanelToggle)
@@ -1131,6 +1136,14 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await saveButton.click();
   await expect(dirtyFile).not.toHaveAttribute("aria-label", /未保存/);
   await expect(dirtyFile.locator(".tree-dirty")).toHaveCount(0);
+  await page.getByRole("button", { name: "收藏配置" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        JSON.parse(localStorage.getItem("localflow-favorite-configs") || "[]"),
+      ),
+    )
+    .toContain("config/command/qa-command.yaml");
   await page.getByRole("button", { name: "重命名" }).click();
   const rename = page.locator(".tree-node input");
   await expect(rename).toBeVisible();
@@ -1139,6 +1152,18 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(
     page.locator('[data-file="config/command/qa-renamed.yaml"]'),
   ).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        JSON.parse(localStorage.getItem("localflow-favorite-configs") || "[]"),
+      ),
+    )
+    .toEqual(expect.arrayContaining(["config/command/qa-renamed.yaml"]));
+  expect(
+    await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("localflow-favorite-configs") || "[]"),
+    ),
+  ).not.toContain("config/command/qa-command.yaml");
   await page.getByRole("button", { name: "删除", exact: true }).click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await page
@@ -1146,6 +1171,13 @@ test("plugin configuration console remains concise and operable in Edge", async 
     .getByRole("button", { name: "删除" })
     .click();
   await expect(page.getByText("qa-renamed", { exact: true })).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        JSON.parse(localStorage.getItem("localflow-favorite-configs") || "[]"),
+      ),
+    )
+    .not.toContain("config/command/qa-renamed.yaml");
   await page.locator('[data-file="config/command/qa-invalid.yaml"]').click();
   await expect(page.locator(".config-diagnosis")).toHaveCount(0);
   await expect(page.locator(".configuration-debug")).toContainText("labels");
@@ -1285,7 +1317,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   const heldCount = Number(await caseB.locator(".case-count output").textContent());
   expect(heldCount).toBeGreaterThanOrEqual(3);
   expect(heldCount).toBeLessThanOrEqual(6);
-  const persistentRunToggle = page.getByRole("button", { name: "配置" });
+  const persistentRunToggle = page.getByRole("button", { name: "配置", exact: true });
   await persistentRunToggle.click();
   await expect(page.locator("#run-panel")).toBeHidden();
   await expect(persistentRunToggle).toHaveAttribute("aria-expanded", "false");
@@ -1587,6 +1619,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "config-one-action-task-reveal",
           "config-default-expanded",
           "config-dirty-save",
+          "config-quick-history",
           "terminal-bounded-archive-search",
           "case-marquee-scope-only",
           "case-group-relative-edit",
@@ -1624,4 +1657,59 @@ test("plugin configuration console remains concise and operable in Edge", async 
       2,
     ),
   );
+});
+
+test("quick access groups pinned and recent configurations without losing context", async ({
+  page,
+}) => {
+  await openAdminTaskWorkspace(page);
+  const quickToggle = page.getByRole("button", { name: "快捷", exact: true });
+  await expect(quickToggle).toBeVisible();
+  await expect(quickToggle).toHaveAttribute("aria-pressed", "false");
+
+  await page.locator('[data-file="config/command/hello-world.yaml"]').click();
+  await page.locator(".run-action").click();
+  await expect(page.locator(".run-action")).toContainText("已创建");
+  const favorite = page.getByRole("button", { name: "收藏配置" });
+  await expect(favorite).toHaveAttribute("aria-pressed", "false");
+  await favorite.click();
+  await expect(
+    page.getByRole("button", { name: "取消收藏" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  expect(
+    await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("localflow-favorite-configs") || "[]"),
+    ),
+  ).toContain("config/command/hello-world.yaml");
+
+  await quickToggle.click();
+  await expect(quickToggle).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    page.locator('#config-source-panel[data-explorer-view="quick"]'),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "已收藏" })).toBeVisible();
+  const pinned = page.getByRole("list", { name: "已收藏" });
+  await expect(
+    pinned.getByRole("button", {
+      name: /hello-world.*command\/hello-world\.yaml/,
+    }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "新建文件" })).toHaveCount(0);
+
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "快捷", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("list", { name: "已收藏" })).toContainText(
+    "hello-world",
+  );
+  await page.getByRole("button", { name: "取消收藏" }).click();
+  await expect(page.getByRole("heading", { name: "已收藏" })).toHaveCount(0);
+  await expect(page.getByRole("list", { name: "最近使用" })).toContainText(
+    "hello-world",
+  );
+  await page.getByRole("button", { name: "配置", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "快捷", exact: true }),
+  ).toHaveCount(0);
 });

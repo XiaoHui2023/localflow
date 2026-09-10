@@ -91,7 +91,14 @@ test("Ubuntu browser can operate the released web console", async ({
   await expect(
     page.locator('[data-file="config/command/hello-world.yaml"]'),
   ).toBeVisible();
+  const inspectionResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(
+        "/api/v1/config/files/command/hello-world.yaml/inspection",
+      ) && response.request().method() === "POST",
+  );
   await page.locator('[data-file="config/command/hello-world.yaml"]').click();
+  expect((await inspectionResponse).ok()).toBeTruthy();
   await page.getByRole("button", { name: "编辑" }).click();
   await expect(page.locator(".monaco-editor")).toBeVisible({ timeout: 20_000 });
 

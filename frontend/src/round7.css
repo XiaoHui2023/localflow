@@ -27,6 +27,25 @@ html[data-theme="dark"] .run-panel .run-action.idle:hover{background:#1f6feb}
 .run-panel-toggle.active{border-color:color-mix(in srgb,var(--accent) 34%,var(--border));background:var(--surface-selected);color:var(--accent)}
 .run-panel-toggle.active::after{content:"";position:absolute;left:-8px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--accent)}
 .run-panel-toggle svg{width:17px;height:17px;flex:0 0 auto;stroke-width:1.9}
+.favorite-panel-toggle{min-height:36px;margin-top:3px;padding-left:17px;font-size:11px;font-weight:600}
+.favorite-panel-toggle.active::after{left:3px;width:2px}
+.favorite-action.active{border-color:color-mix(in srgb,var(--accent) 38%,var(--border));background:var(--surface-selected);color:var(--accent)}
+.favorite-action.active svg,.quick-configs .quick-config-group:first-child button>svg{fill:currentColor}
+.quick-configs{min-width:0;overflow:auto;padding:8px 6px 18px}
+.quick-config-group+ .quick-config-group{margin-top:14px;padding-top:10px;border-top:1px solid var(--border)}
+.quick-config-group h3{margin:0;padding:3px 9px 6px;color:var(--muted);font-size:10px;font-weight:700;letter-spacing:.06em}
+.quick-configs ul{display:grid;gap:3px;margin:0;padding:0;list-style:none}.quick-configs li{min-width:0}
+.quick-configs button{width:100%;min-width:0;min-height:52px;display:grid;grid-template-columns:18px minmax(0,1fr);align-items:start;gap:8px;padding:7px 9px;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--text);text-align:left;cursor:pointer}
+.quick-configs button:hover{border-color:var(--border);background:var(--surface)}
+.quick-configs button.active{background:var(--surface-selected);color:var(--accent)}
+.quick-configs button>svg{width:14px;height:14px;margin-top:2px;color:var(--muted)}
+.quick-configs button.active>svg{color:var(--accent)}
+.quick-configs button>span{min-width:0;display:grid;gap:4px}
+.quick-configs strong,.quick-configs small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.quick-configs strong{font-size:12px;font-weight:650}.quick-configs small{color:var(--muted);font-size:10px}
+.quick-config-labels{display:flex!important;flex-flow:row wrap;gap:3px!important}
+.quick-config-labels em{max-width:100%;overflow:hidden;text-overflow:ellipsis;padding:1px 5px;border:1px solid color-mix(in srgb,var(--accent) 22%,var(--border));border-radius:999px;background:color-mix(in srgb,var(--accent) 6%,transparent);color:var(--muted);font-size:9px;font-style:normal;line-height:14px;white-space:nowrap}
+.quick-config-empty{margin:24px 12px;color:var(--muted);font-size:12px;text-align:center}
 
 .run-panel{height:100vh;min-height:520px}
 @media(max-width:680px){
@@ -44,4 +63,6 @@ html[data-theme="dark"] .run-panel .run-action.idle:hover{background:#1f6feb}
   .run-panel-toggle{min-height:48px;flex-direction:column;justify-content:center;gap:2px;padding:3px 1px;font-size:9px;text-align:center}
   .run-panel-toggle.active::after{left:-6px;top:10px;bottom:10px}
   .run-panel-toggle svg{width:18px;height:18px}
+  .favorite-panel-toggle{min-height:43px;margin-top:2px;padding:3px 1px;font-size:9px}
+  .favorite-panel-toggle.active::after{left:-6px;width:3px}
 }

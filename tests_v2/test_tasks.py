@@ -226,3 +226,41 @@ def test_plugin_contract_plan_and_saved_config_run_are_machine_complete(
     seeds = [record["custom"]["seed"] for record in records]
     assert seeds[1] == seeds[0] + 1
     assert all("${seed}" not in record["command"] for record in records)
+
+
+def test_recent_configurations_follow_accepted_runs_and_workspace_moves(
+    admin: TestClient,
+) -> None:
+    assert admin.get("/api/v1/config/recent").json() == {"items": []}
+
+    command = admin.post(
+        "/api/v1/config/files/command/hello-world.yaml/runs",
+        json={"inputs": {}},
+    )
+    assert command.status_code == 202
+    verification = admin.post(
+        "/api/v1/config/files/verification/demo.yaml/runs",
+        json={"inputs": {"cases": ["case-a"], "case_runs": {"case-a": 1}}},
+    )
+    assert verification.status_code == 202
+
+    recent = admin.get("/api/v1/config/recent").json()["items"]
+    assert [item["path"] for item in recent] == [
+        "config/verification/demo.yaml",
+        "config/command/hello-world.yaml",
+    ]
+    assert recent[0]["name"] == "demo.yaml"
+    assert isinstance(recent[0]["labels"], list)
+    assert recent[0]["last_used_at"] >= recent[1]["last_used_at"]
+
+    moved = admin.post(
+        "/api/v1/workspace/moves",
+        json={
+            "source": "config/command/hello-world.yaml",
+            "target": "config/command/renamed.yaml",
+        },
+    )
+    assert moved.status_code == 200
+    paths = [item["path"] for item in admin.get("/api/v1/config/recent").json()["items"]]
+    assert "config/command/renamed.yaml" in paths
+    assert "config/command/hello-world.yaml" not in paths

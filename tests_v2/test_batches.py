@@ -1,3 +1,5 @@
+import json
+import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -10,6 +12,40 @@ from localflow.storage import Store
 
 class NoopExecutor:
     pass
+
+
+def test_store_migrates_configuration_history_from_legacy_batches(root: Path) -> None:
+    database = root / "runtime" / "localflow.db"
+    database.parent.mkdir(parents=True)
+    connection = sqlite3.connect(database)
+    connection.execute(
+        """CREATE TABLE batches (
+        id TEXT PRIMARY KEY, template TEXT NOT NULL, values_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+        )"""
+    )
+    connection.executemany(
+        "INSERT INTO batches(id,template,values_json,created_at) VALUES(?,?,?,?)",
+        [
+            (
+                f"legacy-{index}",
+                "command",
+                json.dumps({"configuration_path": f"command/example-{index}.yaml"}),
+                f"2026-09-01T00:{index // 60:02d}:{index % 60:02d}+00:00",
+            )
+            for index in range(101)
+        ],
+    )
+    connection.commit()
+    connection.close()
+
+    store = Store(database)
+    recent = store.list_recent_configurations()
+    assert len(recent) == 101
+    assert recent[0]["path"] == "command/example-100.yaml"
+    store.remap_configuration_history("command", "renamed")
+    assert all(item["path"].startswith("renamed/") for item in store.list_recent_configurations())
+    store.close()
 
 
 def test_batch_and_tasks_are_written_in_one_transaction(root: Path) -> None:

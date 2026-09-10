@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS nonces (
 );
 CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS batches (
- id TEXT PRIMARY KEY, template TEXT NOT NULL, values_json TEXT NOT NULL, created_at TEXT NOT NULL
+ id TEXT PRIMARY KEY, template TEXT NOT NULL, values_json TEXT NOT NULL, created_at TEXT NOT NULL,
+ configuration_path TEXT
 );
 CREATE TABLE IF NOT EXISTS batch_tasks (
  batch_id TEXT NOT NULL REFERENCES batches(id), task_id TEXT NOT NULL REFERENCES tasks(id),
@@ -98,6 +99,21 @@ class Store:
         for column, declaration in migrations.items():
             if column not in columns:
                 self._db.execute(f"ALTER TABLE tasks ADD COLUMN {column} {declaration}")
+        batch_columns = {row[1] for row in self._db.execute("PRAGMA table_info(batches)")}
+        if "configuration_path" not in batch_columns:
+            self._db.execute("ALTER TABLE batches ADD COLUMN configuration_path TEXT")
+            for row in self._db.execute("SELECT id,values_json FROM batches").fetchall():
+                request_values = json.loads(row["values_json"])
+                configuration_path = request_values.get("configuration_path")
+                if isinstance(configuration_path, str):
+                    self._db.execute(
+                        "UPDATE batches SET configuration_path=? WHERE id=?",
+                        (configuration_path, row["id"]),
+                    )
+        self._db.execute(
+            """CREATE INDEX IF NOT EXISTS batches_configuration_recent
+            ON batches(configuration_path, created_at DESC)"""
+        )
         self._migrate_legacy_runtime_seeds()
 
     def close(self) -> None:
@@ -240,9 +256,20 @@ class Store:
                             self._get_task_locked(task_id) for task_id in response["task_ids"]
                         ]
                         return records, response
+                configuration_path = request_values.get("configuration_path")
+                if not isinstance(configuration_path, str):
+                    configuration_path = None
                 self._db.execute(
-                    "INSERT INTO batches(id,template,values_json,created_at) VALUES(?,?,?,?)",
-                    (batch_id, template, json.dumps(request_values), created_at),
+                    """INSERT INTO batches(
+                    id,template,values_json,created_at,configuration_path
+                    ) VALUES(?,?,?,?,?)""",
+                    (
+                        batch_id,
+                        template,
+                        json.dumps(request_values),
+                        created_at,
+                        configuration_path,
+                    ),
                 )
                 for sequence, (task_id, draft) in enumerate(tasks):
                     draft = self._materialize_draft_locked(draft)
@@ -311,6 +338,39 @@ class Store:
             "created_at": batch["created_at"],
             "task_ids": [row["task_id"] for row in task_rows],
         }
+
+    def list_recent_configurations(self) -> list[dict[str, str]]:
+        with self._lock:
+            rows = self._db.execute(
+                """SELECT configuration_path,MAX(created_at) AS last_used_at
+                FROM batches
+                WHERE configuration_path IS NOT NULL
+                GROUP BY configuration_path
+                ORDER BY last_used_at DESC,configuration_path"""
+            ).fetchall()
+        return [
+            {"path": row["configuration_path"], "last_used_at": row["last_used_at"]}
+            for row in rows
+        ]
+
+    def remap_configuration_history(self, source: str, target: str) -> None:
+        with self._lock:
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                escaped_source = (
+                    source.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+                )
+                self._db.execute(
+                    """UPDATE batches
+                    SET configuration_path=? || substr(configuration_path, ?)
+                    WHERE configuration_path=?
+                       OR configuration_path LIKE ? ESCAPE '\\'""",
+                    (target, len(source) + 1, source, f"{escaped_source}/%"),
+                )
+                self._db.execute("COMMIT")
+            except BaseException:
+                self._db.execute("ROLLBACK")
+                raise
 
     def get_task(self, task_id: str) -> TaskRecord:
         with self._lock:

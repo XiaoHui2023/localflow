@@ -6,11 +6,34 @@ from pathlib import Path
 
 import pytest
 
+import localflow.watcher as watcher_module
 from localflow.config_repository import ConfigRepository
 from localflow.plugins import PluginRegistry
 from localflow.settings import initialize_root
 from localflow.storage import Store
 from localflow.watcher import DirectoryWatcher
+
+
+@pytest.mark.asyncio
+async def test_watcher_skips_wmi_platform_probe_on_windows(
+    root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    initialize_root(root)
+    captured: dict[str, object] = {}
+
+    async def fake_awatch(*_paths: Path, **kwargs: object):
+        captured.update(kwargs)
+        if False:
+            yield None
+
+    monkeypatch.setattr(watcher_module, "awatch", fake_awatch)
+    store = Store(root / "runtime" / "localflow.db")
+    watcher = DirectoryWatcher(
+        root, store, ConfigRepository(root), PluginRegistry(root / "plugins")
+    )
+    await watcher.run()
+    assert captured["force_polling"] is (False if os.name == "nt" else None)
+    store.close()
 
 
 @pytest.mark.asyncio
