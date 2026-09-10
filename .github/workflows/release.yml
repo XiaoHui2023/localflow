@@ -127,7 +127,30 @@ jobs:
       - name: Install Ubuntu Chrome and Firefox for release UI gate
         run: npm --prefix frontend exec -- playwright install --with-deps chrome firefox
       - name: Run Chrome and Firefox against final release executable
-        run: python3 tools/run_linux_browser_quality.py --binary dist/localflow
+        run: |
+          set -o pipefail
+          python3 tools/run_linux_browser_quality.py --binary dist/localflow 2>&1 | tee browser-quality.log
+      - name: Surface browser failure diagnostics
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("browser-quality.log")
+          if path.is_file():
+              tail = "\n".join(path.read_text(encoding="utf-8", errors="replace").splitlines()[-120:])
+              escaped = tail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title=Browser quality failure::{escaped}")
+          PY
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: browser-failure-diagnostics
+          path: |
+            browser-quality.log
+            quality/evidence/browser-linux
+            frontend/test-results
+          if-no-files-found: warn
       - name: Attest release asset provenance
         uses: actions/attest@v4
         with:
