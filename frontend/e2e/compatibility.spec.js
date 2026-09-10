@@ -86,7 +86,7 @@ test("Ubuntu browser can operate the released web console", async ({
   ]);
 
   await page.getByRole("tab", { name: "任务" }).click();
-  const runPanelToggle = page.getByRole("button", { name: "配置" });
+  const runPanelToggle = page.getByRole("button", { name: "配置", exact: true });
   await expect(runPanelToggle).toHaveAttribute("aria-expanded", "true");
   await expect(
     page.locator('[data-file="config/command/hello-world.yaml"]'),
