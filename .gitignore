@@ -31,5 +31,6 @@ debug.bat
 .localflow/
 .qa/
 quality/evidence/browser/test-results/
+/test-results/
 
 *.spec.bak
