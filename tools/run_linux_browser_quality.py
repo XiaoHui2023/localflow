@@ -129,6 +129,7 @@ def main() -> int:
             encoding="utf-8",
         )
         log_path = Path(folder) / "localflow.log"
+        state_root = Path(folder) / "state"
         clean_environment = {
             key: value
             for key, value in os.environ.items()
@@ -136,14 +137,14 @@ def main() -> int:
         }
         with log_path.open("wb") as log:
             process = subprocess.Popen(
-                [binary],
+                [binary, "--config-root", root, "--state-dir", state_root],
                 cwd=folder,
                 env=clean_environment,
                 stdout=log,
                 stderr=subprocess.STDOUT,
             )
         try:
-            endpoint = wait_for_endpoint(root, process)
+            endpoint = wait_for_endpoint(state_root, process)
             admin_key = (root / "secrets" / "web-admin-key").read_text(
                 encoding="ascii"
             ).strip()
@@ -178,7 +179,7 @@ def main() -> int:
             return 0
         finally:
             if process.poll() is None:
-                pid_file = root / "runtime" / "localflow.pid"
+                pid_file = state_root / "runtime" / "localflow.pid"
                 if not pid_file.is_file():
                     process.kill()
                     process.wait(timeout=5)

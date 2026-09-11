@@ -22,6 +22,7 @@ Read the relevant project sources before changing behavior:
 ## Invariants
 
 - Keep task processes outside the web server lifecycle.
+- Keep administrator-owned configuration, plugins, scripts, cases, and secrets in the configuration root; keep each service instance's database, logs, cache, port, PID, supervisor descriptors, and recovery history in its exclusive state root. Relative task paths remain configuration-root relative.
 - Route all lifecycle state changes through one task service.
 - Store an immutable resolved snapshot when a task is queued.
 - Create the bounded task log at queue acceptance. A start failure must still own a start time, log path, lifecycle context, concrete exception and final state.
@@ -63,7 +64,7 @@ No mock-only result can satisfy a target-platform metric.
 2. Create `/opt/localflow/venv`, install the project, and verify `/opt/localflow/venv/bin/localflow`.
 3. Create the dedicated `localflow` system user and enable linger so its user systemd manager survives logouts.
 4. Validate and install `deploy/localflow.sudoers`; install the fixed time helper, tmpfiles configuration, and main service unit with the modes in `README.md`.
-5. Run tmpfiles, initialize `/var/lib/localflow` as the service user, build or edit the startup-only `/var/lib/localflow/config.yaml`, then enable the service.
-6. Read the actual endpoint with `localflow status`; read the one-time administrator code only as the service user.
+5. Run tmpfiles, initialize `/var/lib/localflow` as the service user, build or edit the startup-only `/var/lib/localflow/config.yaml`, and start with explicit `--config-root /var/lib/localflow --state-dir /var/lib/localflow/.localflow`.
+6. Read the endpoint from the selected state root's `runtime/port`; read `secrets/web-admin-key` from the configuration root only as the service user.
 7. Run all `tests_target` under the `localflow` user manager and run `tests_target/deployed_probe.py` before claiming the deployment stable.
 8. Run `tools/run_browser_quality.py` against system Edge; preserve explicit `blocked` status if neither that route nor the target route is available, and link exact evidence instead of widening the claim.

@@ -70,13 +70,15 @@ def main() -> None:
             root = args.bundle_root.resolve()
             if binary.parent != root:
                 raise SystemExit("--binary must be directly inside --bundle-root")
+        state_root = isolated / "instance-state"
+        command = [binary, "--config-root", root, "--state-dir", state_root]
         clean_env = {
             key: value
             for key, value in os.environ.items()
             if key not in {"PYTHONPATH", "PYTHONHOME", "LOCALFLOW_WEB_DIST"}
         }
         probe = subprocess.run(
-            [binary],
+            command,
             cwd=isolated,
             env={**clean_env, "LOCALFLOW_STARTUP_PROBE": "1"},
             capture_output=True,
@@ -109,20 +111,25 @@ def main() -> None:
             encoding="utf-8",
         )
 
-        rejected = subprocess.run(
+        help_result = subprocess.run(
             [binary, "--help"],
             cwd=isolated,
             env=clean_env,
             capture_output=True,
             text=True,
         )
-        if rejected.returncode == 0 or "does not accept arguments" not in rejected.stderr:
-            raise RuntimeError("frozen executable still exposes command-line arguments")
+        if help_result.returncode != 0 or "--state-dir" not in help_result.stdout:
+            raise RuntimeError("frozen executable does not expose the state-directory contract")
+        rejected = subprocess.run(
+            [binary, "serve"], cwd=isolated, env=clean_env, capture_output=True, text=True
+        )
+        if rejected.returncode == 0:
+            raise RuntimeError("frozen executable accepted an unsupported subcommand")
 
         log_path = isolated / "server.log"
         with log_path.open("wb") as log:
             process = subprocess.Popen(
-                [binary],
+                command,
                 cwd=isolated,
                 env=clean_env,
                 stdout=log,
@@ -133,8 +140,8 @@ def main() -> None:
         try:
             endpoint = wait_for(
                 lambda: (
-                    (root / "runtime" / "port").read_text(encoding="ascii").strip()
-                    if (root / "runtime" / "port").is_file()
+                    (state_root / "runtime" / "port").read_text(encoding="ascii").strip()
+                    if (state_root / "runtime" / "port").is_file()
                     else None
                 ),
                 30,
@@ -234,7 +241,9 @@ def main() -> None:
                 raise RuntimeError("GNU Make prerequisite resolved outside the project")
             if (root / "generated").exists():
                 raise RuntimeError("GNU Make side effect escaped into the LocalFlow root")
-            pid_file = root / "runtime" / "localflow.pid"
+            if (root / "runtime").exists() or (root / "logs").exists():
+                raise RuntimeError("instance state polluted the shared configuration root")
+            pid_file = state_root / "runtime" / "localflow.pid"
             controller_pid = int(pid_file.read_text(encoding="ascii").strip())
             for protected_signal in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
                 os.killpg(process.pid, protected_signal)
@@ -277,7 +286,7 @@ def main() -> None:
                     "protected child did not start",
                 )
             )
-            service_log_root = root / "logs" / "service"
+            service_log_root = state_root / "logs" / "service"
             shutil.rmtree(service_log_root)
             shutdown_status, shutdown_body = request(
                 opener,
@@ -312,7 +321,7 @@ def main() -> None:
             print(f"frozen release smoke passed: {binary} task={task_id} cleanup_pid={child_pid}")
         finally:
             if not stopped_explicitly:
-                pid_file = root / "runtime" / "localflow.pid"
+                pid_file = state_root / "runtime" / "localflow.pid"
                 if pid_file.is_file():
                     with suppress(ProcessLookupError, ValueError):
                         os.kill(

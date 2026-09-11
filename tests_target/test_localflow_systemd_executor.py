@@ -21,7 +21,8 @@ async def test_real_systemd_executor_success_and_pty_log(tmp_path: Path) -> None
     root = tmp_path / "localflow-root"
     initialize_root(root)
     store = Store(root / "runtime" / "localflow.db")
-    service = TaskService(root, store, SystemdExecutor(root), max_concurrency=1)
+    executor = SystemdExecutor(root)
+    service = TaskService(root, store, executor, max_concurrency=1)
     task = service.submit(
         TaskCreate(
             name="systemd-success",
@@ -36,7 +37,7 @@ async def test_real_systemd_executor_success_and_pty_log(tmp_path: Path) -> None
             break
     result = store.get_task(task.id)
     assert result.state == "succeeded"
-    assert result.executor_ref == f"localflow-task-{task.id}.service"
+    assert result.executor_ref == executor._unit_name(task.id)
     assert b"systemd-pty-ok" in service.read_log(task.id)[0]
     await service.stop()
     store.close()

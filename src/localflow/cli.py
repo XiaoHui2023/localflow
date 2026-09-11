@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import argparse
 import ipaddress
 import logging
 import os
 import signal
 import socket
-import sys
 from contextlib import nullcontext, suppress
 from pathlib import Path
 
@@ -13,7 +13,8 @@ import uvicorn
 
 from .api import create_app
 from .logging_setup import configure_logging
-from .settings import initialize_root, load_settings, validate_deployment
+from .paths import InstanceLock, LocalFlowPaths, initialize_state_root, validate_state_root
+from .settings import initialize_config_root, load_settings, validate_deployment
 
 logger = logging.getLogger(__name__)
 
@@ -57,10 +58,7 @@ def _display_host(bind: str) -> str:
 
 
 def application_root() -> Path:
-    """Return the directory that owns this LocalFlow installation."""
-    if getattr(sys, "frozen", False):
-        executable = os.environ.get("STATICX_PROG_PATH", sys.executable)
-        return Path(executable).resolve().parent
+    """Return the startup directory used for relative public path options."""
     return Path.cwd().resolve()
 
 
@@ -89,16 +87,21 @@ def _disable_uvicorn_signal_capture(server: uvicorn.Server) -> None:
     server.capture_signals = nullcontext
 
 
-def _serve(root: Path) -> None:
-    initialize_root(root)
-    settings = load_settings(root)
+def _serve(paths: LocalFlowPaths) -> None:
+    config_root, state_root = paths.config_root, paths.state_root
+    initialize_state_root(state_root)
+    initialize_config_root(config_root)
+    settings = load_settings(config_root)
     try:
         validate_deployment(settings)
     except ValueError as exc:
         raise SystemExit(str(exc)) from None
-    configure_logging(root, settings.logging)
+    configure_logging(state_root, settings.logging)
     logger.info(
-        "LocalFlow starting root=%s backend=%s", root, settings.execution.backend
+        "LocalFlow starting config_root=%s state_root=%s backend=%s",
+        config_root,
+        state_root,
+        settings.execution.backend,
     )
     if settings.execution.backend in {"auto", "systemd"} and os.name != "nt":
         user_runtime = f"/run/user/{os.getuid()}"
@@ -110,7 +113,12 @@ def _serve(root: Path) -> None:
         if server is not None:
             server.should_exit = True
 
-    app = create_app(root, settings=settings, request_shutdown=request_shutdown)
+    app = create_app(
+        config_root,
+        state_root=state_root,
+        settings=settings,
+        request_shutdown=request_shutdown,
+    )
     config = uvicorn.Config(
         app,
         host=settings.server.bind,
@@ -147,7 +155,7 @@ def _serve(root: Path) -> None:
         servers = getattr(server, "servers", [])
         if servers and servers[0].sockets:
             port = servers[0].sockets[0].getsockname()[1]
-            port_file = root / "runtime" / "port"
+            port_file = state_root / "runtime" / "port"
             scheme = "https" if settings.server.tls_certfile else "http"
             port_file.write_text(
                 _endpoint(scheme, _display_host(settings.server.bind), port) + "\n",
@@ -156,7 +164,7 @@ def _serve(root: Path) -> None:
             if os.name != "nt":
                 os.chmod(port_file, 0o600)
             print(port_file.read_text(encoding="ascii").strip(), flush=True)
-            pid_file = root / "runtime" / "localflow.pid"
+            pid_file = state_root / "runtime" / "localflow.pid"
             pid_file.write_text(f"{os.getpid()}\n", encoding="ascii")
             os.chmod(pid_file, 0o600)
             if os.environ.get(_STARTUP_PROBE) == "1":
@@ -169,20 +177,43 @@ def _serve(root: Path) -> None:
         pass
     finally:
         logger.info("LocalFlow stopped")
-        port_file = root / "runtime" / "port"
+        port_file = state_root / "runtime" / "port"
         if port_file.is_file():
             port_file.unlink()
-        pid_file = root / "runtime" / "localflow.pid"
+        pid_file = state_root / "runtime" / "localflow.pid"
         if pid_file.is_file() and pid_file.read_text(encoding="ascii").strip() == str(os.getpid()):
             pid_file.unlink()
 
 
 def main() -> None:
-    if sys.argv[1:]:
-        raise SystemExit("localflow does not accept arguments; run it directly")
     if _run_internal_mode():
         return
-    _serve(application_root())
+    parser = argparse.ArgumentParser(
+        prog="localflow",
+        description="Run one LocalFlow service instance.",
+    )
+    parser.add_argument(
+        "--state-dir",
+        type=Path,
+        help="instance database, logs and cache directory (default: ./.localflow)",
+    )
+    parser.add_argument(
+        "--config-root",
+        type=Path,
+        help="shared config, plugins and secrets root (default: current directory)",
+    )
+    args = parser.parse_args()
+    paths = LocalFlowPaths.resolve(
+        startup_directory=application_root(),
+        config_root=args.config_root,
+        state_root=args.state_dir,
+    )
+    try:
+        validate_state_root(paths.state_root)
+        with InstanceLock(paths.state_root):
+            _serve(paths)
+    except (RuntimeError, OSError) as exc:
+        raise SystemExit(str(exc)) from None
 
 
 if __name__ == "__main__":

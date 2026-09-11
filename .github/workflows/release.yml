@@ -112,8 +112,9 @@ jobs:
           test "$(stat -c '%a' "$bundle")" = 750
           test "$(stat -c '%a' "$bundle/config")" = 750
           test "$(stat -c '%a' "$bundle/secrets")" = 700
-          test "$(stat -c '%a' "$bundle/runtime")" = 750
-          test "$(stat -c '%a' "$bundle/runtime/instances")" = 750
+          test ! -e "$bundle/runtime"
+          test ! -e "$bundle/logs"
+          test ! -e "$bundle/exports"
           test -x "$bundle/scripts/simulate.py"
           test ! -e "$bundle/plugins/marker.py"
           test ! -e "$bundle/plugins/interactive.py"

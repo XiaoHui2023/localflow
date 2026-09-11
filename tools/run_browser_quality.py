@@ -232,15 +232,24 @@ class GenericPicker:
         )
         environment = os.environ.copy()
         environment["LOCALFLOW_WEB_DIST"] = str(frontend / "dist")
+        state_root = root / ".localflow"
         process = subprocess.Popen(
-            [sys.executable, "-m", "localflow.cli"],
+            [
+                sys.executable,
+                "-m",
+                "localflow.cli",
+                "--config-root",
+                root,
+                "--state-dir",
+                state_root,
+            ],
             cwd=root,
             env=environment,
             text=True,
         )
         try:
-            url = wait_for_server(root, process)
-            server_resources = measure_idle_server(process, root)
+            url = wait_for_server(state_root, process)
+            server_resources = measure_idle_server(process, state_root)
             admin_key = (root / "secrets" / "web-admin-key").read_text(
                 encoding="ascii"
             ).strip()
@@ -304,7 +313,7 @@ class GenericPicker:
                 process.kill()
                 process.wait(timeout=5)
             if os.name == "nt":
-                database_path = root / "runtime" / "localflow.db"
+                database_path = state_root / "runtime" / "localflow.db"
                 for _ in range(20):
                     try:
                         database_path.unlink(missing_ok=True)

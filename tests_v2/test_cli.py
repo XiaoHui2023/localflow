@@ -1,3 +1,4 @@
+import sys
 from contextlib import nullcontext
 from pathlib import Path
 from types import ModuleType
@@ -29,7 +30,6 @@ def test_controller_disables_current_and_legacy_uvicorn_signal_capture() -> None
 
 
 def test_source_entry_uses_current_directory(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.delattr(cli.sys, "frozen", raising=False)
     monkeypatch.chdir(tmp_path)
     assert cli.application_root() == tmp_path.resolve()
 
@@ -42,55 +42,60 @@ def test_new_root_defaults_to_lan_listener(tmp_path: Path) -> None:
     assert load_settings(tmp_path).execution.backend == "auto"
 
 
-def test_frozen_entry_uses_executable_directory(monkeypatch, tmp_path: Path) -> None:
-    binary = tmp_path / "release" / "localflow"
-    binary.parent.mkdir()
-    monkeypatch.setattr(cli.sys, "frozen", True, raising=False)
-    monkeypatch.setattr(cli.sys, "executable", str(binary))
+def test_frozen_entry_still_uses_current_directory(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
-    assert cli.application_root() == binary.parent.resolve()
-
-
-def test_staticx_entry_uses_outer_executable_directory(monkeypatch, tmp_path: Path) -> None:
-    outer = tmp_path / "release" / "localflow"
-    inner = tmp_path / "staticx-temporary" / "localflow"
-    monkeypatch.setattr(cli.sys, "frozen", True, raising=False)
-    monkeypatch.setattr(cli.sys, "executable", str(inner))
-    monkeypatch.setenv("STATICX_PROG_PATH", str(outer))
-    monkeypatch.chdir(tmp_path)
-    assert cli.application_root() == outer.parent.resolve()
+    assert cli.application_root() == tmp_path.resolve()
 
 
 def test_public_entry_starts_directly_without_arguments(monkeypatch, tmp_path: Path) -> None:
     called = []
-    monkeypatch.setattr(cli.sys, "argv", ["localflow"])
+    monkeypatch.setattr(sys, "argv", ["localflow"])
     monkeypatch.setattr(cli, "application_root", lambda: tmp_path)
     monkeypatch.setattr(cli, "_run_internal_mode", lambda: False)
     monkeypatch.setattr(cli, "_serve", called.append)
     cli.main()
-    assert called == [tmp_path]
+    assert len(called) == 1
+    assert called[0].config_root == tmp_path
+    assert called[0].state_root == tmp_path / ".localflow"
 
 
 @pytest.mark.parametrize(
     "arguments",
-    [["--help"], ["init"], ["serve", "--root", "/tmp/localflow"]],
+    [["init"], ["serve", "--root", "/tmp/localflow"]],
 )
 def test_public_entry_rejects_every_argument_before_starting(
     monkeypatch, arguments: list[str]
 ) -> None:
-    monkeypatch.setattr(cli.sys, "argv", ["localflow", *arguments])
+    monkeypatch.setattr(sys, "argv", ["localflow", *arguments])
     monkeypatch.setattr(
         cli, "_serve", lambda _root: pytest.fail("server must not start with arguments")
     )
-    with pytest.raises(SystemExit, match="does not accept arguments"):
+    with pytest.raises(SystemExit):
         cli.main()
+
+
+def test_public_entry_resolves_explicit_roots_from_startup_directory(
+    monkeypatch, tmp_path: Path
+) -> None:
+    called = []
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["localflow", "--config-root", "shared", "--state-dir", "instances/alpha"],
+    )
+    monkeypatch.setattr(cli, "application_root", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_run_internal_mode", lambda: False)
+    monkeypatch.setattr(cli, "_serve", called.append)
+    cli.main()
+    assert called[0].config_root == (tmp_path / "shared").resolve()
+    assert called[0].state_root == (tmp_path / "instances" / "alpha").resolve()
 
 
 def test_frozen_supervisor_environment_is_not_inherited(monkeypatch, tmp_path: Path) -> None:
     task_id = "a" * 32
     supervisor = ModuleType("localflow.supervisor")
     supervisor.supervise = lambda root, task: 17 if (root, task) == (tmp_path, task_id) else 99
-    monkeypatch.setitem(cli.sys.modules, "localflow.supervisor", supervisor)
+    monkeypatch.setitem(sys.modules, "localflow.supervisor", supervisor)
     monkeypatch.setenv("LOCALFLOW_INTERNAL_MODE", "supervisor")
     monkeypatch.setenv("LOCALFLOW_INTERNAL_ROOT", str(tmp_path))
     monkeypatch.setenv("LOCALFLOW_INTERNAL_TASK", task_id)

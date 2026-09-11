@@ -54,8 +54,10 @@ class TaskService:
         retention: RetentionSettings | None = None,
         logging_settings: LoggingSettings | None = None,
         result_evaluator=None,
+        working_root: Path | None = None,
     ) -> None:
         self.root, self.store, self.executor = root, store, executor
+        self.working_root = (working_root or root).resolve()
         self.max_concurrency = max_concurrency
         self._scheduler: asyncio.Task[None] | None = None
         self._starters: dict[str, asyncio.Task[None]] = {}
@@ -126,7 +128,7 @@ class TaskService:
         """Freeze a controller-root-relative cwd as an absolute task snapshot."""
         working_directory = Path(draft.working_directory)
         if not working_directory.is_absolute():
-            working_directory = self.root / working_directory
+            working_directory = self.working_root / working_directory
         frozen_directory = str(working_directory.resolve())
         return draft.model_copy(
             update={
@@ -522,7 +524,7 @@ class TaskService:
         try:
             evaluated = self._result_evaluator(
                 task.model_copy(update={"exit_code": code}),
-                {"root": str(self.root)},
+                {"root": str(self.working_root)},
             )
             return evaluated if evaluated else (None, task.custom)
         except Exception as exc:

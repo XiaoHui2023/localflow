@@ -1,6 +1,6 @@
 # 配置
 
-首次直接运行 `localflow` 后，运行根目录只提供两份可运行配置：
+首次直接运行 `localflow` 后，配置根只提供两份可运行配置：
 
 ```text
 localflow
@@ -65,7 +65,7 @@ working_directory: .
 command: "printf 'hello world\\n' > hello-world.txt"
 ```
 
-运行后在 LocalFlow 根目录生成 `hello-world.txt`。把 `working_directory` 和 `command` 改成自己的目录与命令即可。所有可运行配置都必须显式给出工作目录；绝对路径原样使用，相对路径统一以 LocalFlow 运行根为基准，并在预演和入队前冻结成绝对路径。字符串 `command` 自动选择服务进程的 `$SHELL`，缺失时读取该运行用户的 passwd 登录 Shell，并以 `<shell> -ic` 加载 `.bashrc`、`.cshrc`、`.zshrc` 或该 Shell 自己的交互启动配置，因此任意插件都能使用同一账号日常终端中的函数和别名。配置可用 `shell: /bin/bash` 等显式覆盖；交互启动文件执行完后，核心再次切回冻结工作目录。参数列表例如 `command: [python3, -u, script.py]` 始终完全绕过 Shell，不能同时设置 `shell`。任务快照最终统一保存为参数数组。
+运行后在 LocalFlow 配置根生成 `hello-world.txt`。把 `working_directory` 和 `command` 改成自己的目录与命令即可。所有可运行配置都必须显式给出工作目录；绝对路径原样使用，相对路径统一以 LocalFlow 配置根为基准，并在预演和入队前冻结成绝对路径。字符串 `command` 自动选择服务进程的 `$SHELL`，缺失时读取该运行用户的 passwd 登录 Shell，并以 `<shell> -ic` 加载 `.bashrc`、`.cshrc`、`.zshrc` 或该 Shell 自己的交互启动配置，因此任意插件都能使用同一账号日常终端中的函数和别名。配置可用 `shell: /bin/bash` 等显式覆盖；交互启动文件执行完后，核心再次切回冻结工作目录。参数列表例如 `command: [python3, -u, script.py]` 始终完全绕过 Shell，不能同时设置 `shell`。任务快照最终统一保存为参数数组。
 
 ## 验证仿真
 

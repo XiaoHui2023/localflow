@@ -94,7 +94,7 @@ def test_frozen_shutdown_gate_faults_the_service_log_destination() -> None:
     smoke = (
         Path(__file__).parents[1] / "tools" / "run_frozen_smoke.py"
     ).read_text(encoding="utf-8")
-    assert 'service_log_root = root / "logs" / "service"' in smoke
+    assert 'service_log_root = state_root / "logs" / "service"' in smoke
     assert "shutil.rmtree(service_log_root)" in smoke
     assert '"LocalFlow stopped" not in service_log.read_text' in smoke
     assert '"Logging error" in controller_output' in smoke
@@ -139,23 +139,23 @@ def test_release_runs_final_binary_in_ubuntu_chrome_and_firefox() -> None:
     assert ".monaco-editor" in legacy
 
 
-def test_release_bundle_preserves_secure_runtime_directory_modes() -> None:
+def test_release_bundle_separates_configuration_from_runtime_state() -> None:
     root = Path(__file__).parents[1]
     packer = (root / "tools" / "finalize_release.sh").read_text(encoding="utf-8")
     assert 'install -d -m 0700 "dist/$BUNDLE/secrets"' in packer
     assert 'install -d -m 0750 "dist/$BUNDLE"' in packer
     assert 'install -d -m 0750 "dist/$BUNDLE/deploy"' in packer
     assert '"dist/$BUNDLE/config"' in packer
-    assert '"dist/$BUNDLE/runtime"' in packer
-    assert '"dist/$BUNDLE/runtime/instances"' in packer
+    assert '"dist/$BUNDLE/runtime"' not in packer
+    assert '"dist/$BUNDLE/logs"' not in packer
     assert 'mkdir -p "dist/$BUNDLE/deploy"' not in packer
 
     workflow = (root / ".github" / "workflows" / "release.yml").read_text(
         encoding="utf-8"
     )
     assert 'stat -c \'%a\' "$bundle/config"' in workflow
-    assert 'stat -c \'%a\' "$bundle/runtime"' in workflow
-    assert 'stat -c \'%a\' "$bundle/runtime/instances"' in workflow
+    assert 'test ! -e "$bundle/runtime"' in workflow
+    assert 'test ! -e "$bundle/logs"' in workflow
 
 
 def test_operator_documentation_has_one_current_contract() -> None:

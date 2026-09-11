@@ -141,7 +141,7 @@
 | `POST` | `/auth/challenges` | 获取 30 秒、一次性、绑定密钥代次的随机数 |
 | `POST` | `/auth/local-sessions` | 用网页管理员秘钥建立持久浏览器会话并取得 CSRF 令牌 |
 | `GET` | `/auth/session` | 用有效 cookie 恢复 CSRF 令牌并续期会话 |
-| `GET` | `/system/status` | 身份、执行后端和时钟状态 |
+| `GET` | `/system/status` | 实例 ID、身份、执行后端和时钟状态 |
 | `POST` | `/system/time-adjustments` | 管理员请求手工校时 |
 | `POST` | `/system/shutdown` | 管理员请求干净退出；响应 202 后停止接收新工作并清理任务 |
 | `GET` | `/openapi` | 管理员读取网页 API 文档使用的 OpenAPI schema |
@@ -152,7 +152,7 @@
 
 ### 程序调用步骤
 
-1. 精确序列化请求正文，并在每次请求时重新读取运行根目录的 `secrets/api-key`。不要缓存密钥，也不要把它写入网页、URL、日志或环境变量。
+1. 精确序列化请求正文，并在每次请求时重新读取配置根的 `secrets/api-key`。不要缓存密钥，也不要把它写入网页、URL、日志或环境变量。
 2. `POST /api/v1/auth/challenges`，取得 30 秒有效的 `nonce` 和 `generation`。
 3. 对 `METHOD\nPATH_WITH_QUERY\nBODY_SHA256\nGENERATION\nCREATED\nNONCE` 做 HMAC-SHA256，把十六进制摘要放入签名头。
 4. 提交业务请求。`403` 表示签名、方法、含查询路径、正文、时钟、代次或 nonce 无效；带有任一签名头的失败读取请求也会拒绝，不会静默降级为匿名摘要。丢弃本次材料，从重新读取密钥开始完整重试。`422` 是业务输入错误，不应盲目重试。
@@ -166,7 +166,7 @@ import json
 import time
 import urllib.request
 
-base = "http://127.0.0.1:29049/api/v1"  # 以 runtime/port 的实际端口为准
+base = "http://127.0.0.1:29049/api/v1"  # 以状态目录 runtime/port 的实际端口为准
 path = "/runs"
 body = json.dumps(
     {

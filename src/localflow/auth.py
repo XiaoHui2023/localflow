@@ -26,17 +26,30 @@ class AuthManager:
         self.generation = 1
         self.previous_keys: dict[int, tuple[bytes, float]] = {}
         if not self.admin_path.exists() and legacy_admin_path.exists():
-            os.replace(legacy_admin_path, self.admin_path)
+            with suppress(FileNotFoundError):
+                os.replace(legacy_admin_path, self.admin_path)
         for path in (self.admin_path, self.api_path):
             if not path.exists():
-                self._atomic_secret(path, secrets.token_urlsafe(48))
+                self._create_secret(path, secrets.token_urlsafe(48))
+
+    @staticmethod
+    def _create_secret(path: Path, value: str) -> None:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        try:
+            descriptor = os.open(path, flags, 0o600)
+        except FileExistsError:
+            return
+        with os.fdopen(descriptor, "w", encoding="ascii") as stream:
+            stream.write(value)
 
     def _atomic_secret(self, path: Path, value: str) -> None:
         existing_mode: int | None = None
         if os.name != "nt":
             with suppress(FileNotFoundError):
                 existing_mode = stat.S_IMODE(path.lstat().st_mode)
-        temporary = path.with_suffix(".new")
+        temporary = path.with_name(
+            f".{path.name}.{os.getpid()}.{secrets.token_hex(8)}.new"
+        )
         temporary.write_text(value, encoding="ascii")
         if os.name != "nt":
             os.chmod(temporary, existing_mode if existing_mode is not None else 0o600)

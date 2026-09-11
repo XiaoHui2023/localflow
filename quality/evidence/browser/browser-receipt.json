@@ -1,8 +1,8 @@
 {
-  "completed_at": "2026-09-11T07:58:29.844Z",
+  "completed_at": "2026-09-11T17:16:20.420Z",
   "browser": "Microsoft Edge",
   "browser_version": "152.0.4191.66",
-  "base_url": "http://192.168.1.118:21278",
+  "base_url": "http://192.168.1.118:54473",
   "result": "passed",
   "source_files": {
     "frontend/index.html": "a6a84d305fed5896d32ad37d64a7b0260ddf6176c01aa9461cb13217f99e1e64",
@@ -28,21 +28,21 @@
     "frontend/package-lock.json": "a7ca62052200c091cce2a2b23f3955b6feeb18148349d8cbd50f7957b2cbdd21",
     "quality/resource-budgets.json": "8947a942f8a02fc025942f4eb4d4bea9fca1a6abe80854247b93e9b58293e169",
     "tools/check_quality.py": "edf312917d2655fc027254864b4352d20afa623f3631de98af7e94bee2e57185",
-    "tools/run_browser_quality.py": "cf2cfa1c1881f5b25199c11902421b41b1185b6f7beb84bd50cfffb86144e60c",
-    "tools/run_linux_browser_quality.py": "1da5c8697eb3018a89f1296e2f168b936827d5fc260eb56385b8fff18699b56b"
+    "tools/run_browser_quality.py": "2db0c3b108edd029718ac7601de7668ccddfee8fb37832bcb264bd692a5d9af3",
+    "tools/run_linux_browser_quality.py": "1573270b0a5fb7a8ac4e1569463eb381dfb64628a2fca7e18bd1b8c0341e3001"
   },
   "screenshots": {
-    "admin-common-configurations-light.png": "8241f5ecd08b45aaccacb52dfebb7f73e4bb94c989b039152f9ae274ce63aa4b",
-    "admin-config-explorer-dark.png": "3c7bb81f99ca1bfa923c743d09f99e014ab2f5962be0afc74a11e49bc7ba003b",
+    "admin-common-configurations-light.png": "13015d329b043f373074be9cb363a9ac92f2dbc021bfa3ad95749eae9ad0cbaa",
+    "admin-config-explorer-dark.png": "3bc0633f06dd5592ac0f943c2c32d39cf315e4c47e1855557cd8a830b3b553ad",
     "admin-empty-light.png": "5ffe7583b9cfcd4c9f999b3ca59cde670114e763263428182fc2546b3790da06",
-    "admin-mobile-390.png": "1208ae8797219e0b6246bc421c1af7c0a526f95df046095e113b4cc116450b27",
-    "admin-run-verification-dark.png": "c02255ec9c138041fb13fce9e97e94cf8831beb0b01004047d3bf35cff5f808a",
-    "admin-run-verification-empty-dark.png": "10ed011410df8484da5985c66d1d77216c29a500bf2c3007942a4217efb579bc",
-    "admin-run-verification-scope-dark.png": "2f577645b56e5be07a45950f78d9697047a4394868bf69db51f0e2a34922aea8",
-    "admin-settings-compact-light.png": "1bec405caef9f268f9539f4df3c2bf925056984c57cabca335f5b239e6e073ff",
-    "admin-shutdown-confirmation.png": "1f55d425b552d14ad59cbd27f25d6988cb71fc0366ae82155efd70ab56717ee5",
-    "admin-task-inline-dark.png": "2e00587ddb5b6aeb90ce220dc8e71326e63cdaf81dd300ab0bfaa9e314fbd3ad",
-    "admin-terminal-dark.png": "69d9f00f38ee63ca5d3e532ae39745df1c368de3c3ff6cefcb53c5043f828264",
+    "admin-mobile-390.png": "5a6a398c85415fa0b684fb6e87ca1517e8249464b23fe7fa15b98b2e932186cb",
+    "admin-run-verification-dark.png": "24d3c2bbc0332408ac8af8db85284e50bbae017705777f9f761a11a47ce7747e",
+    "admin-run-verification-empty-dark.png": "f97b8e9b1f98662108da42935bf14e924749f7201c4e020b5e6e0e9657ffdea4",
+    "admin-run-verification-scope-dark.png": "97a5accfafedc2c75d54aa2d637fee24b45ef1ca19c28550ca0ebd8d57cb9a43",
+    "admin-settings-compact-light.png": "e4df30d59bf6c0cc54870e288df161a6c4997b531ee10bd819c3624f4d668305",
+    "admin-shutdown-confirmation.png": "7e07497160537ee782264a00514f59208d5326a1e62967beccc939c0aedd84a5",
+    "admin-task-inline-dark.png": "c7c6675451e440d840fca5e5fa5ecc5119fbad0972dfb8a64efc21483239191c",
+    "admin-terminal-dark.png": "5442a6fe986f36c7aecf3c74b2b7286d4e1d64a32897dff2afa354366ef130eb",
     "anonymous-settings-login-light.png": "2590243d938aaaca9780df1edf2e7be8bb394ce38957fee016193d8bb9eb2e56",
     "anonymous-settings-login-mobile.png": "5579b9bbc1acadbdd172e0ea531ded7d8d1832c9cb690fce6791b0efb1a49e6b"
   },
@@ -74,11 +74,11 @@
   "resource_metrics": {
     "task_process_count": 0,
     "service_process_count": 2,
-    "idle_window_seconds": 6.016,
-    "server_rss_mib": 59.605,
-    "server_cpu_one_core_percent": 1.535,
-    "renderer_js_heap_mib": 7.95,
-    "renderer_idle_cpu_one_core_percent": 0.78,
+    "idle_window_seconds": 6.019,
+    "server_rss_mib": 59.602,
+    "server_cpu_one_core_percent": 1.532,
+    "renderer_js_heap_mib": 7.921,
+    "renderer_idle_cpu_one_core_percent": 0.651,
     "dom_nodes": 1875,
     "dom_documents": 4,
     "dom_event_listeners": 324,
@@ -179,6 +179,6 @@
     "task-route-next-paint"
   ],
   "interaction_metrics": {
-    "terminal_to_tasks_next_paint_ms": 28
+    "terminal_to_tasks_next_paint_ms": 28.3
   }
 }

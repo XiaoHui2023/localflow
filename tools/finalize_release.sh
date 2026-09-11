@@ -36,10 +36,8 @@ BUNDLE="localflow-${VERSION}-linux-x86_64"
 rm -rf "dist/$BUNDLE" "dist/$BUNDLE.tar.gz" dist/SHA256SUMS
 install -d -m 0750 "dist/$BUNDLE"
 install -d -m 0750 "dist/$BUNDLE/deploy" "dist/$BUNDLE/docs" "dist/$BUNDLE/skills" \
-  "dist/$BUNDLE/config" "dist/$BUNDLE/scripts" "dist/$BUNDLE/plugins" \
-  "dist/$BUNDLE/runtime" "dist/$BUNDLE/logs" "dist/$BUNDLE/exports"
-install -d -m 0750 "dist/$BUNDLE/config/command" "dist/$BUNDLE/config/verification" \
-  "dist/$BUNDLE/runtime/instances"
+  "dist/$BUNDLE/config" "dist/$BUNDLE/scripts" "dist/$BUNDLE/plugins"
+install -d -m 0750 "dist/$BUNDLE/config/command" "dist/$BUNDLE/config/verification"
 install -d -m 0700 "dist/$BUNDLE/secrets"
 install -m 0755 dist/localflow "dist/$BUNDLE/localflow"
 install -m 0644 README.md "dist/$BUNDLE/README.md"

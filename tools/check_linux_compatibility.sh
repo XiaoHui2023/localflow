@@ -29,7 +29,7 @@ startup_probe() {
     return "$status"
   fi
   test -f "$probe_root/config.yaml"
-  test -f "$probe_root/runtime/localflow.db"
+  test -f "$probe_root/.localflow/runtime/localflow.db"
   rm -rf "$probe_root"
 }
 

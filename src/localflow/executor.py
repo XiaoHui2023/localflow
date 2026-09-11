@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import shutil
@@ -195,14 +196,28 @@ class SystemdExecutor:
         self.task_log_max_bytes = task_log_max_bytes
         self.keep_free_bytes = keep_free_bytes
 
+    def _unit_name(self, task_id: str) -> str:
+        namespace = hashlib.sha256(str(self.root.resolve()).encode()).hexdigest()[:12]
+        return f"localflow-{namespace}-task-{task_id}.service"
+
+    def _recorded_unit(self, task_id: str) -> str:
+        descriptor = self.root / "runtime" / "instances" / f"{task_id}.json"
+        try:
+            payload = json.loads(descriptor.read_text(encoding="utf-8"))
+            unit = payload.get("_localflow", {}).get("unit")
+        except (OSError, ValueError, TypeError):
+            unit = None
+        return unit if isinstance(unit, str) and unit else f"localflow-task-{task_id}.service"
+
     async def start(self, task: TaskRecord, log_path: Path) -> StartResult:
-        unit = f"localflow-task-{task.id}.service"
+        unit = self._unit_name(task.id)
         descriptor = self.root / "runtime" / "instances" / f"{task.id}.json"
         descriptor.parent.mkdir(parents=True, exist_ok=True)
         payload = task.model_dump(mode="json")
         payload["_localflow"] = {
             "task_log_max_bytes": self.task_log_max_bytes,
             "keep_free_bytes": self.keep_free_bytes,
+            "unit": unit,
         }
         descriptor.write_text(json.dumps(payload), encoding="utf-8")
         os.chmod(descriptor, 0o600)
@@ -267,7 +282,7 @@ class SystemdExecutor:
     async def wait(self, task_id: str) -> int:
         result = self.root / "runtime" / "instances" / f"{task_id}.exit"
         while True:
-            inactive = not await self._unit_owns_process_tree(f"localflow-task-{task_id}.service")
+            inactive = not await self._unit_owns_process_tree(self._recorded_unit(task_id))
             if result.exists() and inactive:
                 return int(result.read_text(encoding="ascii").strip())
             if inactive:
@@ -275,7 +290,7 @@ class SystemdExecutor:
             await asyncio.sleep(0.1)
 
     async def interrupt(self, task_id: str, stage: str) -> bool:
-        unit = f"localflow-task-{task_id}.service"
+        unit = self._recorded_unit(task_id)
         signal_name = {"sigint": "SIGINT", "sigterm": "SIGTERM", "sigkill": "SIGKILL"}[stage]
         target = "all" if stage == "sigkill" else "main"
         process = await asyncio.create_subprocess_exec(

@@ -19,7 +19,15 @@ cd demo-root
 localflow
 ```
 
-`localflow` 没有参数和子命令。它把可执行文件所在目录作为完整运行目录；源码安装时使用启动命令时的当前目录。首次运行只补齐两个生产插件和各一份配置：`command/hello-world.yaml` 用四个字段执行任意命令，`verification/demo.yaml` 选择 Case、次数与 seed。测试插件只存在于质检流程，不进入发布包。任务页内的运行工作区自动显示任务配置，不需要导入或扫描。
+`localflow` 没有子命令。默认从当前目录读取 `config.yaml`、`config/`、`plugins/`、`scripts/`、`cases/` 和 `secrets/`，并把数据库、日志、端口、缓存等实例状态写入当前目录的 `.localflow/`。首次运行只补齐两个生产插件和各一份配置：`command/hello-world.yaml` 用四个字段执行任意命令，`verification/demo.yaml` 选择 Case、次数与 seed。测试插件只存在于质检流程，不进入发布包。
+
+多个服务器可复用同一配置根，同时选择互不相同的状态目录：
+
+```bash
+localflow --config-root /srv/shared/localflow-config --state-dir /var/lib/localflow/site-a
+```
+
+保持 `--state-dir` 不变会恢复该实例历史，改用空目录就是新实例。旧版单根目录需要继续读取原有 `runtime/`、`logs/` 时，可在该目录运行 `localflow --state-dir .`。状态目录必须是实例本地独占目录，不能让多台主机共享同一个 SQLite 数据库。
 
 试用环境可在首次启动后，把根目录 `config.yaml` 中的执行器改为：
 
@@ -36,11 +44,11 @@ execution:
 localflow
 ```
 
-默认监听所有 IPv4 网卡，端口由系统随机选择；启动后只打印首选局域网 IP 对应的可复制地址，并在运行期间写入 `runtime/port`。来源地址和随机端口都不是身份验证；未登录网页默认只能读取去敏摘要。`secrets/web-admin-key` 只在首次缺失时生成；首次管理操作在设置页输入一次后，同一浏览器在刷新、端口变化或服务重启后保持登录，修改该文件才会注销旧会话。多台同一信任域的服务器可按安全文档配置 HTTPS 父域共享会话。程序客户端使用独立的 `secrets/api-key` 逐请求 HMAC 签名。
+默认监听所有 IPv4 网卡，端口由系统随机选择；启动后只打印首选局域网 IP 对应的可复制地址，并在运行期间写入状态目录的 `runtime/port`。来源地址和随机端口都不是身份验证；未登录网页默认只能读取去敏摘要。`secrets/web-admin-key` 只在配置根首次缺失时生成；首次管理操作在设置页输入一次后，同一浏览器在刷新、端口变化或服务重启后保持登录，修改该文件才会注销旧会话。多台同一信任域的服务器可按安全文档配置 HTTPS 父域共享会话。程序客户端使用独立的 `secrets/api-key` 逐请求 HMAC 签名。
 
 ## Ubuntu 安装要点
 
-GitHub Release 提供 `localflow` 静态单文件、完整目录压缩包和 `SHA256SUMS`。压缩包根目录包含 `config`、`scripts`、`plugins` 及运行目录骨架；解压后只需在该目录执行 `./localflow`，首次运行生成本机密钥和缺失设置，不覆盖示例或用户文件。管理员从网页“设置”页确认退出；普通 Ctrl+C、SIGTERM 与终端断开不会误关控制器。`main` 每次 push 只有在解压目录示例、静态包真实任务与网页退出冒烟，以及最终 StaticX 二进制通过当前 Chrome/Firefox 全旅程和固定 Chrome 84/Firefox 78 启动、登录、Monaco 旅程后才更新滚动 Release；目标 Ubuntu 无需为 LocalFlow 本身安装 Python，示例脚本需要系统 `python3`。
+GitHub Release 提供 `localflow` 静态单文件、完整目录压缩包和 `SHA256SUMS`。压缩包根目录包含 `config`、`scripts`、`plugins` 和配置骨架；解压后在该目录执行 `./localflow`，首次运行生成共享密钥、缺失设置和 `.localflow/` 实例状态，不覆盖示例或用户文件。管理员从网页“设置”页确认退出；普通 Ctrl+C、SIGTERM 与终端断开不会误关控制器。`main` 每次 push 只有在解压目录示例、静态包真实任务与网页退出冒烟，以及最终 StaticX 二进制通过当前 Chrome/Firefox 全旅程和固定 Chrome 84/Firefox 78 启动、登录、Monaco 旅程后才更新滚动 Release；目标 Ubuntu 无需为 LocalFlow 本身安装 Python，示例脚本需要系统 `python3`。
 
 ```bash
 sudo useradd --system --create-home --home-dir /var/lib/localflow localflow

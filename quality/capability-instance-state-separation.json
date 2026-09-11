@@ -1,0 +1,41 @@
+{
+  "capability_id": "localflow-instance-state-separation",
+  "owner": "LocalFlow path ownership and bootstrap facade",
+  "problem": "One root currently mixes administrator-owned configuration with service-instance runtime state, preventing explicit sharing and independent recovery.",
+  "scope": "CLI bootstrap, application composition, configuration/auth repositories, task storage/logs, executor recovery, packaging, deployment and migration",
+  "baseline": "create_app(root) and initialize_root(root) use the same directory for config, plugins, secrets, runtime, logs and exports",
+  "benchmarks": [
+    "XDG Base Directory separates configuration, persistent state, cache and runtime files by ownership and lifetime",
+    "systemd.exec separates ConfigurationDirectory, StateDirectory, CacheDirectory, LogsDirectory and RuntimeDirectory",
+    "Prometheus and Grafana expose explicit storage/data paths independently from configuration inputs"
+  ],
+  "advantages": ["Existing single-root installations are self-contained", "Task recovery already uses durable SQLite and instance descriptors"],
+  "disadvantages": ["Runtime writes pollute source/configuration trees", "A shared key/config tree cannot be paired with multiple independent histories"],
+  "limitations": ["One operating-system port cannot be bound twice on the same host/address", "Shared writable configuration has last-writer-wins external edits unless operators coordinate"],
+  "defects": ["No public instance-state path", "Frozen executable directory owns dynamic files", "Root parameter semantics are overloaded"],
+  "bottlenecks": ["Root is passed through composition rather than a typed path object", "Systemd supervisor and log paths assume one root"],
+  "metrics": [
+    {"name": "instance cross-write count", "unit": "paths", "direction": "equal", "threshold": "0", "measurement": "run two services against one config root and inspect both state trees", "evidence": "tests_v2 instance isolation integration"},
+    {"name": "source/config runtime writes", "unit": "paths", "direction": "equal", "threshold": "0", "measurement": "snapshot non-state tree before and after a real task", "evidence": "frozen and integration smoke"},
+    {"name": "known success acceptance", "unit": "percent", "direction": "equal", "threshold": "100", "measurement": "positive path matrix", "evidence": "pytest and target gates"},
+    {"name": "known failure rejection", "unit": "percent", "direction": "equal", "threshold": "100", "measurement": "mutant and incompatible-state fixtures", "evidence": "quality trace"}
+  ],
+  "hypotheses": ["A typed Roots value can split ownership without duplicating repository logic", "Legacy one-root behavior can be mapped explicitly instead of guessed", "State compatibility recovery can quarantine only dynamic data"],
+  "allowed_variables": ["public CLI path flags", "composition path wiring", "state format marker and quarantine", "documentation and deployment paths", "tests and quality contracts"],
+  "stages": [
+    {"id": "contract", "input": "current path audit and research", "output": "two-root public contract", "checker": "requirements and design review", "rollback": "retain current root contract", "allowed_variables": ["docs", "goal", "capability contract"]},
+    {"id": "bootstrap", "input": "two-root contract", "output": "typed roots and CLI resolution", "checker": "focused path/CLI tests", "rollback": "revert facade slice", "allowed_variables": ["bootstrap", "settings initialization"]},
+    {"id": "composition", "input": "typed roots", "output": "repositories and services wired to the correct owner", "checker": "dual-instance integration", "rollback": "revert composition slice", "allowed_variables": ["application composition", "auth/config/task/executor wiring"]},
+    {"id": "compatibility", "input": "split composition", "output": "legacy migration and incompatible-state quarantine", "checker": "migration and corruption fixtures", "rollback": "fail closed without touching config", "allowed_variables": ["state marker", "migration", "quarantine"]},
+    {"id": "delivery", "input": "validated source", "output": "frozen release and downloaded consumer receipt", "checker": "release workflow", "rollback": "do not move rolling tag", "allowed_variables": ["packaging", "deployment", "release evidence"]}
+  ],
+  "hard_gates": ["No runtime/log/cache/port write below config root except an explicitly identical legacy mapping", "Two instances share config bytes and keys but never database/log/port/descriptor bytes", "Invalid state recovery cannot mutate config or secrets", "Existing task working-directory resolution remains config-root relative", "Release consumer runs a freshly downloaded archive"],
+  "failure_fixtures": ["current one-root path ownership", "two instances pointed at one state directory", "unknown future state format", "same-host fixed-port collision"],
+  "success_fixtures": ["no-argument .localflow default", "explicit state with default config root", "explicit shared config and two independent states", "restart recovers only the selected state"],
+  "fault_injections": ["wire AuthManager to state root", "wire Store to config root", "resolve task paths against state root", "ignore unknown state format", "reuse one port file across instances"],
+  "rollback": "Keep the prior release tag and preserve all shared configuration; quarantine only the unrecognized instance-state directory.",
+  "iteration_budget": {"max_rounds": 4, "max_time": "one working turn", "review_trigger": "any repeated ownership leak or migration failure"},
+  "stop_conditions": ["all ownership matrix rows have direct tests", "failure mutants are rejected", "parent quality chain passes", "downloaded release matches final commit"],
+  "promotion_decision": {"destination": "project reference plus user-root system design reference", "reason": "The ownership/lifetime split is reusable but LocalFlow paths remain project-specific", "independent_trigger": false, "repeatable_validation": true},
+  "writeback": "Update localflow-project routing and a user-root system-design reference with configuration/state/cache/runtime ownership and multi-instance gates."
+}

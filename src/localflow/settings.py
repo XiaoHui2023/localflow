@@ -6,6 +6,8 @@ import json
 import math
 import os
 import re
+import secrets
+import time
 from contextlib import suppress
 from importlib.resources import files
 from pathlib import Path
@@ -150,33 +152,71 @@ def _normalized_text_digest(text: str) -> str:
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
+def _write_text_if_missing(destination: Path, text: str, mode: int = 0o640) -> None:
+    if destination.exists() or destination.is_symlink():
+        return
+    temporary = destination.with_name(
+        f".{destination.name}.{os.getpid()}.{secrets.token_hex(8)}.localflow-create"
+    )
+    temporary.write_text(text, encoding="utf-8")
+    if os.name != "nt":
+        os.chmod(temporary, mode)
+    try:
+        os.link(temporary, destination)
+    except FileExistsError:
+        pass
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def _install_or_upgrade_builtin_plugin(destination: Path, source_text: str) -> None:
     if destination.is_symlink():
         return
-    if destination.exists():
+    existed = destination.exists()
+    if existed:
         existing = destination.read_text(encoding="utf-8")
         if _normalized_text_digest(existing) == _normalized_text_digest(source_text):
             return
         if _normalized_text_digest(existing) not in _KNOWN_BUNDLED_PLUGIN_DIGESTS[destination.name]:
             return
-    temporary = destination.with_name(f".{destination.name}.localflow-update")
+    temporary = destination.with_name(
+        f".{destination.name}.{os.getpid()}.{secrets.token_hex(8)}.localflow-update"
+    )
     temporary.write_text(source_text, encoding="utf-8")
     if os.name != "nt":
         os.chmod(temporary, 0o640)
-    os.replace(temporary, destination)
+    if not existed:
+        try:
+            os.link(temporary, destination)
+        except FileExistsError:
+            pass
+        finally:
+            temporary.unlink(missing_ok=True)
+        return
+    for attempt in range(10):
+        try:
+            os.replace(temporary, destination)
+            return
+        except PermissionError:
+            if destination.exists() and _normalized_text_digest(
+                destination.read_text(encoding="utf-8")
+            ) == _normalized_text_digest(source_text):
+                temporary.unlink(missing_ok=True)
+                return
+            if attempt == 9:
+                temporary.unlink(missing_ok=True)
+                raise
+            time.sleep(0.01 * (attempt + 1))
 
 
-def initialize_root(root: Path) -> None:
+def initialize_config_root(root: Path) -> None:
     for relative, mode in (
         ("config", 0o750),
         ("config/command", 0o750),
         ("config/verification", 0o750),
         ("scripts", 0o750),
         ("plugins", 0o750),
-        ("runtime/instances", 0o750),
-        ("logs", 0o750),
         ("secrets", 0o700),
-        ("exports", 0o750),
     ):
         path = root / relative
         created = not path.exists()
@@ -187,11 +227,14 @@ def initialize_root(root: Path) -> None:
     previous_config = root / "localflow.yaml"
     legacy_config = root / "config" / "server.yaml"
     if previous_config.is_file() and not config.exists():
-        previous_config.replace(config)
+        with suppress(FileNotFoundError):
+            previous_config.replace(config)
     elif legacy_config.is_file() and not config.exists():
-        legacy_config.replace(config)
+        with suppress(FileNotFoundError):
+            legacy_config.replace(config)
     if not config.exists():
-        config.write_text(
+        _write_text_if_missing(
+            config,
             "# LocalFlow reads this file only when it starts. Restart after editing.\n"
             "server:\n"
             "  # 0 asks Ubuntu for an available port; use 1-65535 for a fixed port.\n"
@@ -204,7 +247,6 @@ def initialize_root(root: Path) -> None:
             "retention:\n"
             "  # One duration covers task details and terminal output.\n"
             "  task_days: 3\n",
-            encoding="utf-8",
         )
     starter = files("localflow.starter_root")
     for relative in (
@@ -217,12 +259,14 @@ def initialize_root(root: Path) -> None:
         "cases/smoke.case",
     ):
         destination = root / relative
-        if not destination.exists():
+        if not destination.exists() and not destination.is_symlink():
             source = starter.joinpath(relative)
             destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
-            if os.name != "nt" and relative.startswith("scripts/"):
-                os.chmod(destination, 0o750)
+            _write_text_if_missing(
+                destination,
+                source.read_text(encoding="utf-8"),
+                0o750 if relative.startswith("scripts/") else 0o640,
+            )
     for name in ("verification.py", "command.py"):
         example = root / "plugins" / name
         source = files("localflow.builtin_plugins").joinpath(f"{name}.example")
@@ -230,9 +274,15 @@ def initialize_root(root: Path) -> None:
     plugin_readme = root / "plugins" / "README.md"
     if not plugin_readme.exists():
         source = files("localflow.builtin_plugins").joinpath("README.md.example")
-        plugin_readme.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
-        if os.name != "nt":
-            os.chmod(plugin_readme, 0o640)
+        _write_text_if_missing(plugin_readme, source.read_text(encoding="utf-8"))
+
+
+def initialize_root(root: Path) -> None:
+    """Initialize the legacy single-root layout used by embedded callers and tests."""
+    from .paths import initialize_state_root
+
+    initialize_config_root(root)
+    initialize_state_root(root)
 
 
 def load_settings(root: Path) -> Settings:

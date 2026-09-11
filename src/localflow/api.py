@@ -38,9 +38,10 @@ from .config_diagnostics import ConfigDiagnosis, diagnose_config, syntax_error_d
 from .config_repository import ConfigConflict, ConfigRepository
 from .executor import SubprocessExecutor, SystemdExecutor, systemd_user_manager_available
 from .models import BatchCreate, RunCreate, TaskCreate, TaskDraft, TaskRecord, command_for_log
+from .paths import initialize_state_root, state_instance_id
 from .plugins import PluginRegistry
 from .service import TaskService
-from .settings import Settings, initialize_root, load_settings
+from .settings import Settings, initialize_config_root, load_settings
 from .storage import Store
 from .time_service import TimeService
 from .variables import VariableError, VariableResolver
@@ -244,15 +245,18 @@ def _initial_event_cursor(store: Store, after: int | None, last_event_id: str | 
 def create_app(
     root: Path,
     *,
+    state_root: Path | None = None,
     settings: Settings | None = None,
     start_scheduler: bool = True,
     request_shutdown: Callable[[], None] | None = None,
 ) -> FastAPI:
     root = root.resolve()
-    initialize_root(root)
+    state_root = (state_root or root).resolve()
+    initialize_state_root(state_root)
+    initialize_config_root(root)
     settings = settings or load_settings(root)
     store = Store(
-        root / "runtime" / "localflow.db",
+        state_root / "runtime" / "localflow.db",
         database_max_bytes=settings.logging.database_mb * 1024 * 1024,
         wal_max_bytes=settings.logging.wal_mb * 1024 * 1024,
     )
@@ -268,7 +272,7 @@ def create_app(
             logger.warning("systemd unavailable; using subprocess backend reason=%s", reason)
     executor = (
         SystemdExecutor(
-            root,
+            state_root,
             task_log_max_bytes=settings.logging.task_file_mb * 1024 * 1024,
             keep_free_bytes=settings.logging.keep_free_mb * 1024 * 1024,
         )
@@ -279,7 +283,7 @@ def create_app(
         )
     )
     tasks = TaskService(
-        root,
+        state_root,
         store,
         executor,
         settings.execution.effective_max_concurrency,
@@ -287,6 +291,7 @@ def create_app(
         settings.retention,
         settings.logging,
         plugins.evaluate_result,
+        working_root=root,
     )
     watcher = DirectoryWatcher(root, store, config, plugins)
     time_service = TimeService(store, settings.time.privileged_helper)
@@ -320,7 +325,8 @@ def create_app(
         if request.url.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
         return response
-    app.state.root, app.state.store, app.state.tasks = root, store, tasks
+    app.state.root, app.state.state_root = root, state_root
+    app.state.store, app.state.tasks = store, tasks
     app.state.auth, app.state.config, app.state.plugins = auth, config, plugins
     app.state.watcher = watcher
     app.state.time_service = time_service
@@ -439,6 +445,7 @@ def create_app(
         role = await can_read(request)
         return {
             "status": "ok",
+            "instance_id": state_instance_id(state_root),
             "role": role,
             "backend": settings.execution.backend,
             "max_concurrency": settings.execution.effective_max_concurrency,
@@ -549,7 +556,7 @@ def create_app(
         items = []
         for record in records:
             item = (
-                _detail(record, root)
+                _detail(record, state_root)
                 if role in {"admin", "readonly", "signed-client"}
                 else _summary(record)
             )
@@ -572,7 +579,7 @@ def create_app(
         except KeyError:
             raise HTTPException(404, "task not found") from None
         return (
-            _detail(record, root)
+            _detail(record, state_root)
             if role in {"admin", "readonly", "signed-client"}
             else _summary(record)
         )

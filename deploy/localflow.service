@@ -8,7 +8,7 @@ User=localflow
 Group=localflow
 Environment=LOCALFLOW_WEB_DIST=/opt/localflow/frontend/dist
 WorkingDirectory=/var/lib/localflow
-ExecStart=/opt/localflow/venv/bin/localflow
+ExecStart=/opt/localflow/venv/bin/localflow --config-root /var/lib/localflow --state-dir /var/lib/localflow/.localflow
 Restart=on-failure
 RestartSec=3
 KillSignal=SIGUSR1

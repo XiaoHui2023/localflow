@@ -7,7 +7,7 @@ description: Create, diagnose, compose, move, or run LocalFlow YAML, TOML, and J
 
 Read `../../docs/configuration.md`. Inspect the single matching example under `../../config/` or `../../examples/` instead of inventing a second schema.
 
-Production packages contain only `command/hello-world.yaml` and `verification/demo.yaml`. `config.yaml` is a startup-only file beside the executable; it is not part of the dynamic configuration API or the Tasks-page run workbench. Resolve relative paths against the LocalFlow root and use the inspection endpoint before running path-sensitive configurations.
+Production packages contain only `command/hello-world.yaml` and `verification/demo.yaml`. `config.yaml` is a startup-only file in the configuration root; it is not part of the dynamic configuration API or the Tasks-page run workbench. Resolve relative paths against the LocalFlow configuration root and use the inspection endpoint before running path-sensitive configurations.
 
 ## Classification
 
@@ -22,7 +22,7 @@ Verification commands are arbitrary user commands. `${case}` and `${seed}` are t
 
 ## Progressive working-directory disclosure
 
-Treat `working_directory` as execution state, not helper text. Resolve a relative value against the LocalFlow root once, freeze the absolute result in the task, and pass that same value through the subprocess `cwd`, systemd `WorkingDirectory`, and PTY supervisor `chdir` boundaries. String commands load the selected Shell's interactive startup file, then execute an explicit quoted `cd` back to the frozen directory so an rc-file directory change cannot redirect Make or relative file effects.
+Treat `working_directory` as execution state, not helper text. Resolve a relative value against the LocalFlow configuration root once, freeze the absolute result in the task, and pass that same value through the subprocess `cwd`, systemd `WorkingDirectory`, and PTY supervisor `chdir` boundaries. String commands load the selected Shell's interactive startup file, then execute an explicit quoted `cd` back to the frozen directory so an rc-file directory change cannot redirect Make or relative file effects.
 
 Disclose path evidence progressively: the run inspection shows the resolved directory before submission; the task log records the frozen directory and final command before process output; deeper diagnosis inspects the task snapshot, systemd unit and filesystem only when the visible values disagree with effects. Prove behavior with relative `mkdir`/file side effects in an external project and assert both that the target appears there and that no same-name artifact appears in the LocalFlow root. A printed `pwd`, successful `make`, or configured field alone is not proof.
 
