@@ -58,7 +58,7 @@
 
 成功返回 `202 Accepted`，正文含 `task_id`、可直接跟随的 `task.href`、`state` 和 `created_at`；`Location` 指向任务状态资源，`Retry-After: 1` 给出初始轮询提示。配置式批量运行同样返回兼容的 `task_ids`，并额外返回有序 `tasks[{id,href}]`、`batch.href` 和指向批次资源的 `Location`。这些链接都是站内相对路径，Agent 不需要猜 URL。
 
-任务详情中的 `command` 是不可变执行快照，可能包含 LocalFlow 为交互 Shell 与工作目录生成的 argv；`display_command` 是面向操作员的原始用户命令。网页必须显示 `display_command`，Agent 在复现执行时使用 `command`，不得把二者互相覆盖。
+任务详情中的 `command` 是不可变执行快照，可能包含 LocalFlow 为交互 Shell 与工作目录生成的 argv；`display_command` 是面向操作员的原始用户命令。网页必须显示 `display_command`，Agent 在复现执行时使用 `command`，不得把二者互相覆盖。完整权限下的任务详情与列表还返回同一次文件元数据快照中的 `log_size` 与 `log_updated_at`；后者是 UTC ISO 8601 日志最后写入时间，日志尚不存在时为 `null`，可用于判断终端多久没有产生新内容。
 
 停止动作的 `timeout_seconds` 默认是固定等待。对会持续输出可信清理进度的程序，可设置 `extend_timeout_on_output: true`；每次新增输出会重置静默窗口，但必须同时给出不小于它的 `max_timeout_seconds` 硬上限。这样慢速正常退出可以继续，静默卡死或无限刷输出仍会被完整 cgroup 强杀。调用 `/interrupt` 返回 `stopping` 只代表请求已进入状态机；继续读取任务，直到执行器确认进程树消失后才会出现终态。
 

@@ -30,7 +30,7 @@ For task-page configuration disclosure, contextual edit/run controls, or termina
 
 For inspection information hierarchy, typed non-copyable tags, failure-only availability indicators, user-authored command display, template-stable operator text, iconless whole-value copy feedback, and dirty-draft identity, read `references/run-inspection-and-drafts.md`. For the cross-project necessity/cost audit behind these decisions, also read the user-root `modern-web-interface-design/references/operator-information-evaluation.md` topic.
 
-For terminal-list grouping, unread-output semantics, lifecycle color use, and the distinction between observable log growth and guessed idleness, read `references/terminal-list-state-model.md`.
+For terminal-list grouping, authoritative last-output activity, unread-output semantics, lifecycle color use, and the distinction between observable log growth and guessed task state, read `references/terminal-list-state-model.md`.
 
 For graceful-stop progress windows, hard escalation bounds, wait-channel failures, controller shutdown, cgroup ownership, or AI terminal intervention, read `references/stopping-progress-and-ownership.md`.
 

@@ -66,13 +66,17 @@ export async function assertTooltipInteraction(page, trigger, expectedText) {
 
   await page.keyboard.press("Escape");
   await expect(surface).toHaveCount(0);
-  await trigger.evaluate((node) => node.focus({ preventScroll: true }));
   surface = page.getByRole("tooltip").filter({ hasText: expectedText });
+  await expect(async () => {
+    await expect(trigger).toBeVisible();
+    await trigger.evaluate((node) => node.focus({ preventScroll: true }));
+    await expect(surface).toBeVisible();
+  }).toPass();
   await assertFloatingSurface(surface);
   const describedBy = await trigger.getAttribute("aria-describedby");
   expect(describedBy).toBeTruthy();
   expect(await surface.getAttribute("id")).toBe(describedBy);
-  expect(await trigger.boundingBox()).toEqual(before);
+  await expect.poll(() => trigger.boundingBox()).toEqual(before);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(pageWidthBefore);
   await page.keyboard.press("Escape");
   await expect(surface).toHaveCount(0);

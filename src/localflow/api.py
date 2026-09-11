@@ -11,7 +11,7 @@ import re
 import sys
 from collections.abc import Callable
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -126,9 +126,14 @@ def _detail(task: TaskRecord, root: Path) -> dict[str, Any]:
     log_path = root / "logs" / task.id / "output.log"
     value["log_path"] = str(log_path)
     try:
-        value["log_size"] = log_path.stat().st_size
+        log_stat = log_path.stat()
+        value["log_size"] = log_stat.st_size
+        value["log_updated_at"] = datetime.fromtimestamp(
+            log_stat.st_mtime, UTC
+        ).isoformat()
     except FileNotFoundError:
         value["log_size"] = 0
+        value["log_updated_at"] = None
     return value
 
 

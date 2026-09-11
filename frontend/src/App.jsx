@@ -81,6 +81,20 @@ const showTime = (value) =>
         second: "2-digit",
       }).format(new Date(value))
     : "—";
+const terminalActivity = (task, now = Date.now()) => {
+  if (!task.log_updated_at) return "—";
+  const seconds = Math.max(
+    0,
+    Math.floor((now - Date.parse(task.log_updated_at)) / 1000),
+  );
+  let age;
+  if (seconds < 10) age = "刚刚";
+  else if (seconds < 60) age = `${seconds} 秒`;
+  else if (seconds < 3600) age = `${Math.floor(seconds / 60)} 分钟`;
+  else if (seconds < 86400) age = `${Math.floor(seconds / 3600)} 小时`;
+  else age = `${Math.floor(seconds / 86400)} 天`;
+  return age;
+};
 const taskLabel = (task) =>
   task.status?.label || coreLabels[task.state] || task.state;
 const taskTone = (task) =>
@@ -823,6 +837,7 @@ function TerminalPage({ tasks, role, theme }) {
   const renderTerminal = (task) => {
     const unread = unreadIds.has(task.id);
     const tone = taskTone(task);
+    const activity = terminalActivity(task);
     return (
       <button
         className={`terminal-entry state-${task.state} tone-${tone} ${task.id === selectedId ? "active" : ""} ${unread ? "has-unread" : ""}`}
@@ -832,7 +847,17 @@ function TerminalPage({ tasks, role, theme }) {
         onClick={() => selectTerminal(task)}
       >
         <span className="terminal-entry-text">
-          <b className="terminal-entry-name">{task.name}</b>
+          <span className="terminal-entry-heading">
+            <b className="terminal-entry-name">{task.name}</b>
+            <time
+              className="terminal-entry-activity"
+              dateTime={task.log_updated_at || undefined}
+              title={task.log_updated_at ? `最后输出：${showTime(task.log_updated_at)}；已 ${activity} 无新输出` : "尚无终端输出"}
+              aria-label={task.log_updated_at ? `终端最后输出：${showTime(task.log_updated_at)}，已 ${activity} 无新输出` : "尚无终端输出"}
+            >
+              {activity}
+            </time>
+          </span>
           <span className="terminal-entry-meta">
             {task.labels?.map((label) => (
               <em className="terminal-entry-label" key={label} title={label}>

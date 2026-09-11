@@ -57,6 +57,7 @@ BROWSER_ASSERTIONS = {
     "config-dirty-save",
     "config-quick-history",
     "terminal-bounded-archive-search",
+    "terminal-output-freshness",
     "case-marquee-scope-only",
     "case-group-relative-edit",
     "case-group-fixed-edit",

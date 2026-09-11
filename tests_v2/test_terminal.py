@@ -5,6 +5,7 @@ import base64
 import sys
 import time
 import tracemalloc
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -45,6 +46,42 @@ def test_log_search_crosses_blocks_with_bounded_memory(root: Path) -> None:
     assert boundary["items"][0]["offset"] == block - 5
     assert final["items"][0]["line"] == 256 * 4096 + 2
     assert peak < 32 * 1024 * 1024
+    store.close()
+
+
+def test_million_line_tail_read_is_a_bounded_byte_window(root: Path) -> None:
+    root.mkdir()
+    store = Store(root / "runtime" / "localflow.db")
+    service = TaskService(root, store, SubprocessExecutor(), max_concurrency=1)
+    task = service.submit(
+        TaskCreate(name="million-line-tail", working_directory=str(root), command=["true"])
+    )
+    log = root / "logs" / task.id / "output.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    line = b"0123456789abcdef\n"
+    with log.open("wb") as stream:
+        block = line * 10_000
+        for _ in range(100):
+            stream.write(block)
+
+    window = 4 * 1024 * 1024
+    offset = max(0, log.stat().st_size - window)
+    total = 0
+    largest = 0
+    started = time.perf_counter()
+    tracemalloc.start()
+    while offset < log.stat().st_size:
+        chunk, offset = service.read_log(task.id, offset, 64 * 1024)
+        total += len(chunk)
+        largest = max(largest, len(chunk))
+    _, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    elapsed = time.perf_counter() - started
+
+    assert total == window
+    assert largest == 64 * 1024
+    assert peak < 2 * 1024 * 1024
+    assert elapsed < 3.0
     store.close()
 
 
@@ -126,6 +163,9 @@ def test_terminal_http_api_controls_and_fresh_offset_log(root: Path) -> None:
         listed = next(item for item in live_list if item["id"] == task_id)
         assert live_detail["log_size"] >= first["next_offset"]
         assert listed["log_size"] >= first["next_offset"]
+        observed_at = datetime.fromisoformat(live_detail["log_updated_at"])
+        assert observed_at.tzinfo == UTC
+        assert listed["log_updated_at"] == live_detail["log_updated_at"]
         resize = client.post(
             f"/api/v1/tasks/{task_id}/terminal/resize", json={"rows": 42, "cols": 120}
         )

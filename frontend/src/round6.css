@@ -10,8 +10,10 @@
 .terminal-entry:hover{background:color-mix(in srgb,var(--surface) 65%,transparent)}
 .terminal-entry.active{background:var(--surface);box-shadow:inset 2px 0 var(--accent),0 1px 2px color-mix(in srgb,var(--text) 7%,transparent)}
 .terminal-entry-text{min-width:0;display:grid;gap:2px}
+.terminal-entry-heading{min-width:0;display:flex;align-items:baseline;gap:7px}
 .terminal-entry-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.terminal-entry-name{font-size:12px;font-weight:650}
+.terminal-entry-name{min-width:0;flex:1 1 auto;font-size:12px;font-weight:650}
+.terminal-entry-activity{flex:0 0 auto;color:var(--muted);font-size:9px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .terminal-entry-meta{min-width:0;display:flex;align-items:center;gap:4px;overflow:hidden}
 .terminal-entry-label{max-width:112px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 5px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:9px;font-style:normal;line-height:15px}
 .terminal-unread{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 14%,transparent)}

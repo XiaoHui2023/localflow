@@ -780,6 +780,12 @@ test("plugin configuration console remains concise and operable in Edge", async 
     "browser",
     "terminal",
   ]);
+  const liveActivity = liveTerminalEntry.locator(".terminal-entry-activity");
+  await expect(liveActivity).toBeVisible();
+  await expect(liveActivity).toHaveText(/^(刚刚|\d+ (秒|分钟|小时|天))$/);
+  await expect(liveActivity).toHaveAttribute("datetime", /T.*(?:Z|\+00:00)$/);
+  await expect(liveActivity).toHaveAttribute("title", /最后输出：/);
+  const firstOutputTimestamp = await liveActivity.getAttribute("datetime");
   await expect(liveTerminalEntry.locator(".terminal-unread")).toHaveCount(0);
   const activeTerminalGroup = page.locator(
     '.terminal-entry-group[data-terminal-group="active"]',
@@ -860,6 +866,9 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(liveTerminalEntry.locator(".terminal-unread")).toBeVisible({
     timeout: 18_000,
   });
+  await expect
+    .poll(() => liveActivity.getAttribute("datetime"))
+    .not.toBe(firstOutputTimestamp);
   await expect(liveTerminalEntry.locator(".terminal-unread")).toHaveAttribute(
     "aria-label",
     "有新终端输出",
@@ -1709,6 +1718,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "config-code-list-full-width",
           "common-config-path-identity",
           "terminal-bounded-archive-search",
+          "terminal-output-freshness",
           "case-marquee-scope-only",
           "case-group-relative-edit",
           "case-group-fixed-edit",

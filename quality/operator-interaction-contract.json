@@ -55,6 +55,8 @@
         "data-terminal-group=\"active\"",
         "data-terminal-group=\"history\"",
         "className=\"terminal-unread\"",
+        "className=\"terminal-entry-activity\"",
+        "task\\.log_updated_at",
         "data-terminal-state=\\{task\\.state\\}",
         "task\\.template === \"verification\"",
         "hidden\\.add\\(\"运行日志\"\\)",
@@ -87,7 +89,7 @@
     },
     {
       "path": "../src/localflow/api.py",
-      "required": ["/logs/search", "\"type\": \"caught_up\"", "run_diagnosis"]
+      "required": ["/logs/search", "\"type\": \"caught_up\"", "run_diagnosis", "log_updated_at", "log_stat\\.st_mtime"]
     },
     {
       "path": "../src/localflow/config_diagnostics.py",
@@ -129,7 +131,7 @@
     },
     {
       "path": "../frontend/src/round6.css",
-      "required": ["grid-template-columns:\\s*clamp\\(248px,22vw,320px\\)", "terminal-entry\\.has-unread\\{grid-template-columns:minmax\\(0,1fr\\) 10px"],
+      "required": ["grid-template-columns:\\s*clamp\\(248px,22vw,320px\\)", "terminal-entry\\.has-unread\\{grid-template-columns:minmax\\(0,1fr\\) 10px", "terminal-entry-activity"],
       "forbidden": ["terminal-readonly", "terminal-entry-icon", "terminal-entry\\.state-running \\.terminal-entry-name"]
     },
     {
