@@ -27,8 +27,16 @@ html[data-theme="dark"] .run-panel .run-action.idle:hover{background:#1f6feb}
 .run-panel-toggle.active{border-color:color-mix(in srgb,var(--accent) 34%,var(--border));background:var(--surface-selected);color:var(--accent)}
 .run-panel-toggle.active::after{content:"";position:absolute;left:-8px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--accent)}
 .run-panel-toggle svg{width:17px;height:17px;flex:0 0 auto;stroke-width:1.9}
-.favorite-panel-toggle{min-height:36px;margin-top:3px;padding-left:17px;font-size:11px;font-weight:600}
-.favorite-panel-toggle.active::after{left:3px;width:2px}
+.run-panel .explorer[data-explorer-view="resources"]{grid-template-rows:80px minmax(0,1fr)}
+.run-panel .explorer[data-explorer-view="quick"]{grid-template-rows:44px minmax(0,1fr)}
+.config-source-header{display:grid!important;grid-template-columns:minmax(0,1fr);grid-auto-rows:40px;align-content:start!important;gap:0;padding:0 8px!important}
+.config-source-tabs{align-self:stretch;display:flex!important;align-items:stretch!important;gap:2px}
+.config-source-tab{position:relative;min-width:54px;padding:0 9px;border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:650;cursor:pointer}
+.config-source-tab:hover{color:var(--text)}
+.config-source-tab[aria-selected="true"]{color:var(--text)}
+.config-source-tab[aria-selected="true"]::after{content:"";position:absolute;right:9px;bottom:-1px;left:9px;height:2px;border-radius:2px 2px 0 0;background:var(--accent)}
+.config-source-tab:focus-visible{outline-offset:-3px}
+.config-resource-actions{min-width:0;justify-content:flex-start;border-top:1px solid color-mix(in srgb,var(--border) 70%,transparent)}
 .favorite-action.active{border-color:color-mix(in srgb,var(--accent) 38%,var(--border));background:var(--surface-selected);color:var(--accent)}
 .favorite-action.active svg,.quick-configs .quick-config-group:first-child button>svg{fill:currentColor}
 .quick-configs{min-width:0;overflow:auto;padding:8px 6px 18px}
@@ -63,6 +71,5 @@ html[data-theme="dark"] .run-panel .run-action.idle:hover{background:#1f6feb}
   .run-panel-toggle{min-height:48px;flex-direction:column;justify-content:center;gap:2px;padding:3px 1px;font-size:9px;text-align:center}
   .run-panel-toggle.active::after{left:-6px;top:10px;bottom:10px}
   .run-panel-toggle svg{width:18px;height:18px}
-  .favorite-panel-toggle{min-height:43px;margin-top:2px;padding:3px 1px;font-size:9px}
-  .favorite-panel-toggle.active::after{left:-6px;width:3px}
+  .config-source-tab{min-width:50px;padding-inline:7px}
 }

@@ -16,9 +16,9 @@ Treat YAML configuration extensibility and run-input strictness as separate cont
 
 Treat plugin extensibility and variable provenance as separate contracts too. The host contributes no hidden `root`, directory, or run-input variables; only `case` and `seed` may be plugin-deferred. This prevents a permissive editor from becoming environment-dependent and makes an unknown placeholder a deterministic inline debug result.
 
-Call the reusable-configuration surface `快捷访问` and its compact navigation control `快捷`. “收藏” is only one ordering attribute, while “最近使用” is server-observed history; naming the whole surface 收藏/常用/最近 would incorrectly exclude one half of that model. Render a flat list rather than a file tree, split it into explicit `已收藏` then `最近使用` groups, and sort each group by the last accepted run submission descending. A never-run favorite falls back to newest favorite first. Identify each row with resolved configuration `name`, compact label tokens, then the config-relative path as disambiguation; fall back to the filename when YAML is currently invalid or has no name.
+Call the reusable-configuration surface `快捷访问` and its local tab `快捷`. “收藏” is only one ordering attribute, while “最近使用” is server-observed history; naming the whole surface 收藏/常用/最近 would incorrectly exclude one half of that model. Keep the global rail limited to the `配置` disclosure. Put `资源 / 快捷` as a quiet horizontal tablist on the owning explorer header so both are peers, not indented pseudo-navigation. Use automatic activation because both panels are already local and immediate; support roving tabindex plus Left/Right/Home/End. Render a flat list rather than a file tree, split it into explicit `已收藏` then `最近使用` groups, and sort each group by the last accepted run submission descending. A never-run favorite falls back to newest favorite first. Identify each row with resolved configuration `name`, compact label tokens, then the config-relative path as disambiguation; fall back to the filename when YAML is currently invalid or has no name.
 
-Record run history on the server in the same accepted batch transaction so refreshes and different browsers see truthful usage rather than click telemetry. Keep favorites browser-local until the product has user identity and preference synchronization; cap them at 100. The current configuration owns one star action beside Edit/Run/Save with stable pressed semantics and accessible `收藏配置`/`取消收藏` names. In-app move/rename remaps both server history and browser favorites; delete and external disappearance suppress stale entries. The indented tertiary toggle exists only while configuration is expanded, swaps only the explorer rail, and keeps the workbench mounted.
+Record run history on the server in the same accepted batch transaction so refreshes and different browsers see truthful usage rather than click telemetry. Keep favorites browser-local until the product has user identity and preference synchronization; cap them at 100. The current configuration owns one star action beside Edit/Run/Save with stable pressed semantics and accessible `收藏配置`/`取消收藏` names. In-app move/rename remaps both server history and browser favorites; delete and external disappearance suppress stale entries. The local tablist exists inside the configuration panel, swaps only the explorer rail, and keeps the workbench mounted. Collapsing configuration hides the entire local control without moving it into global navigation.
 
 The terminal buffer contains only task log/process bytes. Connection, live/read-only state, and replay state belong to the terminal page header and accessibility status, never `xterm.write` or `xterm.writeln`.
 
@@ -32,6 +32,10 @@ The terminal buffer contains only task log/process bytes. Connection, live/read-
 | Modal/drawer overlay | Strong temporary focus | Rejected for frequent wide-screen editing because it covers task context; not needed on phones while stack works |
 | Separate configuration page | Large editor area | Rejected: adds a navigation round trip and violates the unified Tasks workspace contract |
 | Grouped `快捷访问` rail | Combines truthful run history with personal pinning; direct reopen without file-tree traversal | Chosen; server history plus browser-local favorites |
+| Explorer-header `资源 / 快捷` tablist | Makes two local content views peers, keeps the global rail flat, and follows familiar composite keyboard behavior | Chosen |
+| Indented `快捷` button below global `配置` | Keeps the control near the disclosure | Rejected: visually invents a third navigation depth and creates unexplained indentation |
+| Segmented control in the global rail | Compact | Rejected: still assigns a local view switch to the global navigation owner and is too narrow at compact widths |
+| Dropdown/menu in the explorer header | Saves a few pixels | Rejected for two frequent views because it hides state and adds an operation |
 | Favorites-only rail | Simple personal collection | Rejected as the complete surface: previously used but unstarred YAML disappears |
 | Recent-only rail | Requires no explicit management | Rejected as the complete surface: important configurations drift downward |
 | Server-side shared favorites | Cross-browser/team sharing | Rejected until identity, ownership and synchronization semantics exist |
@@ -45,7 +49,7 @@ WAI-ARIA disclosure supplies the interaction contract (`button`, `aria-expanded`
 - At 1000 and 760 px, open configuration is the only visible pane and spans the app content; one disclosure activation hides it and reveals the full-width task pane. At 390 px, explorer ends before editor begins inside configuration. All widths have zero overflow.
 - The disclosure has the exact visible name `配置`, starts expanded when no preference exists, retains one DOM location, and reports state through `aria-expanded`/`aria-controls`.
 - The selected file name and contextual action group are adjacent; `编辑` and `运行` are both visible labels and require no menu/navigation step.
-- `快捷` exists only while configuration is expanded, swaps only the explorer rail, and reports pressed state. `已收藏` precedes `最近使用`; a successfully submitted YAML appears without being starred, stars move it to the first group, and both groups use name/labels/path identity. Refresh preserves history and favorites, rename/move remaps them, and delete/external disappearance removes stale entries.
+- The global rail contains no indented `快捷` control. Inside the expanded panel, `资源 / 快捷` are horizontal tabs with one selected tab, matching tabpanels, and Left/Right/Home/End keyboard switching. Collapsing configuration makes the local tablist unavailable. `已收藏` precedes `最近使用`; a successfully submitted YAML appears without being starred, stars move it to the first group, and both groups use name/labels/path identity. Refresh preserves history and favorites, rename/move remaps them, and delete/external disappearance removes stale entries.
 - Closing/reopening and leaving/returning to Tasks preserves file, mode, and unfinished inputs.
 - Save is disabled before an edit and immediately after a successful save, but enabled for any byte-changing edit even when diagnosis fails.
 - Switching among configuration files restores each unsaved byte buffer and its base version. File and ancestor-folder dirty dots disappear only after save, delete, or an explicit external-version choice; rename/move remaps them.
@@ -71,6 +75,15 @@ For the element-level inspection, copy-feedback, and draft identity rationale, r
 - VS Code errors, warnings and Problems panel: https://code.visualstudio.com/docs/editing/editingevolved#_errors-warnings
 
 Community search covered Stack Overflow, Reddit, UX StackExchange, Medium, and operator-console discussions. It produced no stronger LocalFlow-specific primitive than the official patterns above, so no third-party Skill or runtime package was installed.
+
+## Navigation hierarchy correction, 2026-09-11
+
+- VS Code Activity Bar guidance treats each item as a top-level View Container; view content and actions belong inside the sidebar container.
+- Fluent 2 recommends tablists for a small set of closely related, frequently accessed content categories, using short parallel labels.
+- WAI-ARIA APG defines `tablist`/`tab`/`tabpanel`, one selected tab, roving tabindex and Left/Right/Home/End navigation.
+- Find Skills surfaced navigation-pattern and tab-navigation candidates, but no third-party Skill or runtime was installed: the official patterns plus the existing project/browser gates cover this narrow decision without adding an unreviewed dependency.
+
+The rejected baseline is the indented `快捷` button under the global `配置` disclosure. Its defect is ownership, not spacing: it makes a local content choice look like a third application destination. The selected correction keeps one global disclosure and moves the two local choices to the explorer header as a quiet underline tablist.
 
 ## Adaptive pane study, 2026-09-09
 

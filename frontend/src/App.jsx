@@ -1619,7 +1619,7 @@ function readFavoriteConfigs() {
   }
 }
 
-function Config({ theme, explorerView }) {
+function Config({ theme, explorerView, onExplorerViewChange }) {
   const filePathRef = useRef();
   const inspectionControllerRef = useRef();
   const diagnosisControllerRef = useRef();
@@ -2243,6 +2243,24 @@ function Config({ theme, explorerView }) {
         : file?.path.endsWith("toml")
           ? "ini"
           : "yaml";
+  const sourceViews = [
+    ["resources", "资源"],
+    ["quick", "快捷"],
+  ];
+  const moveSourceTab = (event, index) => {
+    let next = index;
+    if (event.key === "ArrowLeft")
+      next = (index + sourceViews.length - 1) % sourceViews.length;
+    else if (event.key === "ArrowRight") next = (index + 1) % sourceViews.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = sourceViews.length - 1;
+    else return;
+    event.preventDefault();
+    onExplorerViewChange(sourceViews[next][0]);
+    event.currentTarget.parentElement
+      ?.querySelectorAll('[role="tab"]')
+      [next]?.focus();
+  };
   return (
     <div className="config-explorer" tabIndex="0" onKeyDown={keyAction}>
       <aside
@@ -2250,10 +2268,27 @@ function Config({ theme, explorerView }) {
         className="explorer"
         data-explorer-view={explorerView}
       >
-        <header>
-          <span>{explorerView === "quick" ? "快捷访问" : "资源"}</span>
+        <header className="config-source-header">
+          <div className="config-source-tabs" role="tablist" aria-label="配置来源">
+            {sourceViews.map(([id, label], index) => (
+              <button
+                id={`config-source-${id}-tab`}
+                className="config-source-tab"
+                type="button"
+                role="tab"
+                aria-selected={explorerView === id}
+                aria-controls={`config-source-${id}-panel`}
+                tabIndex={explorerView === id ? 0 : -1}
+                onClick={() => onExplorerViewChange(id)}
+                onKeyDown={(event) => moveSourceTab(event, index)}
+                key={id}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           {explorerView === "resources" && (
-            <div>
+            <div className="config-resource-actions" role="group" aria-label="资源操作">
               <button
                 className="icon"
                 aria-label="新建文件"
@@ -2325,7 +2360,13 @@ function Config({ theme, explorerView }) {
           )}
         </header>
         {explorerView === "resources" ? (
-          <div className="tree-host" ref={treeHost}>
+          <div
+            id="config-source-resources-panel"
+            className="tree-host"
+            role="tabpanel"
+            aria-labelledby="config-source-resources-tab"
+            ref={treeHost}
+          >
             <Tree
               ref={treeRef}
               data={buildTree(files, diagnostics, dirtyPaths)}
@@ -2366,7 +2407,12 @@ function Config({ theme, explorerView }) {
             </Tree>
           </div>
         ) : (
-          <div className="quick-configs">
+          <div
+            id="config-source-quick-panel"
+            className="quick-configs"
+            role="tabpanel"
+            aria-labelledby="config-source-quick-tab"
+          >
             {[
               ["已收藏", favoriteConfigs, true],
               ["最近使用", unpinnedRecentConfigs, false],
@@ -3061,21 +3107,6 @@ export default function App() {
               {runOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
               <span>配置</span>
             </button>
-            {runOpen && (
-              <button
-                className={`run-panel-toggle favorite-panel-toggle ${configSourceView === "quick" ? "active" : ""}`}
-                aria-pressed={configSourceView === "quick"}
-                aria-controls="config-source-panel"
-                onClick={() =>
-                  setConfigSourceView((view) =>
-                    view === "quick" ? "resources" : "quick",
-                  )
-                }
-              >
-                <Star aria-hidden="true" />
-                <span>快捷</span>
-              </button>
-            )}
           </div>
         )}
       </aside>
@@ -3127,7 +3158,11 @@ export default function App() {
               </div>
               {status?.role === "admin" && (
                 <aside id="run-panel" className="run-panel" hidden={!runOpen}>
-                  <Config theme={theme} explorerView={configSourceView} />
+                  <Config
+                    theme={theme}
+                    explorerView={configSourceView}
+                    onExplorerViewChange={setConfigSourceView}
+                  />
                 </aside>
               )}
             </section>

@@ -44,7 +44,8 @@
         "\\[\"已收藏\", favoriteConfigs, true\\]",
         "\\[\"最近使用\", unpinnedRecentConfigs, false\\]",
         "aria-label=\\{isFavorite \\? \"取消收藏\" : \"收藏配置\"\\}",
-        "aria-pressed=\\{configSourceView === \"quick\"\\}",
+        "className=\"config-source-tabs\"",
+        "aria-selected=\\{explorerView === id\\}",
         "initialOpenState=\\{initialTreeOpenState\\.current\\}",
         "item\\.check === \"availability\" && item\\.severity === \"error\"",
         "data-terminal-group=\"active\"",
@@ -67,7 +68,8 @@
         "className=\"copy-affordance\"",
         "只读历史",
         "className=\"terminal-entry-state\"",
-        "onDoubleClick"
+        "onDoubleClick",
+        "favorite-panel-toggle"
       ]
     },
     {
@@ -124,8 +126,8 @@
     },
     {
       "path": "../frontend/src/round7.css",
-      "required": ["\\.task-workspace\\.run-open \\.task-pane\\{display:none\\}", "\\.task-workspace\\.split-ready\\.run-open", "minmax\\(830px,3fr\\)", "minmax\\(410px,2fr\\)", "\\.run-panel\\{height:100vh;min-height:520px\\}"],
-      "forbidden": ["grid-template-areas:\"run\" \"tasks\"", "height:72vh", "height:78vh"]
+      "required": ["\\.task-workspace\\.run-open \\.task-pane\\{display:none\\}", "\\.task-workspace\\.split-ready\\.run-open", "minmax\\(830px,3fr\\)", "minmax\\(410px,2fr\\)", "\\.run-panel\\{height:100vh;min-height:520px\\}", "\\.config-source-tabs\\{"],
+      "forbidden": ["grid-template-areas:\"run\" \"tasks\"", "height:72vh", "height:78vh", "\\.favorite-panel-toggle"]
     }
   ]
 }

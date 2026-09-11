@@ -22,6 +22,24 @@ function sha256(file, normalizeText = false) {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
+function finalizeBrowserReceipt() {
+  const receiptPath = path.join(evidence, "browser-receipt.json");
+  const receipt = JSON.parse(fs.readFileSync(receiptPath, "utf8"));
+  receipt.completed_at = new Date().toISOString();
+  receipt.screenshots = Object.fromEntries(
+    fs
+      .readdirSync(evidence)
+      .filter(
+        (name) =>
+          name.endsWith(".png") &&
+          (name.startsWith("admin-") || name.startsWith("anonymous-")),
+      )
+      .sort()
+      .map((name) => [name, sha256(path.join(evidence, name))]),
+  );
+  fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
+}
+
 async function browserApi(page, endpoint, options = {}) {
   return page.evaluate(
     async ({ endpoint, options }) => {
@@ -1663,9 +1681,14 @@ test("quick access groups pinned and recent configurations without losing contex
   page,
 }) => {
   await openAdminTaskWorkspace(page);
-  const quickToggle = page.getByRole("button", { name: "快捷", exact: true });
-  await expect(quickToggle).toBeVisible();
-  await expect(quickToggle).toHaveAttribute("aria-pressed", "false");
+  const resourceTab = page.getByRole("tab", { name: "资源", exact: true });
+  const quickTab = page.getByRole("tab", { name: "快捷", exact: true });
+  await expect(page.locator(".top .config-source-tab")).toHaveCount(0);
+  await expect(page.locator(".explorer .config-source-tabs")).toContainText(
+    "资源快捷",
+  );
+  await expect(resourceTab).toHaveAttribute("aria-selected", "true");
+  await expect(quickTab).toHaveAttribute("aria-selected", "false");
 
   await page.locator('[data-file="config/command/hello-world.yaml"]').click();
   await page.locator(".run-action").click();
@@ -1682,8 +1705,8 @@ test("quick access groups pinned and recent configurations without losing contex
     ),
   ).toContain("config/command/hello-world.yaml");
 
-  await quickToggle.click();
-  await expect(quickToggle).toHaveAttribute("aria-pressed", "true");
+  await quickTab.click();
+  await expect(quickTab).toHaveAttribute("aria-selected", "true");
   await expect(
     page.locator('#config-source-panel[data-explorer-view="quick"]'),
   ).toBeVisible();
@@ -1698,8 +1721,16 @@ test("quick access groups pinned and recent configurations without losing contex
 
   await page.reload();
   await expect(
-    page.getByRole("button", { name: "快捷", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
+    page.getByRole("tab", { name: "快捷", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: "快捷", exact: true }).press("ArrowLeft");
+  await expect(
+    page.getByRole("tab", { name: "资源", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: "资源", exact: true }).press("End");
+  await expect(
+    page.getByRole("tab", { name: "快捷", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("list", { name: "已收藏" })).toContainText(
     "hello-world",
   );
@@ -1708,8 +1739,13 @@ test("quick access groups pinned and recent configurations without losing contex
   await expect(page.getByRole("list", { name: "最近使用" })).toContainText(
     "hello-world",
   );
+  await page.screenshot({
+    path: path.join(evidence, "admin-common-configurations-light.png"),
+    fullPage: true,
+  });
   await page.getByRole("button", { name: "配置", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "快捷", exact: true }),
-  ).toHaveCount(0);
+    page.getByRole("tab", { name: "快捷", exact: true }),
+  ).not.toBeVisible();
+  finalizeBrowserReceipt();
 });

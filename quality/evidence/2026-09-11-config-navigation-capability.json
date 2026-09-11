@@ -1,0 +1,145 @@
+{
+  "capability_id": "localflow-config-local-view-navigation",
+  "owner": "configuration-explorer-navigation",
+  "problem": "An indented Quick button under the global Configuration disclosure invents a third navigation depth and makes a local content choice look like an application destination.",
+  "scope": "configuration disclosure, explorer resource/quick switching, hierarchy geometry, keyboard semantics, persistence, and compact browser layouts",
+  "baseline": "The global left rail contains Configuration followed by a smaller indented Quick button; both use the same navigation treatment despite owning different levels.",
+  "benchmarks": [
+    "VS Code Activity Bar items own top-level View Containers",
+    "Fluent 2 Tablist for a small set of closely related frequently accessed categories",
+    "WAI-ARIA tablist, tab, tabpanel, selected state and roving focus"
+  ],
+  "advantages": [
+    "The existing configuration disclosure and persisted source-view state remain usable",
+    "Both local panels are already immediate and need no asynchronous preload",
+    "Native React buttons avoid a new runtime dependency"
+  ],
+  "disadvantages": [
+    "The current rail gives a local choice the same visual owner as application destinations",
+    "Indentation is unexplained and changes at compact widths",
+    "The old pressed-button state does not expose peer-view keyboard conventions"
+  ],
+  "limitations": [
+    "Horizontal tabs are appropriate only while the choice count remains small",
+    "The resource action toolbar must retain enough width beside the tabs",
+    "Legacy Chrome and Firefox prevent relying on container queries or new CSS primitives"
+  ],
+  "defects": [
+    "navigation ownership mismatch",
+    "false hierarchy from indentation",
+    "missing arrow-key composite behavior"
+  ],
+  "bottlenecks": [
+    "visual ownership must be checked in a real browser rather than inferred from DOM presence",
+    "switching must not unmount the editor or lose drafts and run inputs",
+    "resource actions and two labels must fit the fixed explorer width"
+  ],
+  "metrics": [
+    {
+      "name": "global rail local-view controls",
+      "unit": "controls",
+      "direction": "lower",
+      "threshold": "0",
+      "measurement": "source contract plus browser role/geometry assertions",
+      "evidence": "frontend/e2e/localflow.spec.js"
+    },
+    {
+      "name": "selected local tabs",
+      "unit": "tabs",
+      "direction": "equal",
+      "threshold": "1",
+      "measurement": "aria-selected count in the owning explorer header",
+      "evidence": "frontend/e2e/localflow.spec.js"
+    },
+    {
+      "name": "keyboard switching coverage",
+      "unit": "key families",
+      "direction": "higher",
+      "threshold": "Left/Right/Home/End",
+      "measurement": "Playwright keyboard activation and selected-panel assertions",
+      "evidence": "frontend/e2e/localflow.spec.js"
+    }
+  ],
+  "hypotheses": [
+    "Moving local selection into the explorer header removes the false third level without hiding either option",
+    "A quiet underline tablist communicates peer views more clearly than nested rail buttons",
+    "Automatic activation is appropriate because both panels switch immediately"
+  ],
+  "allowed_variables": [
+    "configuration explorer header composition",
+    "resource and quick view control semantics",
+    "local tab selection styling",
+    "browser assertions and requirement wording"
+  ],
+  "stages": [
+    {
+      "id": "oracle",
+      "input": "frozen released screenshot and source",
+      "output": "a gate that rejects a local switch under the global rail",
+      "checker": "operator interaction contract and Playwright",
+      "rollback": "research and hierarchy ownership model",
+      "allowed_variables": ["quality contract", "browser assertions"]
+    },
+    {
+      "id": "structure",
+      "input": "accepted ownership contract",
+      "output": "explorer-header peer tablist and associated panels",
+      "checker": "build, role assertions and keyboard flow",
+      "rollback": "configuration explorer composition",
+      "allowed_variables": ["App.jsx", "round7.css"]
+    },
+    {
+      "id": "browser",
+      "input": "current production build",
+      "output": "wide, focused and compact screenshots plus accessibility receipt",
+      "checker": "hosted Playwright and fixed-browser gates",
+      "rollback": "earliest failed structure or styling owner",
+      "allowed_variables": ["CSS tab treatment", "test evidence"]
+    }
+  ],
+  "hard_gates": [
+    "known indented baseline is rejected",
+    "exactly one resource/quick tab is selected",
+    "Left/Right/Home/End switch selection and focus",
+    "collapse makes the local tablist unavailable while preserving state",
+    "drafts, selected file and run inputs survive switching",
+    "wide and compact layouts have no overflow or clipped resource actions"
+  ],
+  "failure_fixtures": [
+    "favorite-panel-toggle remains under run-panel-toggle",
+    "resource and quick are styled as nested global navigation buttons",
+    "both tabs are tabbable or selected",
+    "arrow keys do not change the active panel"
+  ],
+  "success_fixtures": [
+    "global rail contains one Configuration disclosure only",
+    "explorer header contains Resource and Quick peer tabs",
+    "one underline marks selection without nested indentation",
+    "keyboard switching preserves the workbench context"
+  ],
+  "fault_injections": [
+    "restore favorite-panel-toggle source and CSS",
+    "remove tab and tabpanel roles",
+    "remove ArrowLeft handling",
+    "make both tabs tabindex zero"
+  ],
+  "rollback": "Return to the earliest failing oracle, structure or browser stage and invalidate dependent receipts.",
+  "iteration_budget": {
+    "max_rounds": 3,
+    "max_time": "3h",
+    "review_trigger": "any clipped toolbar, lost workbench state, or fixed-browser regression"
+  },
+  "stop_conditions": [
+    "failure baseline rejected and current browser accepted",
+    "source, accessibility, keyboard, responsive and visual gates pass",
+    "project and user-root references are updated and validated",
+    "the exact release artifact passes download verification"
+  ],
+  "promotion_decision": {
+    "destination": "modern-web-interface-design/references/operator-interaction-solution-catalog.md",
+    "reason": "Global-container versus owner-local peer navigation recurs across operator consoles.",
+    "independent_trigger": false,
+    "repeatable_validation": true
+  },
+  "writeback": "Project geometry and screenshots stay in LocalFlow evidence; the reusable ownership rule and negative fixture live in the user-root operator interaction catalog."
+}
