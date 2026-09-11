@@ -396,6 +396,7 @@ class Store:
         ended_to: str | None = None,
         limit: int = 100,
         before: tuple[str, str] | None = None,
+        after: tuple[str, str] | None = None,
         ascending: bool = False,
     ) -> list[TaskRecord]:
         clauses: list[str] = []
@@ -427,10 +428,13 @@ class Store:
         if before:
             clauses.append("(created_at < ? OR (created_at = ? AND id < ?))")
             values.extend([before[0], before[0], before[1]])
+        if after:
+            clauses.append("(created_at > ? OR (created_at = ? AND id > ?))")
+            values.extend([after[0], after[0], after[1]])
         sql = "SELECT * FROM tasks" + ((" WHERE " + " AND ".join(clauses)) if clauses else "")
         direction = "ASC" if ascending else "DESC"
         sql += f" ORDER BY created_at {direction}, id {direction} LIMIT ?"
-        values.append(min(max(limit, 1), 500))
+        values.append(min(max(limit, 1), 10_000))
         return [self._task(row) for row in self._db.execute(sql, values)]
 
     def transition(

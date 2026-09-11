@@ -101,6 +101,9 @@ test("Ubuntu browser can operate the released web console", async ({
   expect((await inspectionResponse).ok()).toBeTruthy();
   await page.getByRole("button", { name: "编辑" }).click();
   await expect(page.locator(".monaco-editor")).toBeVisible({ timeout: 20_000 });
+  await page.locator(".config-explorer").evaluate((node) => {
+    node.dataset.compatibilityPreserved = "true";
+  });
 
   const finished = await api(page, "/tasks", {
     method: "POST",
@@ -163,6 +166,12 @@ test("Ubuntu browser can operate the released web console", async ({
   await expect(page.locator(".terminal-page .xterm-rows")).toContainText(
     "terminal-compat-ready",
   );
+
+  await page.getByRole("tab", { name: "任务" }).click();
+  await expect(
+    page.locator('.config-explorer[data-compatibility-preserved="true"]'),
+  ).toBeVisible();
+  await expect(page.locator(".terminal-page")).toHaveCount(0);
 
   await page.getByRole("tab", { name: "设置" }).click();
   await expect(page.getByLabel("时间校准", { exact: true })).toBeVisible();

@@ -31,12 +31,14 @@ server:
 execution:
   # auto uses systemd when its user manager is available, otherwise subprocess.
   backend: auto
+  # auto follows this service's CPU affinity/cgroup quota; an integer overrides it.
+  max_concurrency: auto
 retention:
   # One duration covers task details and terminal output.
   task_days: 3
 ```
 
-未写字段使用安全默认值：监听 `0.0.0.0`、匿名摘要读取、最多四个并发任务和有界日志容量。需要覆盖高级字段时参照 `Settings` 模型或运维文档添加，不为默认安装预先生成空字段。
+未写字段使用安全默认值：监听 `0.0.0.0`、匿名摘要读取、按服务实际可用 CPU 自动决定并发任务数和有界日志容量。`max_concurrency: auto` 取进程 CPU affinity、cgroup v2 `cpu.max` 配额与系统逻辑 CPU 数中的最小有效值，避免容器/服务只获部分 CPU 时误用整机核数；可用 `1..4096` 的整数显式覆盖。它是 LocalFlow 同时启动任务的控制面额度，不会给任务偷偷添加 CPU、内存或 I/O 限制。需要覆盖其它高级字段时参照 `Settings` 模型或运维文档添加。
 
 多服务器免重复登录只适用于一个共同管理的 DNS 父域。例如各节点均通过 HTTPS 使用 `node-a.localflow.example.test` 一类主机名，并安全配置相同的 `secrets/web-admin-key` 后，可在每台加入：
 

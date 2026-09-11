@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
 import re
@@ -68,6 +69,9 @@ BROWSER_ASSERTIONS = {
     "aligned-settings-rows",
     "idle-web-resource-budget",
     "compact-copyable-task-detail",
+    "task-detail-array-lines",
+    "task-detail-start-time-label",
+    "monaco-deferred-bundle",
     "neutral-scroll-copy-feedback",
     "unboxed-stop-action",
     "case-single-column-full-width",
@@ -81,6 +85,9 @@ BROWSER_ASSERTIONS = {
     "task-row-state-geometry",
     "hello-world-log-lifecycle",
     "start-time-log-path",
+    "config-code-list-full-width",
+    "common-config-path-identity",
+    "task-route-next-paint",
 }
 REQUIRED_SCREENSHOTS = {
     "anonymous-settings-login-light.png",
@@ -180,6 +187,34 @@ def main() -> int:
                     errors.append(f"browser resource budget exceeded: {name}={value} > {limit}")
             if resource_metrics.get("task_process_count") != 0:
                 errors.append("browser resource sample included task processes")
+            interaction_metrics = receipt.get("interaction_metrics", {})
+            for name, limit in resource_contract.get("interaction_limits", {}).items():
+                value = interaction_metrics.get(name)
+                if not isinstance(value, int | float) or isinstance(value, bool):
+                    errors.append(f"browser receipt missing interaction metric: {name}")
+                elif value > limit:
+                    errors.append(
+                        f"browser interaction budget exceeded: {name}={value} > {limit}"
+                    )
+            bundle_metrics = receipt.get("bundle_metrics", {})
+            for name, limit in resource_contract.get("bundle_limits", {}).items():
+                value = bundle_metrics.get(name)
+                if not isinstance(value, int | float) or isinstance(value, bool):
+                    errors.append(f"browser receipt missing bundle metric: {name}")
+                elif value > limit:
+                    errors.append(f"browser bundle budget exceeded: {name}={value} > {limit}")
+            legacy_entries = list((root / "frontend" / "dist" / "assets").glob("index-legacy-*.js"))
+            if len(legacy_entries) != 1:
+                errors.append("built legacy application entry scope mismatch")
+            else:
+                actual_entry_gzip = round(
+                    len(gzip.compress(legacy_entries[0].read_bytes(), compresslevel=9))
+                    / 1024
+                    / 1024,
+                    3,
+                )
+                if bundle_metrics.get("initial_legacy_entry_gzip_mib") != actual_entry_gzip:
+                    errors.append("browser bundle metric does not match built legacy entry")
             for relative, expected in receipt.get("source_files", {}).items():
                 source = root / relative
                 if not source.is_file() or _source_sha256(source) != expected:
@@ -189,6 +224,7 @@ def main() -> int:
                 "frontend/public/compat-boot.js",
                 "frontend/public/theme-boot.js",
                 "frontend/src/App.jsx",
+                "frontend/src/MonacoEditors.jsx",
                 "frontend/src/Tooltip.jsx",
                 "frontend/src/api.js",
                 "frontend/src/main.jsx",

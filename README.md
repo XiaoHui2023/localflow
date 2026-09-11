@@ -26,7 +26,8 @@ localflow
 ```yaml
 execution:
   backend: subprocess
-  max_concurrency: 4
+  # auto uses every CPU available to the LocalFlow service/cgroup.
+  max_concurrency: auto
 ```
 
 再次直接启动：

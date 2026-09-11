@@ -15,5 +15,11 @@
     "dom_event_listeners": 1200,
     "idle_background_requests": 16,
     "idle_websockets": 0
+  },
+  "interaction_limits": {
+    "terminal_to_tasks_next_paint_ms": 250
+  },
+  "bundle_limits": {
+    "initial_legacy_entry_gzip_mib": 0.3
   }
 }

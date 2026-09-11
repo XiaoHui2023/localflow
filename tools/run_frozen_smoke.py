@@ -277,6 +277,8 @@ def main() -> None:
                     "protected child did not start",
                 )
             )
+            service_log_root = root / "logs" / "service"
+            shutil.rmtree(service_log_root)
             shutdown_status, shutdown_body = request(
                 opener,
                 endpoint + "/api/v1/system/shutdown",
@@ -299,6 +301,14 @@ def main() -> None:
                 raise RuntimeError(f"task process remained after controller shutdown: {child_pid}")
             if pid_file.exists():
                 raise RuntimeError("controller PID file remained after shutdown")
+            service_log = service_log_root / "service.log"
+            if not service_log.is_file() or "LocalFlow stopped" not in service_log.read_text(
+                encoding="utf-8", errors="replace"
+            ):
+                raise RuntimeError("service logging did not recover during shutdown")
+            controller_output = log_path.read_text(encoding="utf-8", errors="replace")
+            if "Logging error" in controller_output or "No such file or directory" in controller_output:
+                raise RuntimeError("service log failure escaped into controller shutdown")
             print(f"frozen release smoke passed: {binary} task={task_id} cleanup_pid={child_pid}")
         finally:
             if not stopped_explicitly:

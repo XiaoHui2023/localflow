@@ -69,6 +69,7 @@ class TaskService:
         self.logging_settings = logging_settings or LoggingSettings()
         self._result_evaluator = result_evaluator
         self._last_cleanup = 0.0
+        self._queue_cursor: tuple[str, str] | None = None
 
     def submit(self, draft: TaskCreate) -> TaskRecord:
         draft = self._prepare_draft(draft)
@@ -191,9 +192,18 @@ class TaskService:
             TaskState.RUNNING,
             TaskState.STOPPING,
         ]
-        active = self.store.list_tasks(states=active_states, limit=10_000, ascending=True)
-        for task in active:
-            await self.interrupt(task.id)
+        # Drain in pages. A controller can have substantially more queued
+        # records than running slots, and shutdown must not strand records
+        # beyond the first storage page.
+        interruptible_states = [TaskState.QUEUED, TaskState.STARTING, TaskState.RUNNING]
+        while True:
+            batch = self.store.list_tasks(
+                states=interruptible_states, limit=10_000, ascending=True
+            )
+            if not batch:
+                break
+            for task in batch:
+                await self.interrupt(task.id)
         deadline = time.monotonic() + timeout_seconds
         while time.monotonic() < deadline:
             remaining = self.store.list_tasks(states=active_states, limit=10_000, ascending=True)
@@ -223,7 +233,11 @@ class TaskService:
 
     async def recover(self) -> None:
         for task in self.store.list_tasks(
-            states=["starting", "running", "stopping"], limit=500, ascending=True
+            states=["starting", "running", "stopping"],
+            # Recovery follows persisted ownership, not today's configured
+            # capacity. A host may restart after max_concurrency was lowered.
+            limit=10_000,
+            ascending=True,
         ):
             completed_code = await self.executor.completed_code(task.id)
             if completed_code is not None:
@@ -331,16 +345,37 @@ class TaskService:
         return {"tasks": len(deleted_ids), "log_directories": removed}
 
     async def _schedule(self) -> None:
-        active = self.store.list_tasks(states=["starting", "running", "stopping"], limit=500)
+        active = self.store.list_tasks(
+            states=["starting", "running", "stopping"],
+            limit=max(self.max_concurrency, 500),
+        )
         capacity = max(0, self.max_concurrency - len(active))
         holders: dict[str, list[str]] = {}
         for task in active:
             for key in task.mutex_keys:
                 holders.setdefault(key, []).append(task.id)
         held = set(holders)
-        for task in self.store.list_tasks(states=["queued"], limit=500, ascending=True):
+        if not capacity:
+            return
+        scan_limit = min(10_000, max(500, capacity * 4))
+        queued = self.store.list_tasks(
+            states=["queued"],
+            limit=scan_limit,
+            after=self._queue_cursor,
+            ascending=True,
+        )
+        if not queued and self._queue_cursor is not None:
+            self._queue_cursor = None
+            queued = self.store.list_tasks(
+                states=["queued"], limit=scan_limit, ascending=True
+            )
+        last_scanned: TaskRecord | None = None
+        scanned_all = True
+        for task in queued:
             if not capacity:
+                scanned_all = False
                 break
+            last_scanned = task
             if held.intersection(task.mutex_keys):
                 blocked_keys = sorted(held.intersection(task.mutex_keys))
                 blockers = [owner for key in task.mutex_keys for owner in holders.get(key, [])]
@@ -363,6 +398,10 @@ class TaskService:
                     lambda _finished, task_id=task.id: self._starters.pop(task_id, None)
                 )
                 capacity -= 1
+        if last_scanned is not None:
+            self._queue_cursor = (last_scanned.created_at.isoformat(), last_scanned.id)
+        if scanned_all and len(queued) < scan_limit:
+            self._queue_cursor = None
 
     async def _start(self, task_id: str) -> None:
         task = self.store.get_task(task_id)

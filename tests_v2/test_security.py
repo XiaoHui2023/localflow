@@ -60,7 +60,10 @@ def test_loopback_is_not_administrator_identity(root: Path) -> None:
         base_url="http://127.0.0.1",
         client=("127.0.0.1", 50000),
     ) as loopback:
-        assert loopback.get("/api/v1/system/status").json()["role"] == "summary"
+        status_body = loopback.get("/api/v1/system/status").json()
+        assert status_body["role"] == "summary"
+        assert status_body["configured_max_concurrency"] == "auto"
+        assert status_body["max_concurrency"] >= 1
         assert loopback.get("/api/v1/auth/session").status_code == 401
         assert loopback.get("/api/v1/plugins").status_code == 403
         created = loopback.post(

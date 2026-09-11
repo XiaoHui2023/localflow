@@ -21,6 +21,8 @@ sudo -u localflow ./localflow
 
 默认 `execution.backend: auto`。已启用 linger 且用户 systemd 管理器可达时自动使用 transient unit；普通 shell/解压试用环境没有用户管理器时自动回退到 subprocess 并写服务告警。生产部署仍应启用用户管理器以获得网页服务重启后的任务接管；若配置为显式 `systemd`，启动失败不会降级，而会在该任务的 `output.log` 中留下完整诊断。
 
+默认 `execution.max_concurrency: auto` 会使用服务实际可调度的 CPU 数作为并发额度，并通过 `/api/v1/system/status` 返回结算后的 `max_concurrency` 和原始 `configured_max_concurrency`，方便自动化核对。CPU 密集型仿真通常保持 `auto`；大量 I/O 等待任务可按实测提高整数额度；单个任务内部已使用 `make -j` 或其它多线程并行时应相应降低任务级并发。不要把“无限并发”当作隔离：过量进程会增加上下文切换、内存回收和 I/O stall，Linux PSI 可用于现场确认 CPU/内存/I/O 争用。只有相同显式互斥键（以及插件明确生成的互斥身份）会排队，其余任务在额度内彼此独立启动。
+
 程序客户端从管理员分配的只读密钥文件读取当前代次。不要把密钥复制到 shell 历史、命令参数或网页地址。
 
 ## systemd 服务建议

@@ -277,7 +277,7 @@ def create_app(
         root,
         store,
         executor,
-        settings.execution.max_concurrency,
+        settings.execution.effective_max_concurrency,
         auth.rotate_api_key,
         settings.retention,
         settings.logging,
@@ -436,6 +436,8 @@ def create_app(
             "status": "ok",
             "role": role,
             "backend": settings.execution.backend,
+            "max_concurrency": settings.execution.effective_max_concurrency,
+            "configured_max_concurrency": settings.execution.max_concurrency,
             "anonymous_access": settings.server.anonymous_access,
             "time": time_service.status(),
         }

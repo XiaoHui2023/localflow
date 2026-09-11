@@ -65,6 +65,69 @@ def test_service_logs_are_rotated_split_and_redacted(root: Path) -> None:
     assert "/api/v1/system/status" not in service_text
 
 
+def test_service_logging_recovers_if_directory_disappears_before_shutdown(
+    root: Path,
+) -> None:
+    configure_logging(root, LoggingSettings(level="info"))
+    log_root = root / "logs" / "service"
+    shutil.rmtree(log_root)
+    try:
+        logging.getLogger("localflow.cli").info("LocalFlow stopped")
+    finally:
+        _remove_localflow_handlers()
+
+    assert (log_root / "service.log").read_text(encoding="utf-8").endswith(
+        "INFO localflow.cli LocalFlow stopped\n"
+    )
+
+
+def test_unavailable_service_log_directory_never_blocks_shutdown_logging(
+    root: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    configure_logging(root, LoggingSettings(level="info"))
+    log_root = root / "logs" / "service"
+    shutil.rmtree(log_root)
+    log_root.write_text("occupied", encoding="utf-8")
+    try:
+        logger = logging.getLogger("localflow.cli")
+        logger.info("LocalFlow stopping")
+        logger.info("LocalFlow stopped")
+    finally:
+        _remove_localflow_handlers()
+
+    captured = capsys.readouterr()
+    assert captured.err.count("service log directory is unavailable") == 1
+    assert "LocalFlow stopped" in captured.err
+
+
+def test_service_logging_recovers_after_transient_storage_probe_failure(
+    root: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    configure_logging(root, LoggingSettings(level="info"))
+    real_disk_usage = shutil.disk_usage
+    calls = 0
+
+    def flaky_disk_usage(path: Path):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise FileNotFoundError(path)
+        return real_disk_usage(path)
+
+    monkeypatch.setattr(shutil, "disk_usage", flaky_disk_usage)
+    try:
+        logger = logging.getLogger("localflow.cli")
+        logger.info("LocalFlow stopping")
+        logger.info("LocalFlow stopped")
+    finally:
+        _remove_localflow_handlers()
+
+    assert "service log directory is unavailable" in capsys.readouterr().err
+    assert (root / "logs" / "service" / "service.log").read_text(
+        encoding="utf-8"
+    ).endswith("INFO localflow.cli LocalFlow stopped\n")
+
+
 def test_task_output_has_hard_cap_and_keeps_task_running(tmp_path: Path) -> None:
     path = tmp_path / "output.log"
     with BoundedLogWriter(path, 1024) as writer:

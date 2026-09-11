@@ -90,6 +90,17 @@ def test_release_has_an_independent_published_asset_consumer_gate() -> None:
     assert "unsafe release archive member" in verifier
 
 
+def test_frozen_shutdown_gate_faults_the_service_log_destination() -> None:
+    smoke = (
+        Path(__file__).parents[1] / "tools" / "run_frozen_smoke.py"
+    ).read_text(encoding="utf-8")
+    assert 'service_log_root = root / "logs" / "service"' in smoke
+    assert "shutil.rmtree(service_log_root)" in smoke
+    assert '"LocalFlow stopped" not in service_log.read_text' in smoke
+    assert '"Logging error" in controller_output' in smoke
+    assert '"No such file or directory" in controller_output' in smoke
+
+
 def test_release_runs_final_binary_in_ubuntu_chrome_and_firefox() -> None:
     root = Path(__file__).parents[1]
     workflow = (root / ".github" / "workflows" / "release.yml").read_text(
@@ -309,3 +320,55 @@ def test_quality_trace_and_mutant(tmp_path: Path) -> None:
     )
     assert over_budget.returncode == 1
     assert "browser resource budget exceeded" in over_budget.stderr
+
+    receipt = json.loads(
+        (root / "quality" / "evidence" / "browser" / "browser-receipt.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    receipt["interaction_metrics"]["terminal_to_tasks_next_paint_ms"] = (
+        receipt["resource_contract"]["interaction_limits"]
+        ["terminal_to_tasks_next_paint_ms"]
+        + 1
+    )
+    slow_navigation_receipt = tmp_path / "slow-navigation-receipt.json"
+    slow_navigation_receipt.write_text(json.dumps(receipt), encoding="utf-8")
+    slow_navigation = subprocess.run(
+        [
+            sys.executable,
+            str(root / "tools" / "check_quality.py"),
+            str(root / "quality" / "traceability.json"),
+            str(slow_navigation_receipt),
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    assert slow_navigation.returncode == 1
+    assert "browser interaction budget exceeded" in slow_navigation.stderr
+
+    receipt = json.loads(
+        (root / "quality" / "evidence" / "browser" / "browser-receipt.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    receipt["bundle_metrics"]["initial_legacy_entry_gzip_mib"] = (
+        receipt["resource_contract"]["bundle_limits"]
+        ["initial_legacy_entry_gzip_mib"]
+        + 1
+    )
+    oversized_bundle_receipt = tmp_path / "oversized-bundle-receipt.json"
+    oversized_bundle_receipt.write_text(json.dumps(receipt), encoding="utf-8")
+    oversized_bundle = subprocess.run(
+        [
+            sys.executable,
+            str(root / "tools" / "check_quality.py"),
+            str(root / "quality" / "traceability.json"),
+            str(oversized_bundle_receipt),
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    assert oversized_bundle.returncode == 1
+    assert "browser bundle budget exceeded" in oversized_bundle.stderr

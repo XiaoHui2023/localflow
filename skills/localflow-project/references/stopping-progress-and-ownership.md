@@ -11,6 +11,7 @@ Use this topic when a task is slow to exit, appears hung, leaves descendants, lo
 5. A result-channel exception is not an exit fact. Probe ownership; retry with bounded backoff while the process tree remains alive. Use `lost` only when neither a live owner nor a result exists.
 6. Controller shutdown first closes scheduling and awaits every already-dispatched launcher so no unit can appear after its active-task snapshot. It then owns a global graceful budget. At expiry it cancels competing soft sequences, records `sigkill`, cleans every remaining cgroup, and waits for proof rather than abandoning ownership.
 7. Never interpret the boolean exit status of `systemctl is-active` as proof that a cgroup is gone: `deactivating` can also be non-success. Read the explicit `ActiveState`; treat every state except `inactive`, `failed`, or `not-found` conservatively as still owned.
+8. File logging is an observer, never a shutdown dependency. The rotating handler owns on-demand recovery of `logs/service`; a missing directory is recreated and an unavailable destination degrades to one bounded stderr warning. Retry on later records, but never let directory creation, free-space probing, opening, rotation, or flushing abort task cleanup or controller identity-file removal.
 
 ## AI terminal intervention
 
@@ -26,6 +27,7 @@ Use this topic when a task is slow to exit, appears hung, leaves descendants, lo
 - A graceful task emits cleanup progress longer than its quiet window and exits naturally with code 0.
 - A noisy non-terminating task reaches the hard bound, is SIGKILLed, and leaves an empty cgroup.
 - A controller-wide shutdown cancels soft sequences, kills an uncooperative parent plus descendant, records `sigkill`, and proves the unit inactive.
+- The final frozen shutdown journey deletes `logs/service` while an uncooperative task is alive, then proves the directory and final service record are restored without a logging traceback, the task tree is empty, and the controller identity file is gone.
 - A delayed in-flight launcher blocks shutdown snapshotting until ownership transfer completes, after which its complete process group is cleaned.
 - A systemd state classifier keeps `deactivating` non-terminal and accepts only explicit inactive/failed/not-found ownership states.
 - An injected wait-channel failure while the process remains live retries and reaches the true exit code.

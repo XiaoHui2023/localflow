@@ -45,6 +45,10 @@
         "\\[\"最近使用\", unpinnedRecentConfigs, false\\]",
         "aria-label=\\{isFavorite \\? \"取消收藏\" : \"收藏配置\"\\}",
         "className=\"config-source-tabs\"",
+        "\\[\"quick\", \"常用\"\\]",
+        "aria-label=\\{item\\.path\\}",
+        "hidden=\\{page !== \"tasks\"\\}",
+        "if \\(!rect\\?\\.width \\|\\| !rect\\?\\.height\\) return",
         "aria-selected=\\{explorerView === id\\}",
         "initialOpenState=\\{initialTreeOpenState\\.current\\}",
         "item\\.check === \"availability\" && item\\.severity === \"error\"",
@@ -53,7 +57,10 @@
         "className=\"terminal-unread\"",
         "data-terminal-state=\\{task\\.state\\}",
         "task\\.template === \"verification\"",
-        "hidden\\.add\\(\"运行日志\"\\)"
+        "hidden\\.add\\(\"运行日志\"\\)",
+        "function TaskListValue",
+        "role=\"list\" aria-label=\\{label\\}",
+        "<span>开始时间</span>"
       ],
       "forbidden": [
         "onWheel",
@@ -69,7 +76,8 @@
         "只读历史",
         "className=\"terminal-entry-state\"",
         "onDoubleClick",
-        "favorite-panel-toggle"
+        "favorite-panel-toggle",
+        "quick-config-labels"
       ]
     },
     {
@@ -116,7 +124,7 @@
     },
     {
       "path": "../frontend/src/extra.css",
-      "required": ["fresh-dot[^}]+background:var\\(--accent\\)", "inspection-token", "copy-value code\\{[^}]+padding:5px 8px"],
+      "required": ["fresh-dot[^}]+background:var\\(--accent\\)", "inspection-token", "copy-value code\\{[^}]+padding:5px 8px", "inspection-code-list \\.copy-field\\{[^}]+display:block", "task-code-list[^}]+grid-template-columns:minmax\\(0,1fr\\)", "task-code-list \\.copy-field[^}]+display:block"],
       "forbidden": ["fresh-dot[^}]+background:var\\(--danger\\)", "copy-affordance", "copy-confirm"]
     },
     {
@@ -126,7 +134,7 @@
     },
     {
       "path": "../frontend/src/round7.css",
-      "required": ["\\.task-workspace\\.run-open \\.task-pane\\{display:none\\}", "\\.task-workspace\\.split-ready\\.run-open", "minmax\\(830px,3fr\\)", "minmax\\(410px,2fr\\)", "\\.run-panel\\{height:100vh;min-height:520px\\}", "\\.config-source-tabs\\{"],
+      "required": ["\\.task-workspace\\[hidden\\]\\{display:none\\}", "\\.task-workspace\\.run-open \\.task-pane\\{display:none\\}", "\\.task-workspace\\.split-ready\\.run-open", "minmax\\(830px,3fr\\)", "minmax\\(410px,2fr\\)", "\\.run-panel\\{height:100vh;min-height:520px\\}", "\\.config-source-tabs\\{"],
       "forbidden": ["grid-template-areas:\"run\" \"tasks\"", "height:72vh", "height:78vh", "\\.favorite-panel-toggle"]
     }
   ]

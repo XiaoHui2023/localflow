@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import asyncio
 import sys
+import time
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from localflow.executor import SubprocessExecutor
-from localflow.models import StopAction, StopStrategy, TaskCreate
+from localflow.models import StopAction, StopStrategy, TaskCreate, TaskState
 from localflow.plugins import PluginRegistry
 from localflow.service import TaskService
 from localflow.settings import initialize_root
@@ -41,6 +44,45 @@ class DelayedStartExecutor(SubprocessExecutor):
         self.entered.set()
         await self.release.wait()
         return await super().start(task, log_path)
+
+
+@pytest.mark.asyncio
+async def test_shutdown_drains_more_than_one_storage_page(root: Path) -> None:
+    root.mkdir()
+    queued = [
+        SimpleNamespace(id=f"queued-{index}", state=TaskState.QUEUED)
+        for index in range(10_005)
+    ]
+    queued_by_id = {task.id: task for task in queued}
+
+    class PagedStore:
+        def list_tasks(self, *, states, limit, ascending):
+            allowed = {TaskState(state) for state in states}
+            return [task for task in queued if task.state in allowed][:limit]
+
+    service = TaskService(root, PagedStore(), SubprocessExecutor())  # type: ignore[arg-type]
+
+    async def cancel(task_id: str) -> None:
+        queued_by_id[task_id].state = TaskState.CANCELLED
+
+    service.interrupt = AsyncMock(side_effect=cancel)  # type: ignore[method-assign]
+    await service.shutdown_all(timeout_seconds=0.01)
+    assert service.interrupt.await_count == 10_005
+    assert all(task.state == TaskState.CANCELLED for task in queued)
+
+
+@pytest.mark.asyncio
+async def test_recovery_reads_persisted_ownership_independent_of_new_capacity(
+    root: Path,
+) -> None:
+    root.mkdir()
+    store = SimpleNamespace(list_tasks=MagicMock())
+    store.list_tasks.return_value = []
+    service = TaskService(root, store, SubprocessExecutor(), max_concurrency=1)  # type: ignore[arg-type]
+    await service.recover()
+    store.list_tasks.assert_called_once_with(
+        states=["starting", "running", "stopping"], limit=10_000, ascending=True
+    )
 
 
 @pytest.mark.asyncio
@@ -90,6 +132,59 @@ async def test_mutex_queue_and_logs(root: Path) -> None:
     assert b"ok" in task_log
     assert b"process.exited" in task_log
     store.close()
+
+
+@pytest.mark.asyncio
+async def test_large_blocked_queue_does_not_hide_a_later_independent_task(
+    root: Path,
+) -> None:
+    root.mkdir()
+    store = Store(root / "runtime" / "localflow.db")
+    executor = DelayedStartExecutor()
+    service = TaskService(root, store, executor, max_concurrency=2)
+    holder = service.submit(
+        TaskCreate(
+            name="holder",
+            working_directory=str(root),
+            command=[sys.executable, "-c", "pass"],
+            mutex_keys=["license:busy"],
+        )
+    )
+    assert store.transition(holder.id, [holder.state], TaskState.RUNNING)
+    enqueue_started = time.perf_counter()
+    for index in range(501):
+        service.submit(
+            TaskCreate(
+                name=f"blocked-{index}",
+                working_directory=str(root),
+                command=[sys.executable, "-c", "pass"],
+                mutex_keys=["license:busy"],
+            )
+        )
+    independent = service.submit(
+        TaskCreate(
+            name="independent",
+            working_directory=str(root),
+            command=[sys.executable, "-c", "pass"],
+            mutex_keys=["license:free"],
+        )
+    )
+    enqueue_seconds = time.perf_counter() - enqueue_started
+    try:
+        scan_started = time.perf_counter()
+        await service._schedule()
+        assert store.get_task(independent.id).state == TaskState.QUEUED
+        await service._schedule()
+        scan_seconds = time.perf_counter() - scan_started
+        assert store.get_task(independent.id).state == TaskState.STARTING
+        assert enqueue_seconds < 15
+        assert scan_seconds < 3
+    finally:
+        for starter in service._starters.values():
+            starter.cancel()
+        if service._starters:
+            await asyncio.gather(*service._starters.values(), return_exceptions=True)
+        store.close()
 
 
 @pytest.mark.asyncio

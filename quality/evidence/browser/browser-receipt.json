@@ -1,47 +1,48 @@
 {
-  "completed_at": "2026-09-11T04:27:43.761Z",
+  "completed_at": "2026-09-11T06:42:26.104Z",
   "browser": "Microsoft Edge",
   "browser_version": "152.0.4191.66",
-  "base_url": "http://192.168.1.118:4602",
+  "base_url": "http://192.168.1.118:35245",
   "result": "passed",
   "source_files": {
     "frontend/index.html": "a6a84d305fed5896d32ad37d64a7b0260ddf6176c01aa9461cb13217f99e1e64",
     "frontend/public/compat-boot.js": "434b7d0948ced0a38c92f3b9453bfd57126d8dce162614f038c64ae5880ae055",
     "frontend/public/theme-boot.js": "2387cdd215685a35180bd8dbffcd7b24a9452ace53ddbf04d7277a155e5a1b51",
-    "frontend/src/App.jsx": "5e56a01e1f633f1f5c36e087fda798faf8e8466de6e9531a40ce9067fbf14402",
+    "frontend/src/App.jsx": "cf71415def1a74b5ab4954b22d463a20e8bae77ab1733a81ccb8d64a543b422e",
+    "frontend/src/MonacoEditors.jsx": "2b3afd8960449900ac875e8e8468b869a1ef72e04fcb59a5356a0d29cc8b3870",
     "frontend/src/Tooltip.jsx": "cd6fa98895b6501000f8f10281937a4072c7d2d7fe98d471da2d03ffb8c0aaf5",
     "frontend/src/api.js": "8d746a3d8d87882ab09790c7ef3eca1326586678b6742c3cebfe6c6ee158f99e",
-    "frontend/src/main.jsx": "813a679e098d8e2909998d65737c160631adde743469a1f8a9762298665e4517",
+    "frontend/src/main.jsx": "5e76a5f7ebfc75e32bc00cba0c00f6720e070c016372c8c2d6652262b53fa4b1",
     "frontend/src/index.css": "e82882f5ef9ef45474c4920cf0f97c163669d33b2cc5704d72239a5e384da649",
-    "frontend/src/extra.css": "bf3a20d1be0f9c3ef63f6a5d5fbae586312916efd801a96902e44807fd0c05d5",
+    "frontend/src/extra.css": "7a48c39818afbb617e6b3bd5b7bec75952e05bfdbebbc2e29995236c1ff09190",
     "frontend/src/round6.css": "c4ff8482cabcb69049f1c362311daaba58625005f6a13bb8eff36935474bc9a2",
-    "frontend/src/round7.css": "1b2a7d4806acb9284768b909a0d8eeb9c3e887044074878748422ffc58bfe797",
+    "frontend/src/round7.css": "923c17700aaf83360d23b95187b82b6dab11c2e0efc7f847e264301998d4b12b",
     "frontend/src/case-picker.css": "b45bffa1c903b3c4215fcbe1e45daef3f3bbd01d93e3b49792c442276f86b20f",
     "frontend/e2e/ui-quality.js": "c5abcb5b38f281cd79fc031d2de13f6739e1e060769e921d330f479390de7a5d",
-    "frontend/e2e/localflow.spec.js": "562c54393cc64a5d2d2faeba155f4362ddd7b69152bbbc8ab693263316d4104a",
-    "frontend/e2e/compatibility.spec.js": "bf1ec6f743103a3de3e34f389b301648da133bcedea3c3cfac92c9c144745a0c",
-    "frontend/e2e/legacy-browser.mjs": "b93078d77e37b2b62c8d27506d38df3e88574d59bb1d7a11c9fd032a926031ac",
+    "frontend/e2e/localflow.spec.js": "496bfa67feea36bd1fca0482d0423ebc57a1f6f0c7e35048757e2a12c08abd80",
+    "frontend/e2e/compatibility.spec.js": "afe8a31f18911b07d348dea6f95b873add3bf78b734e4c748535348e5edc57d3",
+    "frontend/e2e/legacy-browser.mjs": "554915976f2b1db1e488bd80df3da1eaa218625edf472eefab9fa3d8df248165",
     "frontend/playwright.config.js": "2f3fb9fa698b7133900e10941c78b0e7bde70c2362a72304b90669c7cf77da91",
     "frontend/vite.config.js": "1b6ae4282f9f512ada4f4ef53a4662db6eafa2364c5875b71ca7a5987e0f8b55",
     "frontend/package.json": "6b8034ef45861985efd5c1c97cccf76f84df86fa6ac279a542541d9ada1d23f5",
     "frontend/package-lock.json": "a7ca62052200c091cce2a2b23f3955b6feeb18148349d8cbd50f7957b2cbdd21",
-    "quality/resource-budgets.json": "e1f450814d6d8142fc6bac147c48c603c7e8c55c0be38f6da5b59ac0924b1369",
-    "tools/check_quality.py": "8b67b8929e575b654f3b556460659c2db7eba411d220aa8fc3ff7960e6e05819",
+    "quality/resource-budgets.json": "8947a942f8a02fc025942f4eb4d4bea9fca1a6abe80854247b93e9b58293e169",
+    "tools/check_quality.py": "648d26e3b679c49ff9afc306d95efe9cc1d4b3a7819aaa84019ffe4c60bc5867",
     "tools/run_browser_quality.py": "cf2cfa1c1881f5b25199c11902421b41b1185b6f7beb84bd50cfffb86144e60c",
     "tools/run_linux_browser_quality.py": "1da5c8697eb3018a89f1296e2f168b936827d5fc260eb56385b8fff18699b56b"
   },
   "screenshots": {
-    "admin-common-configurations-light.png": "9df8f756471c0c55766f0a121d795b8b4d176ef4693ac5fd4320a3a66aca6f15",
-    "admin-config-explorer-dark.png": "738fe0e32f9d0c33e23aa1eec030cd9308ae7496792470c143e4e7f2aef2c068",
-    "admin-empty-light.png": "5538133429646b356dcf2688c6f0acaca891163fb906f0f305f416233f7487db",
-    "admin-mobile-390.png": "89498ff120a9807d9c1eaf497d693358b487d06ae847ee934f8405ca79608fb1",
-    "admin-run-verification-dark.png": "e348530bd91ffa2231577c8a18d22cde9d67eb91ac0c47b4b27bf5ad61856e47",
-    "admin-run-verification-empty-dark.png": "1e85ba4b41243416898f905b36c9441922555a2c3a3c1d0c54b5d70b815dd125",
-    "admin-run-verification-scope-dark.png": "8f111a1c92ecaae1d672981de057f6deb46869e0f9b5b2150e3cf5904e20e2aa",
-    "admin-settings-compact-light.png": "040dd37389f7e22dd839f508da1077280eb30d7fbb3094af8d9a9be59011afb8",
-    "admin-shutdown-confirmation.png": "3a6463d5e967110c1d2475509902d54a9e5c50dffdc4c99e42e2e05434484e23",
-    "admin-task-inline-dark.png": "33d79fc57e3f2091e5e953fd1a1b9161082f4a0aa4b40ff7f9d6577a915b191c",
-    "admin-terminal-dark.png": "93a3f0cd1aa9e30c5a8061e1a4542acc2230c47dff47afa4622beba6420d660a",
+    "admin-common-configurations-light.png": "6274b5690a6f015c773878e4379cfc01f7c616e6ad62b16cf08b61c47875176f",
+    "admin-config-explorer-dark.png": "59e125933056d0eba995dbcfbeeaa74f9160558aa9d0a0afdc5a1edcdb3fe1f0",
+    "admin-empty-light.png": "5ffe7583b9cfcd4c9f999b3ca59cde670114e763263428182fc2546b3790da06",
+    "admin-mobile-390.png": "87343a998dd96a77a5ab223afdac97e98b6927b9d235cbaf3b7a9a931c1738ce",
+    "admin-run-verification-dark.png": "42f80392563b3e81514c0424463bc40dd499e3502fc38a5c75da004fc2fff75c",
+    "admin-run-verification-empty-dark.png": "82432f6e3f5173ba4562364a17eab5cc6b8c2630e68339a6a5858bf6ffc064e7",
+    "admin-run-verification-scope-dark.png": "6c72ee6c9bb30d8241ad6c71c71c6a4f1d29bdf1aaef7096eca8a90ec7ec67da",
+    "admin-settings-compact-light.png": "431179d4f15c7ba514465d7367ceea1ca7e7e13c257748c175e0de661fe847a1",
+    "admin-shutdown-confirmation.png": "1acb062a98ea5f27dc26df939ab43569d16c4d23265cbe9bc05c7997db7e3a33",
+    "admin-task-inline-dark.png": "3f4e6a8a2a53966297d259c25c578cb01da8a1f86d7cf9921197123c7320483f",
+    "admin-terminal-dark.png": "75487c0ee4d772bb03e47a54f01b2290764fd9d37dc06de47d841b3bc9269670",
     "anonymous-settings-login-light.png": "2590243d938aaaca9780df1edf2e7be8bb394ce38957fee016193d8bb9eb2e56",
     "anonymous-settings-login-mobile.png": "5579b9bbc1acadbdd172e0ea531ded7d8d1832c9cb690fce6791b0efb1a49e6b"
   },
@@ -62,22 +63,31 @@
       "dom_event_listeners": 1200,
       "idle_background_requests": 16,
       "idle_websockets": 0
+    },
+    "interaction_limits": {
+      "terminal_to_tasks_next_paint_ms": 250
+    },
+    "bundle_limits": {
+      "initial_legacy_entry_gzip_mib": 0.3
     }
   },
   "resource_metrics": {
     "task_process_count": 0,
     "service_process_count": 2,
-    "idle_window_seconds": 6.018,
-    "server_rss_mib": 59.223,
-    "server_cpu_one_core_percent": 1.528,
-    "renderer_js_heap_mib": 12.427,
-    "renderer_idle_cpu_one_core_percent": 0.818,
-    "dom_nodes": 1877,
-    "dom_documents": 5,
-    "dom_event_listeners": 327,
+    "idle_window_seconds": 6.01,
+    "server_rss_mib": 59.324,
+    "server_cpu_one_core_percent": 0.255,
+    "renderer_js_heap_mib": 7.916,
+    "renderer_idle_cpu_one_core_percent": 0.85,
+    "dom_nodes": 1875,
+    "dom_documents": 4,
+    "dom_event_listeners": 324,
     "idle_background_requests": 7,
     "idle_websockets": 0,
     "terminal_ack_frames": 6
+  },
+  "bundle_metrics": {
+    "initial_legacy_entry_gzip_mib": 0.208
   },
   "assertions": [
     "testing-ui-revision-auto-reload",
@@ -129,6 +139,8 @@
     "config-default-expanded",
     "config-dirty-save",
     "config-quick-history",
+    "config-code-list-full-width",
+    "common-config-path-identity",
     "terminal-bounded-archive-search",
     "case-marquee-scope-only",
     "case-group-relative-edit",
@@ -147,6 +159,9 @@
     "plugin-arbitrary-status",
     "idle-web-resource-budget",
     "compact-copyable-task-detail",
+    "task-detail-array-lines",
+    "task-detail-start-time-label",
+    "monaco-deferred-bundle",
     "neutral-scroll-copy-feedback",
     "unboxed-stop-action",
     "direct-config-file-actions",
@@ -159,6 +174,10 @@
     "hello-world-log-lifecycle",
     "start-time-log-path",
     "wcag-a-aa",
-    "mobile-no-overflow"
-  ]
+    "mobile-no-overflow",
+    "task-route-next-paint"
+  ],
+  "interaction_metrics": {
+    "terminal_to_tasks_next_paint_ms": 18
+  }
 }

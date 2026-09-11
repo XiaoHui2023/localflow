@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import zlib from "node:zlib";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { assertTooltipInteraction } from "./ui-quality.js";
@@ -269,8 +270,22 @@ test("a clean configuration reopens on its run surface", async ({ page }) => {
   await openAdminTaskWorkspace(page);
   const hello = page.locator('[data-file="config/command/hello-world.yaml"]');
   await hello.click();
+  expect(
+    await page.evaluate(() =>
+      performance.getEntriesByType("resource").some((entry) =>
+        entry.name.includes("MonacoEditors"),
+      ),
+    ),
+  ).toBe(false);
   await page.getByRole("button", { name: "编辑", exact: true }).click();
   await expect(page.locator(".monaco-editor")).toBeVisible();
+  expect(
+    await page.evaluate(() =>
+      performance.getEntriesByType("resource").some((entry) =>
+        entry.name.includes("MonacoEditors"),
+      ),
+    ),
+  ).toBe(true);
   await page.locator('[data-file="config/verification/demo.yaml"]').click();
   await hello.click();
   await expect(page.locator("button.run-action")).toHaveAccessibleName("运行");
@@ -586,6 +601,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
       labels: ["browser"],
       custom: {
         report: "qa://finished",
+        artifacts: ["qa://compile.log", "qa://run.log"],
         variable_sources: { report: "internal" },
       },
     },
@@ -622,6 +638,21 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await doneRow.hover();
   await expect(freshDot).toHaveCount(0);
   await expect(page.getByText("qa://finished", { exact: true })).toBeVisible();
+  const artifactList = page.getByRole("list", { name: "artifacts" });
+  await expect(artifactList.getByRole("listitem")).toHaveCount(2);
+  await expect(artifactList.getByText("qa://compile.log", { exact: true })).toBeVisible();
+  await expect(artifactList.getByText("qa://run.log", { exact: true })).toBeVisible();
+  const artifactGeometry = await artifactList.evaluate((list) => ({
+    ownerWidth: list.getBoundingClientRect().width,
+    rows: [...list.querySelectorAll("[role='listitem']")].map((row) => ({
+      width: row.getBoundingClientRect().width,
+      valueWidth: row.querySelector(".copy-value").getBoundingClientRect().width,
+    })),
+  }));
+  for (const row of artifactGeometry.rows) {
+    expect(row.width).toBeGreaterThanOrEqual(artifactGeometry.ownerWidth - 1);
+    expect(row.valueWidth).toBeGreaterThanOrEqual(artifactGeometry.ownerWidth - 1);
+  }
   const detailBox = await page.locator(".task-item.open .detail").boundingBox();
   const rowBox = await doneRow.boundingBox();
   expect(detailBox.y).toBeGreaterThan(rowBox.y);
@@ -631,9 +662,10 @@ test("plugin configuration console remains concise and operable in Edge", async 
     Math.abs(nameBox.y + nameBox.height / 2 - (tagBox.y + tagBox.height / 2)),
   ).toBeLessThanOrEqual(2);
   await expect(doneRow.locator("time")).toBeVisible();
-  await expect(page.locator(".task-item.open .detail-time")).toContainText(
-    "开始",
+  await expect(page.locator(".task-item.open .detail-time > span")).toHaveText(
+    "开始时间",
   );
+  await expect(page.locator(".task-item.open .detail-time svg")).toHaveCount(0);
   const detailTime = page.locator(".task-item.open .detail-time time");
   await expect(detailTime).toBeVisible();
   await expect(detailTime).toHaveAttribute("datetime", /.+/);
@@ -1232,6 +1264,25 @@ test("plugin configuration console remains concise and operable in Edge", async 
     /\$\{case\}\.compile\.log$/,
     /\$\{case\}\.lint\.log$/,
   ]);
+  const compileLogGeometry = await compileLogList.evaluate((list) => {
+    const owner = list.getBoundingClientRect();
+    return {
+      ownerWidth: owner.width,
+      rows: [...list.querySelectorAll(".copy-field")].map((row) => {
+        const rowBox = row.getBoundingClientRect();
+        const valueBox = row.querySelector(".copy-value").getBoundingClientRect();
+        return { rowWidth: rowBox.width, valueWidth: valueBox.width };
+      }),
+    };
+  });
+  expect(compileLogGeometry.rows).toHaveLength(2);
+  expect(
+    compileLogGeometry.rows.every(
+      ({ rowWidth, valueWidth }) =>
+        rowWidth >= compileLogGeometry.ownerWidth - 1 &&
+        valueWidth >= compileLogGeometry.ownerWidth - 1,
+    ),
+  ).toBeTruthy();
   const inspectionBeforeCaseInput = await page.locator(".inspection-grid").innerText();
   await expect(page.getByText("Shell", { exact: true })).toHaveCount(0);
   const previewCustomText = page
@@ -1537,6 +1588,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
     "frontend/public/compat-boot.js",
     "frontend/public/theme-boot.js",
     "frontend/src/App.jsx",
+    "frontend/src/MonacoEditors.jsx",
     "frontend/src/Tooltip.jsx",
     "frontend/src/api.js",
     "frontend/src/main.jsx",
@@ -1575,6 +1627,21 @@ test("plugin configuration console remains concise and operable in Edge", async 
       .sort()
       .map((name) => [name, sha256(path.join(evidence, name))]),
   );
+  const initialEntry = fs
+    .readdirSync(path.resolve("dist/assets"))
+    .find((name) => /^index-legacy-.*\.js$/.test(name));
+  if (!initialEntry) throw new Error("built legacy application entry is missing");
+  const bundleMetrics = {
+    initial_legacy_entry_gzip_mib: Number(
+      (
+        zlib.gzipSync(fs.readFileSync(path.resolve("dist/assets", initialEntry)), {
+          level: 9,
+        }).length /
+        1024 /
+        1024
+      ).toFixed(3),
+    ),
+  };
   fs.writeFileSync(
     path.join(evidence, "browser-receipt.json"),
     JSON.stringify(
@@ -1588,6 +1655,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
         screenshots,
         resource_contract: resourceContract,
         resource_metrics: resourceMetrics,
+        bundle_metrics: bundleMetrics,
         assertions: [
           "testing-ui-revision-auto-reload",
           "secret-login-required",
@@ -1638,6 +1706,8 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "config-default-expanded",
           "config-dirty-save",
           "config-quick-history",
+          "config-code-list-full-width",
+          "common-config-path-identity",
           "terminal-bounded-archive-search",
           "case-marquee-scope-only",
           "case-group-relative-edit",
@@ -1656,6 +1726,9 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "plugin-arbitrary-status",
           "idle-web-resource-budget",
           "compact-copyable-task-detail",
+          "task-detail-array-lines",
+          "task-detail-start-time-label",
+          "monaco-deferred-bundle",
           "neutral-scroll-copy-feedback",
           "unboxed-stop-action",
           "direct-config-file-actions",
@@ -1677,15 +1750,15 @@ test("plugin configuration console remains concise and operable in Edge", async 
   );
 });
 
-test("quick access groups pinned and recent configurations without losing context", async ({
+test("common configurations use complete paths and preserve context", async ({
   page,
 }) => {
   await openAdminTaskWorkspace(page);
   const resourceTab = page.getByRole("tab", { name: "资源", exact: true });
-  const quickTab = page.getByRole("tab", { name: "快捷", exact: true });
+  const quickTab = page.getByRole("tab", { name: "常用", exact: true });
   await expect(page.locator(".top .config-source-tab")).toHaveCount(0);
   await expect(page.locator(".explorer .config-source-tabs")).toContainText(
-    "资源快捷",
+    "资源常用",
   );
   await expect(resourceTab).toHaveAttribute("aria-selected", "true");
   await expect(quickTab).toHaveAttribute("aria-selected", "false");
@@ -1712,24 +1785,38 @@ test("quick access groups pinned and recent configurations without losing contex
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "已收藏" })).toBeVisible();
   const pinned = page.getByRole("list", { name: "已收藏" });
-  await expect(
-    pinned.getByRole("button", {
-      name: /hello-world.*command\/hello-world\.yaml/,
-    }),
-  ).toBeVisible();
+  const pinnedPath = pinned.getByRole("button", {
+    name: "config/command/hello-world.yaml",
+    exact: true,
+  });
+  await expect(pinnedPath).toBeVisible();
+  await expect(pinnedPath).toHaveText("config/command/hello-world.yaml");
+  await expect(pinnedPath.locator("strong, small, em")).toHaveCount(0);
+  const pinnedGeometry = await pinnedPath.evaluate((button) => ({
+    clientWidth: button.clientWidth,
+    scrollWidth: button.scrollWidth,
+    clientHeight: button.clientHeight,
+    scrollHeight: button.scrollHeight,
+  }));
+  expect(pinnedGeometry.scrollWidth).toBeLessThanOrEqual(
+    pinnedGeometry.clientWidth,
+  );
+  expect(pinnedGeometry.scrollHeight).toBeLessThanOrEqual(
+    pinnedGeometry.clientHeight,
+  );
   await expect(page.getByRole("button", { name: "新建文件" })).toHaveCount(0);
 
   await page.reload();
   await expect(
-    page.getByRole("tab", { name: "快捷", exact: true }),
+    page.getByRole("tab", { name: "常用", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("tab", { name: "快捷", exact: true }).press("ArrowLeft");
+  await page.getByRole("tab", { name: "常用", exact: true }).press("ArrowLeft");
   await expect(
     page.getByRole("tab", { name: "资源", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
   await page.getByRole("tab", { name: "资源", exact: true }).press("End");
   await expect(
-    page.getByRole("tab", { name: "快捷", exact: true }),
+    page.getByRole("tab", { name: "常用", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("list", { name: "已收藏" })).toContainText(
     "hello-world",
@@ -1745,7 +1832,47 @@ test("quick access groups pinned and recent configurations without losing contex
   });
   await page.getByRole("button", { name: "配置", exact: true }).click();
   await expect(
-    page.getByRole("tab", { name: "快捷", exact: true }),
+    page.getByRole("tab", { name: "常用", exact: true }),
   ).not.toBeVisible();
   finalizeBrowserReceipt();
+});
+
+test("terminal to task navigation preserves the workbench within a paint budget", async ({
+  page,
+}) => {
+  await openAdminTaskWorkspace(page);
+  await page.locator('[data-file="config/command/hello-world.yaml"]').click();
+  await page.locator(".config-explorer").evaluate((node) => {
+    node.dataset.qaPreserved = "true";
+  });
+  const treeBefore = await page.locator(".tree-host").boundingBox();
+  await page.getByRole("tab", { name: "终端" }).click();
+  await expect(page.locator(".task-workspace")).toBeHidden();
+  const duration = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const started = performance.now();
+        document.getElementById("nav-tasks").click();
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => resolve(performance.now() - started)),
+        );
+      }),
+  );
+  expect(duration).toBeLessThan(
+    resourceContract.interaction_limits.terminal_to_tasks_next_paint_ms,
+  );
+  await expect(page.locator('.config-explorer[data-qa-preserved="true"]')).toBeVisible();
+  await expect(page.locator(".terminal-page")).toHaveCount(0);
+  const treeAfter = await page.locator(".tree-host").boundingBox();
+  expect(Math.abs(treeAfter.width - treeBefore.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(treeAfter.height - treeBefore.height)).toBeLessThanOrEqual(1);
+  const receiptPath = path.join(evidence, "browser-receipt.json");
+  const receipt = JSON.parse(fs.readFileSync(receiptPath, "utf8"));
+  receipt.interaction_metrics = {
+    ...(receipt.interaction_metrics || {}),
+    terminal_to_tasks_next_paint_ms: Number(duration.toFixed(3)),
+  };
+  if (!receipt.assertions.includes("task-route-next-paint"))
+    receipt.assertions.push("task-route-next-paint");
+  fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
 });

@@ -36,7 +36,11 @@ try {
   const keyInput = await driver.wait(until.elementLocated(By.css("input[aria-label='管理员秘钥']")), 10_000);
   await keyInput.sendKeys(adminKey);
   await driver.findElement(By.xpath("//button[normalize-space()='登录']")).click();
-  await driver.wait(async () => (await driver.findElements(By.css("[role='tab']"))).length === 3, 10_000);
+  await driver.wait(
+    async () =>
+      (await driver.findElements(By.css("nav[aria-label='主导航'] > [role='tab']"))).length === 3,
+    10_000,
+  );
   step = "verify shutdown confirmation";
   await driver.findElement(By.xpath("//button[normalize-space()='退出']")).click();
   await driver.wait(until.elementLocated(By.css("[role='alertdialog']")), 10_000);

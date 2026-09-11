@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Editor, { DiffEditor } from "@monaco-editor/react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Tree } from "react-arborist";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
@@ -53,6 +52,13 @@ import {
 } from "lucide-react";
 import { api } from "./api";
 import { Hint } from "./Tooltip";
+
+const Editor = lazy(() =>
+  import("./MonacoEditors.jsx").then((module) => ({ default: module.MonacoEditor })),
+);
+const DiffEditor = lazy(() =>
+  import("./MonacoEditors.jsx").then((module) => ({ default: module.MonacoDiffEditor })),
+);
 
 const finalStates = new Set(["succeeded", "failed", "cancelled", "lost"]);
 const coreLabels = {
@@ -510,7 +516,7 @@ async function writeClipboard(text) {
   input.remove();
   if (!copied) throw new Error("copy unavailable");
 }
-function CopyValue({ label, value, customText = false }) {
+function CopyValue({ label, value, customText = false, ariaContext = "" }) {
   const [copied, setCopied] = useState(false);
   const timer = useRef();
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -531,7 +537,7 @@ function CopyValue({ label, value, customText = false }) {
             className="copy-value"
             type="button"
             onClick={copy}
-            aria-label={`${label ? `${label}，` : customText ? `${text}，` : ""}${copied ? "已复制" : "点击复制"}`}
+            aria-label={`${label ? `${label}，` : ariaContext ? `${ariaContext}，` : customText ? `${text}，` : ""}${copied ? "已复制" : "点击复制"}`}
           >
             <code>{text}</code>
           </button>
@@ -540,6 +546,21 @@ function CopyValue({ label, value, customText = false }) {
           {copied ? "已复制" : ""}
         </span>
       </span>
+    </div>
+  );
+}
+
+function TaskListValue({ label, values }) {
+  return (
+    <div className="task-list-field">
+      <span className="copy-label">{label}</span>
+      <div className="task-code-list" role="list" aria-label={label}>
+        {values.map((value, index) => (
+          <div role="listitem" key={`${label}-${index}`}>
+            <CopyValue value={value} ariaContext={`${label} ${index + 1}`} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -563,7 +584,7 @@ function TaskDetail({ task, role, interrupt }) {
     <div className="detail">
       <div className="details">
         <div className="detail-time">
-          <span><Clock3 aria-hidden="true" />开始</span>
+          <span>开始时间</span>
           <time dateTime={task.started_at || undefined} title={task.started_at || undefined}>
             {showTime(task.started_at)}
           </time>
@@ -582,13 +603,15 @@ function TaskDetail({ task, role, interrupt }) {
                   key={`${key}-${index}`}
                 />
               ))
-            : [
+            : Array.isArray(value)
+              ? [<TaskListValue label={key} values={value} key={key} />]
+              : [
                 <CopyValue
                   label={key === "seed" ? "随机种子" : key}
                   value={value}
                   key={key}
                 />,
-              ],
+                ],
         )}
       </div>
       {role === "admin" && !finalStates.has(task.state) && (
@@ -1892,14 +1915,23 @@ function Config({ theme, explorerView, onExplorerViewChange }) {
     return () => clearTimeout(timer);
   }, [runStatus]);
   useEffect(() => {
-    const observer = new ResizeObserver(([entry]) =>
-      setTreeSize({
-        width: Math.floor(entry.contentRect.width),
-        height: Math.floor(entry.contentRect.height),
-      }),
-    );
+    let frame;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const rect = treeHost.current?.getBoundingClientRect();
+        if (!rect?.width || !rect?.height) return;
+        setTreeSize({
+          width: Math.floor(rect.width),
+          height: Math.floor(rect.height),
+        });
+      });
+    });
     if (treeHost.current) observer.observe(treeHost.current);
-    return () => observer.disconnect();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
   }, []);
   useEffect(() => {
     const events = new EventSource("/api/v1/events");
@@ -2245,7 +2277,7 @@ function Config({ theme, explorerView, onExplorerViewChange }) {
           : "yaml";
   const sourceViews = [
     ["resources", "资源"],
-    ["quick", "快捷"],
+    ["quick", "常用"],
   ];
   const moveSourceTab = (event, index) => {
     let next = index;
@@ -2427,6 +2459,8 @@ function Config({ theme, explorerView, onExplorerViewChange }) {
                           type="button"
                           className={item.path === file?.path ? "active" : ""}
                           aria-current={item.path === file?.path ? "true" : undefined}
+                          aria-label={item.path}
+                          title={item.path}
                           onClick={() => open(item.path)}
                         >
                           {favorite ? (
@@ -2434,17 +2468,7 @@ function Config({ theme, explorerView, onExplorerViewChange }) {
                           ) : (
                             <Clock3 aria-hidden="true" />
                           )}
-                          <span>
-                            <strong>{item.name}</strong>
-                            {item.labels.length > 0 && (
-                              <span className="quick-config-labels">
-                                {item.labels.map((label) => (
-                                  <em key={label}>{label}</em>
-                                ))}
-                              </span>
-                            )}
-                            <small>{item.path.replace(/^config\//, "")}</small>
-                          </span>
+                          <span className="quick-config-path">{item.path}</span>
                         </button>
                       </li>
                     ))}
@@ -2453,7 +2477,7 @@ function Config({ theme, explorerView, onExplorerViewChange }) {
               ) : null,
             )}
             {!favoriteConfigs.length && !unpinnedRecentConfigs.length && (
-              <p className="quick-config-empty">暂无快捷配置</p>
+              <p className="quick-config-empty">暂无常用配置</p>
             )}
           </div>
         )}
@@ -2572,18 +2596,21 @@ function Config({ theme, explorerView, onExplorerViewChange }) {
                     采用最新版本
                   </button>
                 </div>
-                <DiffEditor
-                  height="calc(100vh - 120px)"
-                  original={conflict.content}
-                  modified={content}
-                  language={editorLanguage}
-                  theme={editorTheme}
-                  options={{ readOnly: true, automaticLayout: true }}
-                />
+                <Suspense fallback={<div className="editor-loading">正在载入编辑器</div>}>
+                  <DiffEditor
+                    height="calc(100vh - 120px)"
+                    original={conflict.content}
+                    modified={content}
+                    language={editorLanguage}
+                    theme={editorTheme}
+                    options={{ readOnly: true, automaticLayout: true }}
+                  />
+                </Suspense>
               </div>
             ) : (
               <div className="editor-stack">
-                <Editor
+                <Suspense fallback={<div className="editor-loading">正在载入编辑器</div>}>
+                  <Editor
                   height="100%"
                   language={editorLanguage}
                   theme={editorTheme}
@@ -2618,7 +2645,8 @@ function Config({ theme, explorerView, onExplorerViewChange }) {
                     automaticLayout: true,
                     padding: { top: 16 },
                   }}
-                />
+                  />
+                </Suspense>
                 {editorDiagnosis?.errors?.length > 0 && (
                   <section className="problems-panel" aria-label="问题" role="region">
                     <header>
@@ -3002,8 +3030,10 @@ export default function App() {
       setSplitReady(false);
       return undefined;
     }
-    const update = () =>
-      setSplitReady(taskWorkspaceNode.getBoundingClientRect().width >= 1240);
+    const update = () => {
+      const width = taskWorkspaceNode.getBoundingClientRect().width;
+      if (width > 0) setSplitReady(width >= 1240);
+    };
     update();
     if (!window.ResizeObserver) return undefined;
     const observer = new ResizeObserver(update);
@@ -3118,12 +3148,12 @@ export default function App() {
           aria-labelledby={`nav-${page}`}
           tabIndex="0"
         >
-          {page === "tasks" && (
-            <section
-              ref={setTaskWorkspaceNode}
-              data-layout={splitReady ? "split" : "focused"}
-              className={`task-workspace ${runOpen ? "run-open" : ""} ${splitReady ? "split-ready" : ""}`}
-            >
+          <section
+            ref={setTaskWorkspaceNode}
+            data-layout={splitReady ? "split" : "focused"}
+            className={`task-workspace ${runOpen ? "run-open" : ""} ${splitReady ? "split-ready" : ""}`}
+            hidden={page !== "tasks"}
+          >
               <div className="task-pane">
                 <section className="workspace">
                   {definitions.length === 0 ? (
@@ -3165,8 +3195,7 @@ export default function App() {
                   />
                 </aside>
               )}
-            </section>
-          )}
+          </section>
           {status?.role === "admin" && page === "terminal" && (
             <TerminalPage tasks={tasks} role={status?.role} theme={theme} />
           )}{" "}

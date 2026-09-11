@@ -34,6 +34,8 @@ For terminal-list grouping, unread-output semantics, lifecycle color use, and th
 
 For graceful-stop progress windows, hard escalation bounds, wait-channel failures, controller shutdown, cgroup ownership, or AI terminal intervention, read `references/stopping-progress-and-ownership.md`.
 
+For large task populations, automatic concurrency, scheduler fairness, cgroup isolation, or controller/browser/resource performance claims, read `references/scheduler-capacity-and-performance.md`.
+
 For signed Agent submission/observation/control journeys and resource-link response design, read `references/agent-api-contract.md`.
 
 For persistent browser login, shared trusted DNS domains, secret lifetime, or adaptive bash/csh/zsh/fish startup behavior, read `references/identity-and-shell-boundaries.md`.

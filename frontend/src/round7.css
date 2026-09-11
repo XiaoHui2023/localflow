@@ -1,5 +1,6 @@
 /* The configuration workbench expands from its left-side disclosure control. */
 .task-workspace{min-height:100vh;display:grid;grid-template-areas:"tasks";grid-template-columns:minmax(0,1fr);background:var(--bg)}
+.task-workspace[hidden]{display:none}
 .task-workspace.run-open{min-height:0;grid-template-areas:"run";grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(520px,100vh)}
 .task-workspace.run-open .task-pane{display:none}
 .task-workspace.split-ready.run-open{grid-template-areas:"run tasks";grid-template-columns:minmax(830px,3fr) minmax(410px,2fr);grid-template-rows:auto}
@@ -43,16 +44,12 @@ html[data-theme="dark"] .run-panel .run-action.idle:hover{background:#1f6feb}
 .quick-config-group+ .quick-config-group{margin-top:14px;padding-top:10px;border-top:1px solid var(--border)}
 .quick-config-group h3{margin:0;padding:3px 9px 6px;color:var(--muted);font-size:10px;font-weight:700;letter-spacing:.06em}
 .quick-configs ul{display:grid;gap:3px;margin:0;padding:0;list-style:none}.quick-configs li{min-width:0}
-.quick-configs button{width:100%;min-width:0;min-height:52px;display:grid;grid-template-columns:18px minmax(0,1fr);align-items:start;gap:8px;padding:7px 9px;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--text);text-align:left;cursor:pointer}
+.quick-configs button{width:100%;min-width:0;min-height:40px;display:grid;grid-template-columns:18px minmax(0,1fr);align-items:start;gap:8px;padding:8px 9px;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--text);text-align:left;cursor:pointer}
 .quick-configs button:hover{border-color:var(--border);background:var(--surface)}
 .quick-configs button.active{background:var(--surface-selected);color:var(--accent)}
 .quick-configs button>svg{width:14px;height:14px;margin-top:2px;color:var(--muted)}
 .quick-configs button.active>svg{color:var(--accent)}
-.quick-configs button>span{min-width:0;display:grid;gap:4px}
-.quick-configs strong,.quick-configs small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.quick-configs strong{font-size:12px;font-weight:650}.quick-configs small{color:var(--muted);font-size:10px}
-.quick-config-labels{display:flex!important;flex-flow:row wrap;gap:3px!important}
-.quick-config-labels em{max-width:100%;overflow:hidden;text-overflow:ellipsis;padding:1px 5px;border:1px solid color-mix(in srgb,var(--accent) 22%,var(--border));border-radius:999px;background:color-mix(in srgb,var(--accent) 6%,transparent);color:var(--muted);font-size:9px;font-style:normal;line-height:14px;white-space:nowrap}
+.quick-config-path{min-width:0;overflow-wrap:anywhere;word-break:break-word;color:var(--text);font:11px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}
 .quick-config-empty{margin:24px 12px;color:var(--muted);font-size:12px;text-align:center}
 
 .run-panel{height:100vh;min-height:520px}
