@@ -137,7 +137,7 @@ def main() -> int:
         }
         with log_path.open("wb") as log:
             process = subprocess.Popen(
-                [binary, "--config-root", root, "--state-dir", state_root],
+                [binary, "--workspace", root, "--data", state_root],
                 cwd=folder,
                 env=clean_environment,
                 stdout=log,

@@ -71,7 +71,7 @@ def main() -> None:
             if binary.parent != root:
                 raise SystemExit("--binary must be directly inside --bundle-root")
         state_root = isolated / "instance-state"
-        command = [binary, "--config-root", root, "--state-dir", state_root]
+        command = [binary, "--workspace", root, "--data", state_root]
         clean_env = {
             key: value
             for key, value in os.environ.items()
@@ -118,8 +118,14 @@ def main() -> None:
             capture_output=True,
             text=True,
         )
-        if help_result.returncode != 0 or "--state-dir" not in help_result.stdout:
-            raise RuntimeError("frozen executable does not expose the state-directory contract")
+        if (
+            help_result.returncode != 0
+            or "--workspace" not in help_result.stdout
+            or "--data" not in help_result.stdout
+            or "--config-root" in help_result.stdout
+            or "--state-dir" in help_result.stdout
+        ):
+            raise RuntimeError("frozen executable does not expose the canonical path contract")
         rejected = subprocess.run(
             [binary, "serve"], cwd=isolated, env=clean_env, capture_output=True, text=True
         )
