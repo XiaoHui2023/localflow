@@ -51,6 +51,9 @@ async def test_plugin_discovery_is_dynamic_and_typed(root: Path) -> None:
 async def test_verification_config_discovers_one_level_files_and_directories(root: Path) -> None:
     initialize_root(root)
     nested = root / "cases" / "case-a" / "hidden-below.case"
+    nested.parent.mkdir(parents=True)
+    (root / "cases" / "case-b").mkdir()
+    (root / "cases" / "smoke.case").write_text("smoke", encoding="utf-8")
     nested.write_text("nested", encoding="utf-8")
     registry = PluginRegistry(root / "plugins")
     registry.load()
@@ -58,7 +61,7 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     assert verification["api"]["endpoint"] == "/api/v1/runs"
     assert verification["api"]["configuration_schema"] is not None
     schema = verification["api"]["configuration_schema"]
-    assert {"plugin", "command", "case_directory"}.issubset(schema["properties"])
+    assert {"plugin", "command", "case_directory", "case_names"}.issubset(schema["properties"])
     assert {"plugin", "working_directory", "command"}.issubset(schema["required"])
     assert schema["additionalProperties"] is True
     assert {
@@ -103,6 +106,22 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     }
     items = await registry.discover_config(document, {}, {"root": str(root)})
     assert items == ["case-a", "case-b", "smoke"]
+    generated = {
+        "plugin": "verification",
+        "case_names": ["generated-b", "generated-a", "generated-a"],
+        "working_directory": ".",
+        "command": "true",
+    }
+    assert await registry.discover_config(generated, {}, {"root": str(root)}) == [
+        "generated-a",
+        "generated-b",
+    ]
+    with pytest.raises(ValueError, match="alternative sources"):
+        registry.expand_config(
+            {**generated, "case_directory": "cases"},
+            {"cases": ["generated-a"]},
+            {"root": str(root)},
+        )
     with pytest.raises(ValueError, match="at least one case"):
         registry.expand_config(document, {}, {"root": str(root)})
     task = registry.expand_config(
@@ -123,7 +142,7 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     make_task = registry.expand_config(
         {
             "plugin": "verification",
-            "case_directory": str(root / "cases"),
+            "case_names": ["case-a"],
             "working_directory": str(root),
             "command": "make all CASE=${case} SEED=${seed}",
             "custom_texts": ["case=${case}", "seed=${seed}"],
@@ -144,9 +163,11 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
         "command": "${sim_command}",
         "variables": {"sim_command": "make all CASE=${case} SEED=${seed}"},
     }
-    assert registry.expand_config(
-        composed, {"cases": ["case-a"], "seed": 42}, {"root": str(root)}
-    )[0].command[-1].endswith("&& make all CASE=case-a SEED=42")
+    assert (
+        registry.expand_config(composed, {"cases": ["case-a"], "seed": 42}, {"root": str(root)})[0]
+        .command[-1]
+        .endswith("&& make all CASE=case-a SEED=42")
+    )
 
 
 @pytest.mark.parametrize(
@@ -167,7 +188,7 @@ def test_verification_command_uses_only_variables_explicitly_requested(
     task = registry.expand_config(
         {
             "plugin": "verification",
-            "case_directory": str(root / "cases"),
+            "case_names": ["case-a"],
             "working_directory": ".",
             "command": command,
         },
@@ -195,7 +216,7 @@ def test_verification_queue_identity_requires_same_case_and_complete_label_set(
         return registry.expand_config(
             {
                 "plugin": "verification",
-                "case_directory": str(root / "cases"),
+                "case_names": ["case-a", "case-b"],
                 "working_directory": ".",
                 "command": "true",
                 "labels": labels,
@@ -224,10 +245,10 @@ def test_verification_resolves_yaml_root_variables_after_include(root: Path) -> 
     source.write_text(
         "!include included-values.yaml\n"
         "plugin: verification\n"
-        "case_directory: cases\n"
+        "case_names: [case-a]\n"
         "working_directory: .\n"
         "command: ${project.command}\n"
-        "labels: [\"${project.label}\"]\n",
+        'labels: ["${project.label}"]\n',
         encoding="utf-8",
     )
     from localflow.config_repository import ConfigRepository
@@ -252,7 +273,7 @@ def test_verification_only_exposes_case_and_seed_as_runtime_variables(root: Path
     registry.load()
     base = {
         "plugin": "verification",
-        "case_directory": str(root / "cases"),
+        "case_names": ["case-a"],
         "working_directory": ".",
     }
 
@@ -318,9 +339,7 @@ def test_plugin_metadata_rejects_nonportable_deferred_variables(root: Path) -> N
     registry = PluginRegistry(directory)
     registry.load()
     assert not registry.plugins
-    assert "unsupported deferred variables: ['run']" in next(
-        iter(registry.diagnostics.values())
-    )
+    assert "unsupported deferred variables: ['run']" in next(iter(registry.diagnostics.values()))
 
 
 def test_verification_rejects_an_implicit_controller_working_directory(root: Path) -> None:
@@ -482,9 +501,7 @@ def test_plugin_input_model_must_match_run_field_contract(root: Path) -> None:
     registry = PluginRegistry(directory)
     registry.load()
     assert not registry.plugins
-    assert "input_model fields differ from run fields" in next(
-        iter(registry.diagnostics.values())
-    )
+    assert "input_model fields differ from run fields" in next(iter(registry.diagnostics.values()))
 
 
 def test_plugin_descriptions_have_user_facing_names(root: Path) -> None:

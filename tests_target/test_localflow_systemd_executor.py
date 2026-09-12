@@ -67,7 +67,7 @@ async def test_real_systemd_executor_runs_make_variables_and_logs_command(
     draft = registry.expand_config(
         {
             "plugin": "verification",
-            "case_directory": "cases",
+            "case_names": ["case-a"],
             "working_directory": "../simulation-project",
             "command": "make all CASE=${case} SEED=${seed}",
         },

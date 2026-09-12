@@ -13,7 +13,6 @@ config/
 plugins/
 ├── command.py
 └── verification.py
-cases/
 scripts/
 ```
 
@@ -69,11 +68,11 @@ command: "printf 'hello world\\n' > hello-world.txt"
 
 ## 验证仿真
 
-`config/verification/demo.yaml` 保存稳定内容：Case 目录、工作目录、命令、标签与日志模板。`${case}` 和 `${seed}` 是验证插件仅有的两个按任务变量；命令可以使用任意子集，也可以完全不用。插件不会提供 `root`、`scripts_dir`、`cases_dir`、`run`、`runs` 或 `cases` 等隐式变量，也不会猜测或追加参数。首启示例演示 GNU Make 命令行变量 `make all CASE=${case} SEED=${seed}`，但它只是示例而非验证合同。其它工具可按自身语法写，或直接使用不带 Case/seed 的任意命令。本次要运行的 Case、各自次数和可选 seed 只在使用界面或 API `inputs` 中提供。
+`config/verification/demo.yaml` 保存稳定内容：插件提供的 Case 名称、工作目录、命令、标签与日志模板。Case 不是 LocalFlow 核心目录；验证插件既可从 `case_names` 生成候选，也可通过 `case_directory` 扫描用户指定目录的一层内容，发现结果随配置或目录重新读取。`${case}` 和 `${seed}` 是验证插件仅有的两个按任务变量；命令可以使用任意子集，也可以完全不用。插件不会提供 `root`、`scripts_dir`、`cases_dir`、`run`、`runs` 或 `cases` 等隐式变量，也不会猜测或追加参数。首启示例演示 GNU Make 命令行变量 `make all CASE=${case} SEED=${seed}`，但它只是示例而非验证合同。其它工具可按自身语法写，或直接使用不带 Case/seed 的任意命令。本次要运行的 Case、各自次数和可选 seed 只在使用界面或 API `inputs` 中提供。
 
 字符串命令支持 Make、Shell、可执行文件以及管道、重定向等任意 Ubuntu shell 命令；参数列表用于完全绕过 shell。GNU Make 的 `-f` 只选择 Makefile，不会切换目录；要在项目目录运行，应设置 `working_directory`，或在命令中明确使用 `make -C <目录>`，LocalFlow 不从任意命令文本猜测目录。任务启动前，输出日志会记录解析后的工作目录和最终命令，自动 seed 也已替换，便于直接核对实际执行内容。
 
-进入使用界面后，顶部只读检查区显示已经解析的工作目录、完整命令、Case 目录、标签、编译日志和运行日志，不再重复显示字符串命令的首词。插件决定检查内容：必须预先存在的输入路径可声明 availability，仅缺失时显示叉号；存在、普通信息和未来生成的日志均不显示图案。首次打开、保存成功、外部同步和相关运行输入变化都会重新检查；检查使用有界超时和旧请求取消。
+进入使用界面后，顶部只读检查区显示已经解析的工作目录、完整命令、Case 来源、标签、编译日志和运行日志，不再重复显示字符串命令的首词。插件决定检查内容：必须预先存在的输入路径可声明 availability，仅缺失时显示叉号；插件直接提供的 Case 列表以及普通信息和未来生成的日志均不显示图案。首次打开、保存成功、外部同步和相关运行输入变化都会重新检查；检查使用有界超时和旧请求取消。
 
 编辑器按文件保留未保存草稿。修改后的文件及其父目录在资源树显示圆点，切换文件不会丢失草稿；保存成功、删除或明确采用外部最新版本后清除对应状态。未保存配置可以进入运行审查，但必须先保存才能提交。
 

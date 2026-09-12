@@ -18,7 +18,7 @@ Use this skill when analyzing or modifying the extracted LocalFlow project.
 
 For test-environment selection, release publication, or a suspiciously stale rolling Release, read [`references/release-quality-gates.md`](references/release-quality-gates.md). This topic is intentionally separate from everyday source changes.
 
-For shared configuration, multiple LocalFlow services, state-directory CLI flags,
+For shared workspaces, multiple LocalFlow services, instance-data CLI flags,
 upgrade compatibility, or runtime files outside the source tree, read
 [`references/instance-state-roots.md`](references/instance-state-roots.md).
 

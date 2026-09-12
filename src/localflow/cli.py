@@ -135,6 +135,7 @@ def _serve(paths: LocalFlowPaths) -> None:
         # accidentally abandon a long-running task fleet.  SIGUSR1 is the
         # explicit, package-owned graceful shutdown channel.
         _disable_uvicorn_signal_capture(server)
+
         # Use a caught no-op instead of SIG_IGN.  Caught dispositions reset to
         # SIG_DFL across exec(), so tasks launched by the development executor
         # still receive Ctrl+C/SIGTERM normally instead of inheriting immunity.
@@ -185,6 +186,28 @@ def _serve(paths: LocalFlowPaths) -> None:
             pid_file.unlink()
 
 
+def _compatible_path_option(
+    parser: argparse.ArgumentParser,
+    startup_directory: Path,
+    canonical: Path | None,
+    legacy: Path | None,
+    canonical_name: str,
+    legacy_name: str,
+) -> Path | None:
+    """Merge a canonical path option with its backwards-compatible spelling."""
+    if canonical is None:
+        return legacy
+    if legacy is None:
+        return canonical
+    canonical_path = (
+        canonical if canonical.is_absolute() else startup_directory / canonical
+    ).resolve()
+    legacy_path = (legacy if legacy.is_absolute() else startup_directory / legacy).resolve()
+    if canonical_path != legacy_path:
+        parser.error(f"{canonical_name} and {legacy_name} select different directories")
+    return canonical
+
+
 def main() -> None:
     if _run_internal_mode():
         return
@@ -193,20 +216,39 @@ def main() -> None:
         description="Run one LocalFlow service instance.",
     )
     parser.add_argument(
-        "--state-dir",
+        "--workspace",
         type=Path,
-        help="instance database, logs and cache directory (default: ./.localflow)",
+        help="shared configuration and plugin workspace (default: current directory)",
     )
     parser.add_argument(
-        "--config-root",
+        "--data",
         type=Path,
-        help="shared config, plugins and secrets root (default: current directory)",
+        help="exclusive instance database, logs and cache (default: ./.localflow)",
     )
+    parser.add_argument("--config-root", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--state-dir", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
+    startup_directory = application_root()
+    workspace = _compatible_path_option(
+        parser,
+        startup_directory,
+        args.workspace,
+        args.config_root,
+        "--workspace",
+        "--config-root",
+    )
+    data = _compatible_path_option(
+        parser,
+        startup_directory,
+        args.data,
+        args.state_dir,
+        "--data",
+        "--state-dir",
+    )
     paths = LocalFlowPaths.resolve(
-        startup_directory=application_root(),
-        config_root=args.config_root,
-        state_root=args.state_dir,
+        startup_directory=startup_directory,
+        config_root=workspace,
+        state_root=data,
     )
     try:
         validate_state_root(paths.state_root)

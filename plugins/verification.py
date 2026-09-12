@@ -43,14 +43,25 @@ class VerificationConfig(BaseModel):
 
     case_directory: str | None = None
     case_root: str | None = None
+    case_names: list[str] = Field(default_factory=list)
     compile_logs: list[str] = Field(default_factory=list)
     run_logs: list[str] = Field(default_factory=list)
     custom_texts: list[str] = Field(default_factory=list)
 
+    @field_validator("case_names")
+    @classmethod
+    def normalize_case_names(cls, values):
+        names = [value.strip() for value in values]
+        if any(not value for value in names):
+            raise ValueError("case_names cannot contain empty names")
+        return list(dict.fromkeys(names))
+
     @model_validator(mode="after")
-    def require_case_directory(self):
-        if not self.case_directory and not self.case_root:
-            raise ValueError("case_directory is required")
+    def require_case_source(self):
+        if not self.case_directory and not self.case_root and not self.case_names:
+            raise ValueError("case_directory or case_names is required")
+        if self.case_names and (self.case_directory or self.case_root):
+            raise ValueError("case_names and case_directory are alternative sources")
         return self
 
 
@@ -80,7 +91,7 @@ class VerificationInputs(BaseModel):
         return self
 
 
-@plugin("verification", version="3")
+@plugin("verification", version="4")
 class Verification:
     config_model = VerificationConfig
     input_model = VerificationInputs
@@ -91,7 +102,7 @@ class Verification:
     instructions = "配置 Case 目录和仿真命令。使用时选择一个或多个 Case；每个 Case 的每次运行都会成为独立任务。"
     example = {
         "plugin": "verification",
-        "case_directory": "cases",
+        "case_names": ["case-a", "case-b", "smoke"],
         "working_directory": ".",
         "command": "make all CASE=${case} SEED=${seed}",
         "mutex_keys": ["simulator:demo"],
@@ -148,81 +159,112 @@ class Verification:
             }
         )
 
+    def _available_cases(self, values, context):
+        configured = values.get("case_names", [])
+        if configured:
+            if values.get("case_directory") or values.get("case_root"):
+                raise ValueError("case_names and case_directory are alternative sources")
+            return sorted(dict.fromkeys(str(item).strip() for item in configured))
+        root = self._path(values.get("case_directory", values.get("case_root", "")), context)
+        return self._case_names(root) if root.is_dir() else []
+
     @staticmethod
     def _path(value, context):
         path = Path(value)
         return path if path.is_absolute() else Path(context["root"]) / path
 
     def discover(self, values, context):
-        root = self._path(
-            values.get("case_directory", values.get("case_root", "")), context
-        )
-        return self._case_names(root)
+        return self._available_cases(values, context)
 
     def inspect(self, values, context):
+        configured_cases = self._available_cases(values, context)
+        if values.get("case_names"):
+            items = [
+                {
+                    "name": "case_names",
+                    "label": "Case",
+                    "value": configured_cases,
+                    "kind": "tokens",
+                    "severity": "info",
+                    "message": f"插件提供 {len(configured_cases)} 个 Case",
+                }
+            ]
+        else:
+            items = []
         case_root = self._path(
             values.get("case_directory", values.get("case_root", "")), context
         ).resolve()
-        if case_root.is_dir():
-            count = len(self._case_names(case_root))
-            severity = "ok"
-            message = f"已发现 {count} 个 Case" if count else "目录存在，但没有可用 Case"
-            if count == 0:
-                severity = "warning"
-        else:
-            severity = "error"
-            message = "找不到 Case 目录"
-        items = [{
-            "name": "case_directory",
-            "label": "Case 目录",
-            "value": str(case_root),
-            "kind": "path",
-            "check": "availability",
-            "severity": severity,
-            "message": message,
-        }]
+        if not values.get("case_names"):
+            if case_root.is_dir():
+                count = len(configured_cases)
+                severity = "ok"
+                message = f"已发现 {count} 个 Case" if count else "目录存在，但没有可用 Case"
+                if count == 0:
+                    severity = "warning"
+            else:
+                severity = "error"
+                message = "找不到 Case 目录"
+            items.append(
+                {
+                    "name": "case_directory",
+                    "label": "Case 目录",
+                    "value": str(case_root),
+                    "kind": "path",
+                    "check": "availability",
+                    "severity": severity,
+                    "message": message,
+                }
+            )
         selected_case = "${case}"
         preview_values = {
             "case": selected_case,
             "seed": "${seed}",
         }
+
         def preview(value):
             result = str(value)
             for key, replacement in preview_values.items():
                 result = result.replace("${" + key + "}", str(replacement))
             return result
+
         working = self._path(values["working_directory"], context).resolve()
         for name, label in (("compile_logs", "编译日志"), ("run_logs", "运行日志")):
             resolved = []
             for raw in values.get(name, []):
                 path = Path(preview(raw))
                 resolved.append(str(path if path.is_absolute() else (working / path).resolve()))
-            items.append({
-                "name": name,
-                "label": label,
-                "value": resolved,
-                "kind": "code-list",
-                "severity": "info",
-                "message": "仅展示解析结果；运行前不检查文件是否存在",
-            })
+            items.append(
+                {
+                    "name": name,
+                    "label": label,
+                    "value": resolved,
+                    "kind": "code-list",
+                    "severity": "info",
+                    "message": "仅展示解析结果；运行前不检查文件是否存在",
+                }
+            )
         labels = [preview(value) for value in values.get("labels", [])]
-        items.append({
-            "name": "labels",
-            "label": "标签",
-            "value": labels,
-            "kind": "tokens",
-            "severity": "info",
-            "message": None,
-        })
-        for index, value in enumerate(values.get("custom_texts", [])):
-            items.append({
-                "name": f"custom_text_{index}",
-                "label": "自定义文本",
-                "value": str(value),
-                "kind": "text",
+        items.append(
+            {
+                "name": "labels",
+                "label": "标签",
+                "value": labels,
+                "kind": "tokens",
                 "severity": "info",
                 "message": None,
-            })
+            }
+        )
+        for index, value in enumerate(values.get("custom_texts", [])):
+            items.append(
+                {
+                    "name": f"custom_text_{index}",
+                    "label": "自定义文本",
+                    "value": str(value),
+                    "kind": "text",
+                    "severity": "info",
+                    "message": None,
+                }
+            )
         return items
 
     def evaluate_result(self, task, _context):
@@ -240,7 +282,9 @@ class Verification:
                 "status": "compile_error",
                 "custom": {**runtime, "编译日志": [str(path) for path in existing_compile]},
             }
-        text = "\n".join(path.read_text(encoding="utf-8", errors="replace") for path in existing_run)
+        text = "\n".join(
+            path.read_text(encoding="utf-8", errors="replace") for path in existing_run
+        )
         status, _count = evaluate_vcs_text(text)
         return {
             "status": status,
@@ -251,11 +295,8 @@ class Verification:
         command_template = values["command"]
         if not values.get("working_directory"):
             raise ValueError("working_directory is required")
-        case_root = self._path(
-            values.get("case_directory", values.get("case_root", "")), context
-        ).resolve()
         working_directory = self._path(values["working_directory"], context).resolve()
-        available = set(self._case_names(case_root))
+        available = set(self._available_cases(values, context))
         if not values.get("cases"):
             raise ValueError("at least one case is required")
         tasks = []
@@ -309,12 +350,26 @@ class Verification:
                             "_run": index + 1,
                             **({} if automatic_seed else {"seed": seed}),
                             "_compile_logs": [
-                                str(path if path.is_absolute() else (working_directory / path).resolve())
-                                for path in (Path(str(value)) for value in dynamic.resolve(values.get("compile_logs", [])))
+                                str(
+                                    path
+                                    if path.is_absolute()
+                                    else (working_directory / path).resolve()
+                                )
+                                for path in (
+                                    Path(str(value))
+                                    for value in dynamic.resolve(values.get("compile_logs", []))
+                                )
                             ],
                             "_run_logs": [
-                                str(path if path.is_absolute() else (working_directory / path).resolve())
-                                for path in (Path(str(value)) for value in dynamic.resolve(values.get("run_logs", [])))
+                                str(
+                                    path
+                                    if path.is_absolute()
+                                    else (working_directory / path).resolve()
+                                )
+                                for path in (
+                                    Path(str(value))
+                                    for value in dynamic.resolve(values.get("run_logs", []))
+                                )
                             ],
                             "自定义文本": [
                                 str(value)

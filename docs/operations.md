@@ -2,11 +2,11 @@
 
 ## 部署身份
 
-推荐建立专用系统用户 `localflow`，主服务不使用 root。配置根可由管理员统一维护，实例状态目录归该服务用户所有；普通用户通过 HTTP 只读投影查看状态。系统时间调整安装单独的特权辅助程序，并用 polkit 或 sudoers 仅开放固定参数动作。
+推荐建立专用系统用户 `localflow`，主服务不使用 root。共享工作区可由管理员统一维护，实例数据目录归该服务用户所有；普通用户通过 HTTP 只读投影查看状态。系统时间调整安装单独的特权辅助程序，并用 polkit 或 sudoers 仅开放固定参数动作。
 
 ## 启动方式
 
-主服务由固定 systemd 服务管理。`localflow` 没有子命令；`--config-root` 选择可共享的配置、插件和密钥根，`--state-dir` 选择本实例独占的数据库、日志、缓存和恢复根。两者相对路径均以启动当前目录解析，默认分别是 `.` 与 `./.localflow`。监听地址、端口和保存期来自配置根 `config.yaml`，仅在启动时读取。默认端口为 `0`，服务启动时把地址打印到终端，并在运行期间写入：
+主服务由固定 systemd 服务管理。`localflow` 没有子命令；`--workspace` 选择可共享的配置、插件、脚本和密钥工作区，`--data` 选择本实例独占的数据库、日志、缓存和恢复数据。两者相对路径均以启动当前目录解析，默认分别是 `.` 与 `./.localflow`。旧 `--config-root`、`--state-dir` 是隐藏兼容别名；新旧拼写同时出现且解析到不同目录时拒绝启动。监听地址、端口和保存期来自工作区 `config.yaml`，仅在启动时读取。默认端口为 `0`，服务启动时把地址打印到终端，并在运行期间写入：
 
 ```bash
 cat /var/lib/localflow/.localflow/runtime/port
@@ -16,7 +16,7 @@ cat /var/lib/localflow/.localflow/runtime/port
 
 ```bash
 cd /var/lib/localflow
-sudo -u localflow ./localflow --config-root /var/lib/localflow --state-dir /var/lib/localflow/.localflow
+sudo -u localflow ./localflow --workspace /srv/localflow --data /var/lib/localflow/site-a
 ```
 
 默认 `execution.backend: auto`。已启用 linger 且用户 systemd 管理器可达时自动使用 transient unit；普通 shell/解压试用环境没有用户管理器时自动回退到 subprocess 并写服务告警。生产部署仍应启用用户管理器以获得网页服务重启后的任务接管；若配置为显式 `systemd`，启动失败不会降级，而会在该任务的 `output.log` 中留下完整诊断。
@@ -29,7 +29,7 @@ sudo -u localflow ./localflow --config-root /var/lib/localflow --state-dir /var/
 
 主服务单元应设置固定工作目录、自动重启、文件描述符上限和最小权限。任务由瞬态单元承载，单元名包含状态目录摘要和任务 ID，不包含用户提供的名称。瞬态单元属性限制在实现允许清单内，避免插件注入任意 systemd 属性。
 
-多实例可以共享只读或受协调写入的配置根，但每个实例必须使用不同的本地状态目录。SQLite 官方不支持把网络文件系统当作可靠的多主机锁边界；不要通过 NFS 同时打开同一状态库。同一状态目录的第二个控制器会在绑定端口和打开数据库之前被实例锁拒绝。共享 `secrets/` 会复用网页与 API 身份，但任务历史仍完全独立。
+多实例可以共享只读或受协调写入的工作区，但每个实例必须使用不同的本地数据目录。SQLite 官方不支持把网络文件系统当作可靠的多主机锁边界；不要通过 NFS 同时打开同一状态库。同一数据目录的第二个控制器会在绑定端口和打开数据库之前被实例锁拒绝。共享 `secrets/` 会复用网页与 API 身份，但任务历史仍完全独立。
 
 升级主服务前先停止接收新任务并等待数据库短事务结束；不停止已有任务瞬态单元。新版本启动后执行恢复核对，再开放写接口。
 

@@ -96,6 +96,7 @@ jobs:
           test -f "$bundle/config.yaml"
           test -f "$bundle/config/command/hello-world.yaml"
           test -f "$bundle/config/verification/demo.yaml"
+          test ! -e "$bundle/cases"
           test -f "$bundle/Makefile"
           test -f "$bundle/plugins/command.py"
           test -f "$bundle/plugins/verification.py"

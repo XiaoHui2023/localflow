@@ -19,15 +19,15 @@ cd demo-root
 localflow
 ```
 
-`localflow` 没有子命令。默认从当前目录读取 `config.yaml`、`config/`、`plugins/`、`scripts/`、`cases/` 和 `secrets/`，并把数据库、日志、端口、缓存等实例状态写入当前目录的 `.localflow/`。首次运行只补齐两个生产插件和各一份配置：`command/hello-world.yaml` 用四个字段执行任意命令，`verification/demo.yaml` 选择 Case、次数与 seed。测试插件只存在于质检流程，不进入发布包。
+`localflow` 没有子命令。默认从当前工作区读取 `config.yaml`、`config/`、`plugins/`、`scripts/` 和 `secrets/`，并把数据库、日志、端口、缓存等实例数据写入当前目录的 `.localflow/`。Case 不是 LocalFlow 核心目录：候选项由所属插件根据自己的配置动态生成或发现。首次运行只补齐两个生产插件和各一份配置：`command/hello-world.yaml` 用四个字段执行任意命令，`verification/demo.yaml` 选择 Case、次数与 seed。测试插件只存在于质检流程，不进入发布包。
 
-多个服务器可复用同一配置根，同时选择互不相同的状态目录：
+多个服务器可复用同一工作区，同时选择互不相同的数据目录：
 
 ```bash
-localflow --config-root /srv/shared/localflow-config --state-dir /var/lib/localflow/site-a
+localflow --workspace /srv/shared/localflow --data /var/lib/localflow/site-a
 ```
 
-保持 `--state-dir` 不变会恢复该实例历史，改用空目录就是新实例。旧版单根目录需要继续读取原有 `runtime/`、`logs/` 时，可在该目录运行 `localflow --state-dir .`。状态目录必须是实例本地独占目录，不能让多台主机共享同一个 SQLite 数据库。
+保持 `--data` 不变会恢复该实例历史，改用空目录就是新实例。旧版单根目录需要继续读取原有 `runtime/`、`logs/` 时，可在该目录运行 `localflow --data .`。数据目录必须是实例本地独占目录，不能让多台主机共享同一个 SQLite 数据库。`--config-root` 与 `--state-dir` 仅作为旧脚本的兼容别名保留。
 
 试用环境可在首次启动后，把根目录 `config.yaml` 中的执行器改为：
 
@@ -44,7 +44,7 @@ execution:
 localflow
 ```
 
-默认监听所有 IPv4 网卡，端口由系统随机选择；启动后只打印首选局域网 IP 对应的可复制地址，并在运行期间写入状态目录的 `runtime/port`。来源地址和随机端口都不是身份验证；未登录网页默认只能读取去敏摘要。`secrets/web-admin-key` 只在配置根首次缺失时生成；首次管理操作在设置页输入一次后，同一浏览器在刷新、端口变化或服务重启后保持登录，修改该文件才会注销旧会话。多台同一信任域的服务器可按安全文档配置 HTTPS 父域共享会话。程序客户端使用独立的 `secrets/api-key` 逐请求 HMAC 签名。
+默认监听所有 IPv4 网卡，端口由系统随机选择；启动后只打印首选局域网 IP 对应的可复制地址，并在运行期间写入数据目录的 `runtime/port`。来源地址和随机端口都不是身份验证；未登录网页默认只能读取去敏摘要。`secrets/web-admin-key` 只在工作区首次缺失时生成；首次管理操作在设置页输入一次后，同一浏览器在刷新、端口变化或服务重启后保持登录，修改该文件才会注销旧会话。多台同一信任域的服务器可按安全文档配置 HTTPS 父域共享会话。程序客户端使用独立的 `secrets/api-key` 逐请求 HMAC 签名。
 
 ## Ubuntu 安装要点
 

@@ -41,7 +41,7 @@ class Example:
 
 ### AI Agent 组合验证配置
 
-AI Agent 应先读取 `GET /api/v1/plugins/verification`，复制 `api.example.configuration` 作为最小骨架，再分别按 `configuration_schema` 和 `input_schema` 生成两部分；不要猜字段名或另造一套模板。长期不变的 `command`、`case_directory`、`labels`、`mutex_keys`、`compile_logs`、`run_logs`、`custom_texts` 和变量放入配置，本次选择的 `cases`、逐 Case `case_runs` 与可选 `seed` 放入 `inputs`。提交前调用 `/runs/plan` 或已有配置的 `/plan`，检查任务数量、命令、目录、标签、互斥键和 `deferred_values`；预演不分配 seed、不创建任务。正式提交在一个事务中分配自动值、冻结快照并建立批次。
+AI Agent 应先读取 `GET /api/v1/plugins/verification`，复制 `api.example.configuration` 作为最小骨架，再分别按 `configuration_schema` 和 `input_schema` 生成两部分；不要猜字段名或另造一套模板。长期不变的 `command`、Case 来源、`labels`、`mutex_keys`、`compile_logs`、`run_logs`、`custom_texts` 和变量放入配置，本次选择的 `cases`、逐 Case `case_runs` 与可选 `seed` 放入 `inputs`。Case 来源由插件所有：验证插件可用 `case_names` 直接生成候选，或用 `case_directory` 扫描显式外部目录；核心不创建或维护通用 `cases/`。提交前调用 `/runs/plan` 或已有配置的 `/plan`，检查任务数量、命令、目录、标签、互斥键和 `deferred_values`；预演不分配 seed、不创建任务。正式提交在一个事务中分配自动值、冻结快照并建立批次。
 
 ```python
 api_inputs = {
@@ -112,7 +112,7 @@ TaskDraft(
 
 ## 随安装提供的插件
 
-- `verification.py`：配置 Case 路径后自动发现 Case，支持整行增加、减号减少、延迟长按连发、框选同步调整、逐 Case 次数以及留空随机/手工种子；每次运行形成独立任务。插件只提供 `${case}` 与 `${seed}`，可使用任意子集或完全不用；其它变量必须来自合并后的配置树。插件用 Case 名称与完整标签集合的稳定摘要生成一个自动互斥键，因此只有 Case 和全部标签同时相同的仿真自动串行；用户显式 `mutex_keys` 仍可表达许可证等额外资源约束。
+- `verification.py`：通过 `case_names` 生成或从 `case_directory` 动态发现 Case，支持整行增加、减号减少、延迟长按连发、框选同步调整、逐 Case 次数以及留空随机/手工种子；每次运行形成独立任务。插件只提供 `${case}` 与 `${seed}`，可使用任意子集或完全不用；其它变量必须来自合并后的配置树。插件用 Case 名称与完整标签集合的稳定摘要生成一个自动互斥键，因此只有 Case 和全部标签同时相同的仿真自动串行；用户显式 `mutex_keys` 仍可表达许可证等额外资源约束。
 - `command.py`：生产插件。只需名称、工作目录和命令，示例优先使用字符串，也兼容精确 argv 列表，适合直接代为执行一条命令。
 - `verification.py`：生产插件。发现 Case、展开逐 Case 任务、在入队事务中分配递增 seed 并判定 VCS/UVM 结果。
 

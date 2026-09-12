@@ -16,12 +16,12 @@ def test_initialize_installs_only_production_plugins_and_examples(root: Path) ->
     assert (root / "config.yaml").is_file()
     assert load_settings(root).server.port == 0
     configs = {
-        path.relative_to(root / "config").as_posix()
-        for path in (root / "config").rglob("*.yaml")
+        path.relative_to(root / "config").as_posix() for path in (root / "config").rglob("*.yaml")
     }
     assert configs == {"command/hello-world.yaml", "verification/demo.yaml"}
     assert (root / "scripts" / "simulate.py").is_file()
     assert "CASE" in (root / "Makefile").read_text(encoding="utf-8")
+    assert not (root / "cases").exists()
     assert not (root / "scripts" / "random_number.py").exists()
     assert not (root / "plugins" / "marker.py").exists()
     assert not (root / "plugins" / "interactive.py").exists()
@@ -80,10 +80,12 @@ def test_initialize_upgrades_only_an_unmodified_known_builtin(
 ) -> None:
     initialize_root(root)
     verification = root / "plugins" / "verification.py"
-    current = files("localflow.builtin_plugins").joinpath(
-        "verification.py.example"
-    ).read_text(encoding="utf-8")
-    previous = current.replace('version="3"', 'version="2"').replace(
+    current = (
+        files("localflow.builtin_plugins")
+        .joinpath("verification.py.example")
+        .read_text(encoding="utf-8")
+    )
+    previous = current.replace('version="4"', 'version="3"').replace(
         '{"working_directory", "command"}', '{"command"}'
     )
     verification.write_text(previous, encoding="utf-8")

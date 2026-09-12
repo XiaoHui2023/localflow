@@ -204,7 +204,7 @@ def main() -> None:
             run_payload = {
                 "configuration": {
                     "plugin": "verification",
-                    "case_directory": "cases",
+                    "case_names": ["case-a"],
                     "working_directory": relative_make_project,
                     "command": "make all",
                 },

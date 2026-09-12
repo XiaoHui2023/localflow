@@ -1,6 +1,6 @@
 # Case and seed are substituted only where this command explicitly references them.
 plugin: verification
-case_directory: cases
+case_names: [case-a, case-b, smoke]
 working_directory: .
 command: >-
   make all CASE=${case} SEED=${seed}

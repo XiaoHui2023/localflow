@@ -478,7 +478,7 @@ async def test_verification_result_is_frozen_from_run_log(root: Path) -> None:
     run_log = root / "artifacts" / "case-a.run.log"
     document = {
         "plugin": "verification",
-        "case_directory": str(root / "cases"),
+        "case_names": ["case-a"],
         "working_directory": ".",
         "command": [
             sys.executable,
@@ -538,7 +538,7 @@ async def test_automatic_verification_seeds_are_frozen_unique_and_persistent(
     registry.load()
     document = {
         "plugin": "verification",
-        "case_directory": str(root / "cases"),
+        "case_names": ["case-a"],
         "working_directory": ".",
         "command": [
             sys.executable,

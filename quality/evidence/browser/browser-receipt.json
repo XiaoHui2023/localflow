@@ -1,8 +1,8 @@
 {
-  "completed_at": "2026-09-11T17:16:20.420Z",
+  "completed_at": "2026-09-12T14:34:13.558Z",
   "browser": "Microsoft Edge",
-  "browser_version": "152.0.4191.66",
-  "base_url": "http://192.168.1.118:54473",
+  "browser_version": "153.0.4234.32",
+  "base_url": "http://192.168.1.118:28698",
   "result": "passed",
   "source_files": {
     "frontend/index.html": "a6a84d305fed5896d32ad37d64a7b0260ddf6176c01aa9461cb13217f99e1e64",
@@ -19,7 +19,7 @@
     "frontend/src/round7.css": "923c17700aaf83360d23b95187b82b6dab11c2e0efc7f847e264301998d4b12b",
     "frontend/src/case-picker.css": "b45bffa1c903b3c4215fcbe1e45daef3f3bbd01d93e3b49792c442276f86b20f",
     "frontend/e2e/ui-quality.js": "be6dd26623e91e93b35584a9c0e9efa52167aafcb8f53ad6b8f49f0cab1d457e",
-    "frontend/e2e/localflow.spec.js": "04b21ebe13d7ed2a96efa68e18be0dacf37a56775fb70103198f1b075c02b825",
+    "frontend/e2e/localflow.spec.js": "cd7621a0cd158ef02f60b76449e7d7d6faec7744f22bcf3a39d677ac6f9b9bbf",
     "frontend/e2e/compatibility.spec.js": "afe8a31f18911b07d348dea6f95b873add3bf78b734e4c748535348e5edc57d3",
     "frontend/e2e/legacy-browser.mjs": "554915976f2b1db1e488bd80df3da1eaa218625edf472eefab9fa3d8df248165",
     "frontend/playwright.config.js": "2f3fb9fa698b7133900e10941c78b0e7bde70c2362a72304b90669c7cf77da91",
@@ -32,17 +32,17 @@
     "tools/run_linux_browser_quality.py": "1573270b0a5fb7a8ac4e1569463eb381dfb64628a2fca7e18bd1b8c0341e3001"
   },
   "screenshots": {
-    "admin-common-configurations-light.png": "13015d329b043f373074be9cb363a9ac92f2dbc021bfa3ad95749eae9ad0cbaa",
-    "admin-config-explorer-dark.png": "3bc0633f06dd5592ac0f943c2c32d39cf315e4c47e1855557cd8a830b3b553ad",
+    "admin-common-configurations-light.png": "e09868a3c5990bdfa08411a48389bec046de4db3a0568e4ad3d01d3a17709093",
+    "admin-config-explorer-dark.png": "4ac4184f1192cb588c637e9049841a914325f4c4aef5259fab7115c412f4e85c",
     "admin-empty-light.png": "5ffe7583b9cfcd4c9f999b3ca59cde670114e763263428182fc2546b3790da06",
-    "admin-mobile-390.png": "5a6a398c85415fa0b684fb6e87ca1517e8249464b23fe7fa15b98b2e932186cb",
-    "admin-run-verification-dark.png": "24d3c2bbc0332408ac8af8db85284e50bbae017705777f9f761a11a47ce7747e",
-    "admin-run-verification-empty-dark.png": "f97b8e9b1f98662108da42935bf14e924749f7201c4e020b5e6e0e9657ffdea4",
-    "admin-run-verification-scope-dark.png": "97a5accfafedc2c75d54aa2d637fee24b45ef1ca19c28550ca0ebd8d57cb9a43",
-    "admin-settings-compact-light.png": "e4df30d59bf6c0cc54870e288df161a6c4997b531ee10bd819c3624f4d668305",
-    "admin-shutdown-confirmation.png": "7e07497160537ee782264a00514f59208d5326a1e62967beccc939c0aedd84a5",
-    "admin-task-inline-dark.png": "c7c6675451e440d840fca5e5fa5ecc5119fbad0972dfb8a64efc21483239191c",
-    "admin-terminal-dark.png": "5442a6fe986f36c7aecf3c74b2b7286d4e1d64a32897dff2afa354366ef130eb",
+    "admin-mobile-390.png": "f0bad26d1b1de72c5949d586f661095cbf42bbbe052f5e770581169b51be0374",
+    "admin-run-verification-dark.png": "0eb30a4af22526f7c4021bca829ad7c66f088d086bc83ddbd30fb521fb026ea3",
+    "admin-run-verification-empty-dark.png": "9746f6f9edffbc315da663557dc5ad1908924cfc585164bf96abe716a250d84c",
+    "admin-run-verification-scope-dark.png": "628ab63f2747b5f60414c4d022c7bf1f90d9929d114b8b8e846ab85a48106733",
+    "admin-settings-compact-light.png": "92a0fe1397fc45054795da95961bf7a19853c0a28bafb44fb1f4a4d18927636c",
+    "admin-shutdown-confirmation.png": "a3817c7a9ced10d1598be49c6e02e11494f39436c7769c135d495d481def8ec7",
+    "admin-task-inline-dark.png": "861383e7e09ec901bbeab97f4967d735325a357eeffb63efdcaad89eac2c7d60",
+    "admin-terminal-dark.png": "7e9fad0d8b8381a1aae741c25f6f730aa000dd19a9af504144d82d76a52d1902",
     "anonymous-settings-login-light.png": "2590243d938aaaca9780df1edf2e7be8bb394ce38957fee016193d8bb9eb2e56",
     "anonymous-settings-login-mobile.png": "5579b9bbc1acadbdd172e0ea531ded7d8d1832c9cb690fce6791b0efb1a49e6b"
   },
@@ -74,11 +74,11 @@
   "resource_metrics": {
     "task_process_count": 0,
     "service_process_count": 2,
-    "idle_window_seconds": 6.019,
-    "server_rss_mib": 59.602,
-    "server_cpu_one_core_percent": 1.532,
-    "renderer_js_heap_mib": 7.921,
-    "renderer_idle_cpu_one_core_percent": 0.651,
+    "idle_window_seconds": 6.009,
+    "server_rss_mib": 59.867,
+    "server_cpu_one_core_percent": 1.797,
+    "renderer_js_heap_mib": 7.931,
+    "renderer_idle_cpu_one_core_percent": 0.717,
     "dom_nodes": 1875,
     "dom_documents": 4,
     "dom_event_listeners": 324,
@@ -179,6 +179,6 @@
     "task-route-next-paint"
   ],
   "interaction_metrics": {
-    "terminal_to_tasks_next_paint_ms": 28.3
+    "terminal_to_tasks_next_paint_ms": 17.1
   }
 }

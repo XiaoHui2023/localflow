@@ -91,6 +91,76 @@ def test_public_entry_resolves_explicit_roots_from_startup_directory(
     assert called[0].state_root == (tmp_path / "instances" / "alpha").resolve()
 
 
+def test_public_entry_uses_short_semantic_path_options(monkeypatch, tmp_path: Path) -> None:
+    called = []
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["localflow", "--workspace", "shared", "--data", "instances/alpha"],
+    )
+    monkeypatch.setattr(cli, "application_root", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_run_internal_mode", lambda: False)
+    monkeypatch.setattr(cli, "_serve", called.append)
+    cli.main()
+    assert called[0].config_root == (tmp_path / "shared").resolve()
+    assert called[0].state_root == (tmp_path / "instances" / "alpha").resolve()
+
+
+def test_public_entry_accepts_matching_canonical_and_legacy_paths(
+    monkeypatch, tmp_path: Path
+) -> None:
+    called = []
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "localflow",
+            "--workspace",
+            "shared",
+            "--config-root",
+            "./shared",
+            "--data",
+            "instance",
+            "--state-dir",
+            "./instance",
+        ],
+    )
+    monkeypatch.setattr(cli, "application_root", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_run_internal_mode", lambda: False)
+    monkeypatch.setattr(cli, "_serve", called.append)
+    cli.main()
+    assert called[0].config_root == (tmp_path / "shared").resolve()
+    assert called[0].state_root == (tmp_path / "instance").resolve()
+
+
+def test_public_entry_rejects_conflicting_path_aliases(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["localflow", "--workspace", "left", "--config-root", "right"],
+    )
+    monkeypatch.setattr(cli, "application_root", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_run_internal_mode", lambda: False)
+    monkeypatch.setattr(
+        cli, "_serve", lambda _paths: pytest.fail("conflicting roots must not start")
+    )
+    with pytest.raises(SystemExit):
+        cli.main()
+
+
+def test_public_help_shows_only_canonical_path_options(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(sys, "argv", ["localflow", "--help"])
+    monkeypatch.setattr(cli, "_run_internal_mode", lambda: False)
+    with pytest.raises(SystemExit) as stopped:
+        cli.main()
+    assert stopped.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "--workspace" in help_text
+    assert "--data" in help_text
+    assert "--config-root" not in help_text
+    assert "--state-dir" not in help_text
+
+
 def test_frozen_supervisor_environment_is_not_inherited(monkeypatch, tmp_path: Path) -> None:
     task_id = "a" * 32
     supervisor = ModuleType("localflow.supervisor")

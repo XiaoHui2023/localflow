@@ -138,6 +138,9 @@ _KNOWN_BUNDLED_PLUGIN_DIGESTS = {
         "e521bd377614f9b9a330829726b65b2cf37f5f0a59b033a094a536179319139a",
         "354cdb8005c131eb8c3d8db4677784be32e6850d27fb0e1d96748f8303956005",
         "4fc099555f0f03457ffd670cdf10f36c0b714b20fe13795fcfa3c02fa02464e9",
+        # The unmodified v3 bundled plugin immediately preceding v4.  v4
+        # moves Case discovery behind the verification plugin contract.
+        "9a4030d32622c0a7ba69c1b6d990cfa588235be2f65d699bff23fbc8ed5178e7",
     },
     "command.py": {
         "e73ad6a653f86af6bc3c9e55d0588cfda18f74b870978c226ad3dc0d39fc79a9",
@@ -254,9 +257,6 @@ def initialize_config_root(root: Path) -> None:
         "config/verification/demo.yaml",
         "Makefile",
         "scripts/simulate.py",
-        "cases/case-a/README.txt",
-        "cases/case-b/README.txt",
-        "cases/smoke.case",
     ):
         destination = root / relative
         if not destination.exists() and not destination.is_symlink():

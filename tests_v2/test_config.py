@@ -40,7 +40,9 @@ def test_config_preserves_file_and_directory_symlinks(root: Path, tmp_path: Path
     repository.write("linked.yaml", "name: after\n", before.version)
     assert link.is_symlink() and target.read_text(encoding="utf-8") == "name: after\n"
 
-    moved = repository.move("linked.yaml", "renamed-link.yaml", repository.read("linked.yaml").version)
+    moved = repository.move(
+        "linked.yaml", "renamed-link.yaml", repository.read("linked.yaml").version
+    )
     assert not link.exists() and (root / "config" / "renamed-link.yaml").is_symlink()
     repository.delete(moved.path, moved.version)
     assert target.is_file() and not (root / "config" / "renamed-link.yaml").exists()
@@ -133,9 +135,7 @@ def test_config_imports_and_layered_diagnosis(root: Path) -> None:
             plugins,
         )
         assert not implicit.runnable
-        assert any(
-            f"unknown variable: {implicit_name}" in item for item in implicit.errors
-        )
+        assert any(f"unknown variable: {implicit_name}" in item for item in implicit.errors)
     explicit_root = diagnose_config(
         {
             "plugin": "command",
@@ -250,8 +250,9 @@ def test_config_api_exposes_only_runnable_configuration_tree(admin: TestClient, 
     items = {item["name"]: item for item in inspection.json()["items"]}
     assert items["working_directory"]["severity"] == "ok"
     assert items["working_directory"]["check"] == "availability"
-    assert items["case_directory"]["severity"] == "ok"
-    assert items["case_directory"]["check"] == "availability"
+    assert items["case_names"]["severity"] == "info"
+    assert items["case_names"]["kind"] == "tokens"
+    assert items["case_names"]["value"] == ["case-a", "case-b", "smoke"]
     assert "shell" not in items
     assert "command_entry" not in items
     assert items["labels"]["kind"] == "tokens"

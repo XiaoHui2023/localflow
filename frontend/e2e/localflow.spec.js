@@ -327,7 +327,7 @@ async function runAcceptance(page) {
   );
   const caseInspection = page
     .locator(".inspection-item")
-    .filter({ hasText: "Case 目录" });
+    .filter({ hasText: "case-a" });
   await expect(async () => {
     await verificationConfig.click();
     await expect(caseInspection).toBeVisible({ timeout: 2_000 });
@@ -1248,11 +1248,11 @@ test("plugin configuration console remains concise and operable in Edge", async 
   ).toBeDisabled();
   await page.locator('[data-file="config/verification/demo.yaml"]').click();
   await expect(page.getByText("smoke", { exact: true })).toBeVisible();
-  await expect(page.locator("#run-panel").getByText("case-a", { exact: true })).toBeVisible();
+  await expect(page.locator('[data-case="case-a"]')).toBeVisible();
   await expect(page.locator(".inspection-item")).toContainText([
     "工作目录",
     "命令",
-    "Case 目录",
+    "Case",
     "编译日志",
     "运行日志",
     "标签",
@@ -1454,7 +1454,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   const runBox = await runButton.boundingBox();
   expect(runBox.width).toBeGreaterThan(runBox.height);
   await page.locator('[data-file="config/generic-picker/demo.yaml"]').click();
-  await expect(page.locator("#run-panel").getByText("case-a", { exact: true })).toBeVisible();
+  await expect(page.locator('[data-case="case-a"]')).toBeVisible();
   await page.getByRole("button", { name: /增加 case-a 次数/ }).click();
   await page.getByRole("button", { name: /增加 case-a 次数/ }).click();
   await expect(page.locator('[data-case="case-a"] .case-count output')).toHaveText("2");
