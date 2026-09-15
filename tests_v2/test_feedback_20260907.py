@@ -81,6 +81,27 @@ def test_live_diagnosis_returns_resolved_document_and_run_errors(admin) -> None:
     assert any("working_directory" in item for item in result["run_diagnosis"]["errors"])
     assert any("command" in item for item in result["run_diagnosis"]["errors"])
 
+    resolved_null = admin.post(
+        "/api/v1/config/files/debug.yaml/diagnosis",
+        json={
+            "content": (
+                "plugin: command\n"
+                "name: resolved-null\n"
+                "working_directory: .\n"
+                "command: true\n"
+                "labels: ['${site_label}']\n"
+                "site_label: null\n"
+            )
+        },
+    )
+    assert resolved_null.status_code == 200
+    resolved_result = resolved_null.json()
+    assert resolved_result["resolved_document"]["labels"] == [None]
+    assert resolved_result["run_diagnosis"]["runnable"] is False
+    assert any(
+        "labels.0" in item for item in resolved_result["run_diagnosis"]["errors"]
+    )
+
 
 def test_verification_inspection_shows_resolved_logs_without_requiring_files(
     admin: TestClient, root: Path
@@ -121,6 +142,30 @@ def test_verification_inspection_shows_resolved_logs_without_requiring_files(
         str(project / "logs" / "${case}.run.log"),
         str(project / "logs" / "${case}.trace.log"),
     ]
+
+
+def test_verification_inspection_omits_unconfigured_log_sections(
+    admin: TestClient, root: Path
+) -> None:
+    (root / "cases" / "case-a").mkdir(parents=True, exist_ok=True)
+    config = root / "config" / "verification" / "without-logs.yaml"
+    config.write_text(
+        "plugin: verification\n"
+        "working_directory: .\n"
+        "case_directory: cases\n"
+        "command: make run\n",
+        encoding="utf-8",
+    )
+
+    response = admin.post(
+        "/api/v1/config/files/verification/without-logs.yaml/inspection",
+        json={"inputs": {"cases": ["case-a"], "case_runs": {"case-a": 1}}},
+    )
+
+    assert response.status_code == 200, response.text
+    names = {item["name"] for item in response.json()["items"]}
+    assert "compile_logs" not in names
+    assert "run_logs" not in names
 
 
 def test_configured_working_directory_owns_relative_side_effects(

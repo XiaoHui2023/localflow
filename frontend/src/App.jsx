@@ -82,18 +82,15 @@ const showTime = (value) =>
       }).format(new Date(value))
     : "—";
 const terminalActivity = (task, now = Date.now()) => {
-  if (!task.log_updated_at) return "—";
+  if (!task.log_updated_at) return null;
   const seconds = Math.max(
     0,
     Math.floor((now - Date.parse(task.log_updated_at)) / 1000),
   );
-  let age;
-  if (seconds < 10) age = "刚刚";
-  else if (seconds < 60) age = `${seconds} 秒`;
-  else if (seconds < 3600) age = `${Math.floor(seconds / 60)} 分钟`;
-  else if (seconds < 86400) age = `${Math.floor(seconds / 3600)} 小时`;
-  else age = `${Math.floor(seconds / 86400)} 天`;
-  return age;
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+  return `${Math.floor(seconds / 86400)}d`;
 };
 const taskLabel = (task) =>
   task.status?.label || coreLabels[task.state] || task.state;
@@ -156,9 +153,10 @@ function useTheme() {
   return [theme, apply];
 }
 
-function useUiRevision() {
+function useUiRevision(paused = false) {
   const revision = useRef();
   useEffect(() => {
+    if (paused) return undefined;
     let active = true;
     const check = async () => {
       try {
@@ -176,7 +174,7 @@ function useUiRevision() {
       active = false;
       clearInterval(timer);
     };
-  }, []);
+  }, [paused]);
 }
 
 function TaskTerminal({ task, interactive, theme }) {
@@ -184,6 +182,9 @@ function TaskTerminal({ task, interactive, theme }) {
   const host = useRef();
   const finder = useRef();
   const terminal = useRef();
+  const copyTimer = useRef();
+  const [selectedText, setSelectedText] = useState("");
+  const [selectionCopied, setSelectionCopied] = useState(false);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
   const [searchOptions, setSearchOptions] = useState({
@@ -206,7 +207,17 @@ function TaskTerminal({ task, interactive, theme }) {
     setRangeStart(Math.max(0, Number(task.log_size || 0) - windowBytes));
     setArchiveResults([]);
     setArchiveSearchError("");
+    setSelectedText("");
+    setSelectionCopied(false);
   }, [task.id]);
+  useEffect(() => () => clearTimeout(copyTimer.current), []);
+  const copyTerminalSelection = async (text = selectedText) => {
+    if (!text) return;
+    await writeClipboard(text);
+    setSelectionCopied(true);
+    clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => setSelectionCopied(false), 1200);
+  };
   const searchArchive = async () => {
     if (!query) return;
     setArchiveSearching(true);
@@ -289,10 +300,24 @@ function TaskTerminal({ task, interactive, theme }) {
     term.open(element);
     finder.current = search;
     terminal.current = term;
+    const selectionListener = term.onSelectionChange(() => {
+      setSelectedText(term.getSelection());
+      setSelectionCopied(false);
+    });
     term.attachCustomKeyEventHandler((event) => {
+      const modifier = event.ctrlKey || event.metaKey;
       if (
         event.type === "keydown" &&
-        (event.ctrlKey || event.metaKey) &&
+        modifier &&
+        event.key.toLowerCase() === "c" &&
+        term.hasSelection()
+      ) {
+        void copyTerminalSelection(term.getSelection());
+        return false;
+      }
+      if (
+        event.type === "keydown" &&
+        modifier &&
         event.key.toLowerCase() === "f"
       ) {
         setSearching(true);
@@ -362,6 +387,7 @@ function TaskTerminal({ task, interactive, theme }) {
       socket.onmessage = null;
       socket.onclose = null;
       socket.close();
+      selectionListener.dispose();
       finder.current = undefined;
       terminal.current = undefined;
       term.dispose();
@@ -371,6 +397,15 @@ function TaskTerminal({ task, interactive, theme }) {
   return (
     <div className="terminal-shell">
       <div className="terminal-tools">
+        {selectedText && (
+          <button
+            className="terminal-copy-selection"
+            type="button"
+            onClick={() => copyTerminalSelection()}
+          >
+            {selectionCopied ? "已复制" : "复制选中"}
+          </button>
+        )}
         {searching && (
           <div className="terminal-find" role="search">
             <input
@@ -606,6 +641,9 @@ function TaskDetail({ task, role, interrupt }) {
         {(task.display_command || task.command) && (
           <CopyValue label="命令" value={task.display_command || task.command.join(" ")} />
         )}
+        {!!task.source_files?.length && (
+          <TaskListValue label="加载环境" values={task.source_files} />
+        )}
         <CopyValue label="工作目录" value={task.working_directory} />
         <CopyValue label="终端输出" value={task.log_path} />
         {custom.flatMap(([key, value]) =>
@@ -803,6 +841,12 @@ function TerminalPage({ tasks, role, theme }) {
       if (!present.has(id)) observedLogSizes.current.delete(id);
   }, [tasks, selectedId]);
   const selected = available.find((task) => task.id === selectedId);
+  const selectedIsActive = Boolean(
+    selected && ["starting", "running", "stopping"].includes(selected.state),
+  );
+  const selectedOutputActivity = selectedIsActive
+    ? terminalActivity(selected)
+    : null;
   const interactive =
     role === "admin" && selected && !finalStates.has(selected.state);
   const send = async () => {
@@ -837,7 +881,6 @@ function TerminalPage({ tasks, role, theme }) {
   const renderTerminal = (task) => {
     const unread = unreadIds.has(task.id);
     const tone = taskTone(task);
-    const activity = terminalActivity(task);
     return (
       <button
         className={`terminal-entry state-${task.state} tone-${tone} ${task.id === selectedId ? "active" : ""} ${unread ? "has-unread" : ""}`}
@@ -849,14 +892,6 @@ function TerminalPage({ tasks, role, theme }) {
         <span className="terminal-entry-text">
           <span className="terminal-entry-heading">
             <b className="terminal-entry-name">{task.name}</b>
-            <time
-              className="terminal-entry-activity"
-              dateTime={task.log_updated_at || undefined}
-              title={task.log_updated_at ? `最后输出：${showTime(task.log_updated_at)}；已 ${activity} 无新输出` : "尚无终端输出"}
-              aria-label={task.log_updated_at ? `终端最后输出：${showTime(task.log_updated_at)}，已 ${activity} 无新输出` : "尚无终端输出"}
-            >
-              {activity}
-            </time>
           </span>
           <span className="terminal-entry-meta">
             {task.labels?.map((label) => (
@@ -903,9 +938,21 @@ function TerminalPage({ tasks, role, theme }) {
         {selected ? (
           <>
             <header>
-              <div>
+              <div className="terminal-selection-context">
                 <TerminalSquare />
-                <b>{selected.name}</b>
+                <span className="terminal-selection-copy">
+                  <b>{selected.name}</b>
+                  {selectedOutputActivity && (
+                    <time
+                      className="terminal-selection-activity"
+                      dateTime={selected.log_updated_at}
+                      title={`最后输出：${showTime(selected.log_updated_at)}`}
+                      aria-label={`距最后输出 ${selectedOutputActivity}`}
+                    >
+                      {selectedOutputActivity}
+                    </time>
+                  )}
+                </span>
               </div>
               {interactive ? (
                 <div className="terminal-actions">
@@ -1667,7 +1714,7 @@ function readFavoriteConfigs() {
   }
 }
 
-function Config({ theme, explorerView, onExplorerViewChange }) {
+function Config({ theme, explorerView, onExplorerViewChange, paused = false }) {
   const filePathRef = useRef();
   const inspectionControllerRef = useRef();
   const diagnosisControllerRef = useRef();
@@ -1959,6 +2006,7 @@ function Config({ theme, explorerView, onExplorerViewChange }) {
     };
   }, []);
   useEffect(() => {
+    if (paused) return undefined;
     const events = new EventSource("/api/v1/events");
     const changed = (event) => {
       const data = JSON.parse(event.data);
@@ -2055,7 +2103,7 @@ function Config({ theme, explorerView, onExplorerViewChange }) {
     events.addEventListener("config.deleted", removed);
     events.addEventListener("plugins.changed", pluginChanged);
     return () => events.close();
-  }, [reload, open]);
+  }, [reload, open, paused]);
   const effectiveConfig = preview || file;
   const selectedPlugin = plugins.find(
     (item) => item.name === effectiveConfig?.plugin,
@@ -2291,6 +2339,18 @@ function Config({ theme, explorerView, onExplorerViewChange }) {
         : [...current, file.path].slice(-100),
     );
   };
+  const openQuickConfig = async (path) => {
+    try {
+      await open(path);
+    } catch (error) {
+      if (error.status !== 404 && error.status !== 410) {
+        setNotice(`打开失败：${error.message}`);
+        return;
+      }
+      setFavoritePaths((current) => current.filter((item) => item !== path));
+      await Promise.allSettled([reload(), reloadRecent()]);
+    }
+  };
   const editorLanguage = file?.path.endsWith(".py")
     ? "python"
     : file?.path.endsWith(".md")
@@ -2486,7 +2546,7 @@ function Config({ theme, explorerView, onExplorerViewChange }) {
                           aria-current={item.path === file?.path ? "true" : undefined}
                           aria-label={item.path}
                           title={item.path}
-                          onClick={() => open(item.path)}
+                          onClick={() => openQuickConfig(item.path)}
                         >
                           {favorite ? (
                             <Star aria-hidden="true" />
@@ -2788,7 +2848,14 @@ function localInputValue(value) {
     .toISOString()
     .slice(0, 19);
 }
-function SettingsPage({ theme, setTheme, role, onLogin, activeTaskCount }) {
+function SettingsPage({
+  theme,
+  setTheme,
+  role,
+  onLogin,
+  onShutdownAccepted,
+  activeTaskCount,
+}) {
   const [serverTime, setServerTime] = useState();
   const [referenceTime, setReferenceTime] = useState("");
   const [notice, setNotice] = useState("");
@@ -2861,6 +2928,7 @@ function SettingsPage({ theme, setTheme, role, onLogin, activeTaskCount }) {
     setShutdownError("");
     try {
       await api.shutdown();
+      onShutdownAccepted();
     } catch (error) {
       setShuttingDown(false);
       setShutdownError(`退出失败：${error.message}`);
@@ -2993,7 +3061,8 @@ function SettingsPage({ theme, setTheme, role, onLogin, activeTaskCount }) {
 }
 
 export default function App() {
-  useUiRevision();
+  const [shutdownAccepted, setShutdownAccepted] = useState(false);
+  useUiRevision(shutdownAccepted);
   const [page, setPage] = useState("tasks");
   const [status, setStatus] = useState();
   const [tasks, setTasks] = useState([]);
@@ -3015,6 +3084,7 @@ export default function App() {
   const [taskWorkspaceNode, setTaskWorkspaceNode] = useState();
   const [splitReady, setSplitReady] = useState(false);
   const refresh = useCallback(async () => {
+    if (shutdownAccepted) return;
     try {
       const [state, result] = await Promise.all([api.status(), api.tasks()]);
       setStatus(state);
@@ -3023,12 +3093,13 @@ export default function App() {
     } catch (reason) {
       setError(reason.message);
     }
-  }, []);
+  }, [shutdownAccepted]);
   useEffect(() => {
+    if (shutdownAccepted) return undefined;
     refresh();
     const timer = setInterval(refresh, 3000);
     return () => clearInterval(timer);
-  }, [refresh]);
+  }, [refresh, shutdownAccepted]);
   useEffect(() => {
     if (
       status &&
@@ -3217,6 +3288,7 @@ export default function App() {
                     theme={theme}
                     explorerView={configSourceView}
                     onExplorerViewChange={setConfigSourceView}
+                    paused={shutdownAccepted}
                   />
                 </aside>
               )}
@@ -3230,6 +3302,7 @@ export default function App() {
               setTheme={setTheme}
               role={status?.role}
               onLogin={refresh}
+              onShutdownAccepted={() => setShutdownAccepted(true)}
               activeTaskCount={tasks.filter(
                 (task) => !finalStates.has(task.state),
               ).length}

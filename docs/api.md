@@ -64,6 +64,8 @@
 
 字符串命令自动使用服务账号的 `$SHELL`，缺失时使用 passwd 登录 Shell，并以 `<shell> -ic` 读取 `.bashrc`、`.cshrc`、`.zshrc`、`config.fish` 等该 Shell 的交互启动文件，从而支持函数和别名；公共字段 `"shell": "/bin/bash"` 可显式覆盖自动选择。执行用户命令前核心会恢复请求中冻结的工作目录。参数数组禁止同时提供 `shell`，始终按精确 argv 执行且不读取启动文件。
 
+公共字段 `source` 接受单个脚本路径或脚本路径列表，只能与字符串命令组合。相对路径按任务工作目录冻结；脚本在该任务 Shell 内依次加载，环境不会返回控制器或传播到其它任务。任务详情的 `source_files` 返回冻结后的逐项绝对路径，`display_command` 仍是用户原始命令，执行快照 `command` 保留实际 source 包装供 Agent 精确审计；终端日志在 `process.command` 前逐项写入 `process.source`。
+
 配置式提交是程序调用的首选入口。请求体与 `config/tasks` 文件使用同一合同：`configuration` 顶层必须有 `plugin`，`inputs` 只包含本次运行要改变的插件字段。插件校验、变量解析、任务展开和网页运行表面共用同一实现；一个 Case 多次运行或多个 Case 会在一次请求中返回多个任务 ID。
 
 ```json

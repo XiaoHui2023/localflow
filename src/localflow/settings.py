@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import json
-import math
 import os
 import re
 import secrets
@@ -47,43 +46,30 @@ class ServerSettings(BaseModel):
         return normalized
 
 
-def available_cpu_capacity() -> int:
-    """Return the CPU parallelism available to this service process."""
-    candidates = [os.cpu_count() or 1]
-    get_affinity = getattr(os, "sched_getaffinity", None)
-    if get_affinity is not None:
-        with suppress(OSError):
-            candidates.append(len(get_affinity(0)))
-    try:
-        quota, period = Path("/sys/fs/cgroup/cpu.max").read_text(
-            encoding="ascii"
-        ).split()[:2]
-        if quota != "max":
-            candidates.append(max(1, math.ceil(int(quota) / int(period))))
-    except (OSError, ValueError, ZeroDivisionError):
-        pass
-    return max(1, min(candidates))
-
-
 class ExecutionSettings(BaseModel):
     backend: Literal["auto", "systemd", "subprocess"] = "auto"
-    max_concurrency: int | Literal["auto"] = "auto"
+    max_concurrency: int | Literal["auto", "unlimited"] = "unlimited"
     sigint_grace_seconds: float = Field(default=20, ge=0, le=3600)
     sigterm_grace_seconds: float = Field(default=10, ge=0, le=3600)
 
     @field_validator("max_concurrency")
     @classmethod
     def valid_concurrency(cls, value: int | str) -> int | str:
-        if value == "auto":
+        if value in {"auto", "unlimited"}:
             return value
         if isinstance(value, bool) or not 1 <= value <= 4096:
-            raise ValueError("max_concurrency must be 'auto' or an integer from 1 to 4096")
+            raise ValueError(
+                "max_concurrency must be 'unlimited', 'auto', or an integer from 1 to 4096"
+            )
         return value
 
     @property
-    def effective_max_concurrency(self) -> int:
-        if self.max_concurrency == "auto":
-            return available_cpu_capacity()
+    def effective_max_concurrency(self) -> int | None:
+        # "auto" was written into generated configurations before unlimited
+        # admission became the default. Treat it as a compatibility alias so
+        # an upgrade does not preserve the former CPU-derived queue ceiling.
+        if self.max_concurrency in {"auto", "unlimited"}:
+            return None
         return self.max_concurrency
 
 
@@ -245,8 +231,8 @@ def initialize_config_root(root: Path) -> None:
             "execution:\n"
             "  # auto uses systemd when its user manager is available, otherwise subprocess.\n"
             "  backend: auto\n"
-            "  # auto uses the CPU capacity available to this service; use an integer to override.\n"
-            "  max_concurrency: auto\n"
+            "  # unlimited adds no task-slot limit; legacy auto has the same behavior.\n"
+            "  max_concurrency: unlimited\n"
             "retention:\n"
             "  # One duration covers task details and terminal output.\n"
             "  task_days: 3\n",

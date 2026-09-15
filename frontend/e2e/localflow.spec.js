@@ -264,6 +264,13 @@ test("invalid configuration keeps a debuggable run surface", async ({ page }) =>
     await expect(debug.locator(".configuration-issues")).toContainText(text);
   for (const text of ["plugin", "labels", "wrong"])
     await expect(debug.locator(".configuration-resolution")).toContainText(text);
+  const [debugBox, workbenchBox, bodyBox] = await Promise.all([
+    debug.boundingBox(),
+    page.locator("#run-panel .config-workbench").boundingBox(),
+    debug.locator(".configuration-debug-body").boundingBox(),
+  ]);
+  expect(debugBox.height).toBeGreaterThan(workbenchBox.height * 0.75);
+  expect(bodyBox.height).toBeGreaterThan(debugBox.height * 0.75);
 });
 
 test("a clean configuration reopens on its run surface", async ({ page }) => {
@@ -780,12 +787,22 @@ test("plugin configuration console remains concise and operable in Edge", async 
     "browser",
     "terminal",
   ]);
-  const liveActivity = liveTerminalEntry.locator(".terminal-entry-activity");
-  await expect(liveActivity).toBeVisible();
-  await expect(liveActivity).toHaveText(/^(刚刚|\d+ (秒|分钟|小时|天))$/);
-  await expect(liveActivity).toHaveAttribute("datetime", /T.*(?:Z|\+00:00)$/);
-  await expect(liveActivity).toHaveAttribute("title", /最后输出：/);
-  const firstOutputTimestamp = await liveActivity.getAttribute("datetime");
+  await expect(
+    page.locator(".terminal-page .terminal-entry-activity"),
+  ).toHaveCount(0);
+  const selectedActivity = page.locator(".terminal-selection-activity");
+  await expect(selectedActivity).toBeVisible();
+  await expect(selectedActivity).toHaveText(/^\d+[smhd]$/);
+  await expect(selectedActivity).toHaveAttribute(
+    "aria-label",
+    /^距最后输出 \d+[smhd]$/,
+  );
+  await expect(selectedActivity).toHaveAttribute(
+    "datetime",
+    /T.*(?:Z|\+00:00)$/,
+  );
+  await expect(selectedActivity).toHaveAttribute("title", /最后输出：/);
+  const firstOutputTimestamp = await selectedActivity.getAttribute("datetime");
   await expect(liveTerminalEntry.locator(".terminal-unread")).toHaveCount(0);
   const activeTerminalGroup = page.locator(
     '.terminal-entry-group[data-terminal-group="active"]',
@@ -806,6 +823,19 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(page.locator(".terminal-page .xterm-rows")).toContainText(
     "qa-terminal-ready",
   );
+  const copyRow = page
+    .locator(".terminal-page .xterm-rows > div")
+    .filter({ hasText: "qa-terminal-ready" })
+    .last();
+  const copyRowBox = await copyRow.boundingBox();
+  await page.mouse.move(copyRowBox.x + 3, copyRowBox.y + copyRowBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(copyRowBox.x + 180, copyRowBox.y + copyRowBox.height / 2);
+  await page.mouse.up();
+  await page.keyboard.press("Control+c");
+  await expect
+    .poll(() => page.evaluate(() => window.__localflowCopiedText))
+    .toContain("qa-terminal-ready");
   await expect(page.locator(".terminal-page .xterm-rows")).not.toContainText(
     "[终端已连接]",
   );
@@ -866,15 +896,15 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(liveTerminalEntry.locator(".terminal-unread")).toBeVisible({
     timeout: 18_000,
   });
-  await expect
-    .poll(() => liveActivity.getAttribute("datetime"))
-    .not.toBe(firstOutputTimestamp);
   await expect(liveTerminalEntry.locator(".terminal-unread")).toHaveAttribute(
     "aria-label",
     "有新终端输出",
   );
   await liveTerminalEntry.click();
   await expect(liveTerminalEntry.locator(".terminal-unread")).toHaveCount(0);
+  await expect
+    .poll(() => selectedActivity.getAttribute("datetime"))
+    .not.toBe(firstOutputTimestamp);
   await page.screenshot({
     path: path.join(evidence, "admin-terminal-dark.png"),
     fullPage: true,
@@ -974,16 +1004,48 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(historyTerminal).toBeVisible();
   await historyTerminal.click();
   await expect(page.getByText("只读历史", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".terminal-selection-activity")).toHaveCount(0);
   await expect(page.locator(".terminal-actions")).toHaveCount(0);
   await expect(page.locator(".terminal-page .xterm-rows")).toContainText(
     "qa-terminal-ready",
   );
+  const historyCopyRow = page
+    .locator(".terminal-page .xterm-rows > div")
+    .filter({ hasText: "qa-terminal-ready" })
+    .last();
+  const historyCopyBox = await historyCopyRow.boundingBox();
+  await page.mouse.move(
+    historyCopyBox.x + 3,
+    historyCopyBox.y + historyCopyBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    historyCopyBox.x + 180,
+    historyCopyBox.y + historyCopyBox.height / 2,
+  );
+  await page.mouse.up();
+  await expect(page.getByRole("button", { name: "复制选中" })).toBeVisible();
+  await page.evaluate(() => {
+    window.__localflowCopiedText = "";
+  });
+  await page.keyboard.press("Control+c");
+  await expect
+    .poll(() => page.evaluate(() => window.__localflowCopiedText))
+    .toContain("qa-terminal-ready");
+  await page.getByRole("button", { name: "复制选中" }).click();
+  await expect(page.getByRole("button", { name: "已复制" })).toBeVisible();
   await expect(page.locator(".terminal-page .xterm-rows")).not.toContainText(
     "[只读回放已连接]",
   );
   await page.locator(".terminal-page .xterm").click();
   await page.keyboard.press("Control+f");
   await expect(page.getByLabel("终端搜索")).toBeFocused();
+  expect(
+    await page.locator(".terminal-find").evaluate((node) => {
+      const background = getComputedStyle(node).backgroundColor;
+      return background !== "transparent" && background !== "rgba(0, 0, 0, 0)";
+    }),
+  ).toBeTruthy();
   await page.getByLabel("终端搜索").fill("qa-terminal-ready");
   await expect(page.locator(".terminal-find output")).toContainText(/\d+\/\d+/);
   await page.getByRole("button", { name: "检索全部日志" }).click();
@@ -1609,6 +1671,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
     "frontend/e2e/ui-quality.js",
     "frontend/e2e/localflow.spec.js",
     "frontend/e2e/compatibility.spec.js",
+    "frontend/e2e/shutdown-live.spec.js",
     "frontend/e2e/legacy-browser.mjs",
     "frontend/playwright.config.js",
     "frontend/vite.config.js",
@@ -1618,6 +1681,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
     "tools/check_quality.py",
     "tools/run_browser_quality.py",
     "tools/run_linux_browser_quality.py",
+    "tests_target/test_browser_shutdown.py",
   ];
   const sourceFiles = Object.fromEntries(
     boundFiles.map((relative) => [
@@ -1816,6 +1880,25 @@ test("common configurations use complete paths and preserve context", async ({
   );
   await expect(page.getByRole("button", { name: "新建文件" })).toHaveCount(0);
 
+  await page.route(
+    "**/api/v1/workspace/files/config/command/hello-world.yaml",
+    (route) => route.fulfill({ status: 404, body: "configuration moved" }),
+  );
+  await pinnedPath.click();
+  await expect(page.getByRole("heading", { name: "已收藏" })).toHaveCount(0);
+  expect(
+    await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("localflow-favorite-configs") || "[]"),
+    ),
+  ).not.toContain("config/command/hello-world.yaml");
+  await expect(page.locator(".config-workbench")).toBeVisible();
+  await expect(page.getByText("打开失败", { exact: false })).toHaveCount(0);
+  await page.unroute(
+    "**/api/v1/workspace/files/config/command/hello-world.yaml",
+  );
+  await page.getByRole("button", { name: "收藏配置" }).click();
+  await expect(page.getByRole("heading", { name: "已收藏" })).toBeVisible();
+
   await page.reload();
   await expect(
     page.getByRole("tab", { name: "常用", exact: true }),
@@ -1884,5 +1967,38 @@ test("terminal to task navigation preserves the workbench within a paint budget"
   };
   if (!receipt.assertions.includes("task-route-next-paint"))
     receipt.assertions.push("task-route-next-paint");
+  fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
+});
+
+test("a sourced task shows its environment file in task details", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("tab", { name: "设置" }).click();
+  await ensureAdminSession(page);
+  const sourcePath = path.join(qaRoot, "browser-source.sh");
+  fs.writeFileSync(sourcePath, "export BROWSER_SOURCE=visible\n");
+  const created = await browserApi(page, "/tasks", {
+    method: "POST",
+    body: {
+      name: "browser-source-visibility",
+      working_directory: qaRoot,
+      source: [sourcePath],
+      command: "echo $BROWSER_SOURCE",
+    },
+  });
+  const detail = await browserApi(page, `/tasks/${created.task_id}`);
+  expect(path.isAbsolute(detail.source_files[0])).toBe(true);
+  await page.getByRole("tab", { name: "任务" }).click();
+  const row = page.locator(".task-item").filter({ hasText: "browser-source-visibility" });
+  await expect(row).toBeVisible();
+  await row.locator(".task-row").click();
+  const sources = row.locator(".task-list-field").filter({ hasText: "加载环境" });
+  await expect(sources).toContainText(detail.source_files[0]);
+  await expect.poll(async () => (await browserApi(page, `/tasks/${created.task_id}`)).state).toMatch(
+    /^(failed|succeeded)$/,
+  );
+  const receiptPath = path.join(evidence, "browser-receipt.json");
+  const receipt = JSON.parse(fs.readFileSync(receiptPath, "utf8"));
+  if (!receipt.assertions.includes("task-source-detail"))
+    receipt.assertions.push("task-source-detail");
   fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
 });

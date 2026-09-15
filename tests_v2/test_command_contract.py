@@ -1,3 +1,5 @@
+import shlex
+
 import pytest
 from pydantic import ValidationError
 
@@ -41,6 +43,48 @@ def test_command_log_hides_shell_cwd_wrapper_but_preserves_exact_argv() -> None:
     wrapped = ["/bin/tcsh", "-ic", "cd '/srv/project name' && make all CASE=smoke"]
     assert command_for_log(wrapped, "/srv/project name") == "make all CASE=smoke"
     assert command_for_log(["printf", "%s", "ok"], "/srv/project") == "printf %s ok"
+    multiline = ["/bin/bash", "-ic", "cd /srv/project && printf first\nprintf second"]
+    assert command_for_log(multiline, "/srv/project") == "printf first\nprintf second"
+
+
+def test_task_source_files_are_frozen_before_the_exact_user_command(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    environment = project / "environment setup.sh"
+    environment.write_text("export PROJECT_MODE=fast\n", encoding="utf-8")
+    task = TaskCreate(
+        name="sourced",
+        working_directory=str(project),
+        shell="/bin/bash",
+        source="environment setup.sh",
+        command="printf '%s' \"$PROJECT_MODE\"",
+    )
+    frozen = freeze_command_working_directory(
+        task.command, str(project), task.source
+    )
+    assert frozen == [
+        "/bin/bash",
+        "-ic",
+        f"cd {shlex.quote(str(project))} && source {shlex.quote(str(environment))} "
+        f"&& cd {shlex.quote(str(project))} &&\n"
+        "printf '%s' \"$PROJECT_MODE\"",
+    ]
+    assert command_for_log(frozen, str(project)) == "printf '%s' \"$PROJECT_MODE\""
+    assert "source" not in task.model_dump()
+
+
+def test_source_requires_a_shell_command_and_valid_paths() -> None:
+    with pytest.raises(ValidationError, match="source is only valid with a string command"):
+        CommonConfigFields(source="environment.csh", command=["make", "all"])
+    with pytest.raises(ValidationError, match="source is only valid with a string command"):
+        TaskCreate(
+            name="exact",
+            working_directory=".",
+            source="environment.csh",
+            command=["make", "all"],
+        )
+    with pytest.raises(ValidationError, match="source must contain"):
+        TaskCreate(name="empty", working_directory=".", source=[], command="true")
 
 
 def test_explicit_interactive_shell_loads_profile_without_weakening_exact_argv() -> None:

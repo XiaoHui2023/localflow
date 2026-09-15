@@ -77,6 +77,24 @@ def test_task_detail_hides_executor_wrapper_from_display_command(
     assert task["command"][1] == "-ic"
 
 
+def test_task_detail_exposes_frozen_source_files(admin: TestClient, root: Path) -> None:
+    environment = root / "toolchain setup.sh"
+    environment.parent.mkdir(parents=True, exist_ok=True)
+    environment.write_text("export MODE=fast\n", encoding="utf-8")
+    task_id = admin.post(
+        "/api/v1/tasks",
+        json={
+            "name": "sourced-task",
+            "working_directory": str(root),
+            "source": [environment.name],
+            "command": "printf '%s' \"$MODE\"",
+        },
+    ).json()["task_id"]
+    task = admin.get(f"/api/v1/tasks/{task_id}").json()
+    assert task["source_files"] == [str(environment.resolve())]
+    assert task["custom"]["_source_files"] == [str(environment.resolve())]
+
+
 def test_one_request_inline_configuration_uses_plugin_and_creates_batch(
     admin: TestClient, root: Path
 ) -> None:

@@ -52,7 +52,7 @@ def _signed_headers(
 def test_loopback_is_not_administrator_identity(root: Path) -> None:
     settings = Settings(
         server=ServerSettings(anonymous_access="summary"),
-        execution=ExecutionSettings(backend="subprocess"),
+        execution=ExecutionSettings(backend="subprocess", max_concurrency="auto"),
     )
     app = create_app(root, settings=settings, start_scheduler=False)
     with TestClient(
@@ -63,7 +63,7 @@ def test_loopback_is_not_administrator_identity(root: Path) -> None:
         status_body = loopback.get("/api/v1/system/status").json()
         assert status_body["role"] == "summary"
         assert status_body["configured_max_concurrency"] == "auto"
-        assert status_body["max_concurrency"] >= 1
+        assert status_body["max_concurrency"] == "unlimited"
         assert loopback.get("/api/v1/auth/session").status_code == 401
         assert loopback.get("/api/v1/plugins").status_code == 403
         created = loopback.post(

@@ -2,17 +2,23 @@
 
 ## Operator questions
 
-The list answers three independent questions: “Which terminals are still live?”, “When did each terminal last produce bytes?”, and “Which background terminal produced output I have not viewed?” Lifecycle, activity freshness, and attention are different channels and must not share one always-visible dot.
+The list answers two questions: “Which terminals are still live?” and “Which background terminal produced output I have not viewed?” The selected terminal header answers “When did this terminal last produce bytes?” Lifecycle, activity freshness, and attention are different channels and must not share one always-visible dot.
 
 ## Selected pattern
 
 | Channel | Source of truth | Presentation | Acknowledgement |
 | --- | --- | --- | --- |
 | Lifecycle | Task `state` and plugin status label | Visible `运行中`/`历史` groups; rows contain only name and tags | Changes only with task lifecycle |
-| Output activity | `log_updated_at` from the same filesystem metadata snapshot as `log_size` | Only a neutral compact age (`刚刚`, `24 秒`, `5 分钟`, or `—`) in each row; exact time and meaning stay in semantic `time` metadata | Changes only when the log file is written |
+| Output activity | `log_updated_at` from the same filesystem metadata snapshot as `log_size` | For a selected terminal with output, one neutral semantic time containing only an integer and `s`/`m`/`h`/`d` (`24s`); no output renders nothing, and rail rows never contain it | Changes only when the log file is written or the selection changes |
 | New output | Increase in authoritative `log_size` after this page observed the task | One accent dot labelled `有新终端输出`, only on an unselected row | Selecting the terminal records the current size and removes the dot |
 
-Active terminals sort before retained history; each group sorts newest first. Names and tags stay neutral, selection uses an inset accent edge, and the rail expands to a bounded 248–320px on wide screens. “只读历史” is omitted because the history group and absence of input controls already express the state.
+## Selection and search compatibility
+
+Keep Ctrl/Cmd+C as the primary xterm selection-copy gesture, but show a short-lived contextual copy action only while a selection exists. This is the robust fallback for remote desktops and browser/OS shortcut interception without adding permanent toolbar noise. Search overlays need a solid theme-color `background` declaration before any `color-mix()` enhancement; unsupported modern CSS must never make text controls transparent.
+
+Active terminals sort before retained history; each group sorts newest first. Rail rows contain only neutral names and tags plus conditional unread attention, selection uses an inset accent edge, and the rail expands to a bounded 248–320px on wide screens. “只读历史” is omitted because the history group and absence of input controls already express the state.
+
+Preserve xterm's selection-first copy convention. When Ctrl/Cmd+C arrives with a selection, copy `term.getSelection()` and consume the key; only an interactive terminal with no selection may forward Ctrl+C to the task. Retained history has no input channel, so copying can never become a late control action. Do not add a permanent copy button for every terminal line.
 
 ## Rejected alternatives
 
@@ -27,7 +33,7 @@ Persistent unread still requires a per-user server acknowledgement cursor. Outpu
 
 ## Test oracle
 
-Edge opens a live terminal and sees a semantic output-activity time but no dot merely because it is running. It selects a retained history terminal; when the live task's real log size grows, both the authoritative timestamp and background unread marker advance. Selecting the live row clears the marker. The same journey proves “运行中” precedes “历史,” per-row lifecycle prose and “只读历史” are absent, names/tags remain visible, terminal bytes contain no connection/replay notices, and wide/mobile layouts do not overflow.
+Edge opens a live terminal with output and sees exactly one semantic output-activity time matching `\\d+[smhd]` in the selected-terminal header and none in any rail row. An output-less selection and every retained-history selection render no activity element or placeholder: a completed task cannot still be described by an ever-growing stall timer. It copies a selected live output token with Ctrl+C without stopping the task, repeats selection/copy in retained history, then verifies history still has no input controls. It selects retained history; when the live task's real log size grows, the background unread marker advances without adding a row timestamp. Selecting the live row clears the marker and refreshes the single header timestamp. The same journey proves “运行中” precedes “历史,” per-row lifecycle prose and “只读历史” are absent, names/tags remain visible, terminal bytes contain no connection/replay notices, and wide/mobile layouts do not overflow.
 
 ## Primary references
 

@@ -10,7 +10,7 @@ import os
 import re
 import sys
 from collections.abc import Callable
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -124,6 +124,7 @@ def _summary(task: TaskRecord) -> dict[str, Any]:
 def _detail(task: TaskRecord, root: Path) -> dict[str, Any]:
     value = task.model_dump(mode="json")
     value["display_command"] = command_for_log(task.command, task.working_directory)
+    value["source_files"] = list(task.custom.get("_source_files", []))
     log_path = root / "logs" / task.id / "output.log"
     value["log_path"] = str(log_path)
     try:
@@ -331,6 +332,10 @@ def create_app(
     app.state.watcher = watcher
     app.state.time_service = time_service
     app.state.shutdown_requested = False
+    # Uvicorn waits for streaming responses and WebSockets to finish before it
+    # enters lifespan shutdown.  Give those connections an application-owned
+    # wake-up signal so an open browser cannot deadlock controller exit.
+    app.state.shutdown_event = asyncio.Event()
 
     def session_cookie_domain(request: Request) -> str | None:
         domain = settings.server.session_cookie_domain
@@ -443,12 +448,17 @@ def create_app(
     @app.get("/api/v1/system/status")
     async def system_status(request: Request):
         role = await can_read(request)
+        effective_concurrency = settings.execution.effective_max_concurrency
         return {
             "status": "ok",
             "instance_id": state_instance_id(state_root),
             "role": role,
             "backend": settings.execution.backend,
-            "max_concurrency": settings.execution.effective_max_concurrency,
+            "max_concurrency": (
+                effective_concurrency
+                if effective_concurrency is not None
+                else "unlimited"
+            ),
             "configured_max_concurrency": settings.execution.max_concurrency,
             "anonymous_access": settings.server.anonymous_access,
             "time": time_service.status(),
@@ -470,6 +480,7 @@ def create_app(
             raise HTTPException(503, "controller shutdown is unavailable")
         if not app.state.shutdown_requested:
             app.state.shutdown_requested = True
+            app.state.shutdown_event.set()
             logger.info("LocalFlow shutdown requested by administrator")
             # Background tasks run after the response has been sent, so the
             # browser receives an honest acceptance before Uvicorn exits.
@@ -712,7 +723,7 @@ def create_app(
 
         async def stream():
             cursor = _initial_event_cursor(store, after, last_event_id)
-            while True:
+            while not app.state.shutdown_event.is_set():
                 if await request.is_disconnected():
                     return
                 found = store.events_after(cursor)
@@ -728,7 +739,8 @@ def create_app(
                         yield f"id: {event.id}\nevent: {event.kind}\ndata: {json.dumps({'task_id': event.task_id, **safe_data}, default=str)}\n\n"
                 else:
                     yield ": keepalive\n\n"
-                await asyncio.sleep(1)
+                with suppress(TimeoutError):
+                    await asyncio.wait_for(app.state.shutdown_event.wait(), timeout=1)
 
         return StreamingResponse(stream(), media_type="text/event-stream")
 
@@ -1277,6 +1289,10 @@ def create_app(
         caught_up = False
         try:
             while True:
+                if app.state.shutdown_event.is_set():
+                    with suppress(RuntimeError, WebSocketDisconnect):
+                        await websocket.close(code=1001, reason="server shutdown")
+                    return
                 data = b""
                 if not awaiting_ack and (end_offset is None or offset < end_offset):
                     limit = 65536 if end_offset is None else min(65536, end_offset - offset)

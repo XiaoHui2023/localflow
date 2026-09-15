@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from localflow import service as service_module
 from localflow.executor import SubprocessExecutor
 from localflow.models import StopAction, StopStrategy, TaskCreate, TaskState
 from localflow.plugins import PluginRegistry
@@ -56,7 +57,7 @@ async def test_shutdown_drains_more_than_one_storage_page(root: Path) -> None:
     queued_by_id = {task.id: task for task in queued}
 
     class PagedStore:
-        def list_tasks(self, *, states, limit, ascending):
+        def list_tasks(self, *, states, limit, ascending, after=None):
             allowed = {TaskState(state) for state in states}
             return [task for task in queued if task.state in allowed][:limit]
 
@@ -81,8 +82,79 @@ async def test_recovery_reads_persisted_ownership_independent_of_new_capacity(
     service = TaskService(root, store, SubprocessExecutor(), max_concurrency=1)  # type: ignore[arg-type]
     await service.recover()
     store.list_tasks.assert_called_once_with(
-        states=["starting", "running", "stopping"], limit=10_000, ascending=True
+        states=["starting", "running", "stopping"],
+        limit=10_000,
+        after=None,
+        ascending=True,
     )
+
+
+@pytest.mark.asyncio
+async def test_unlimited_default_admits_independent_tasks_without_cpu_slot_queue(
+    root: Path,
+) -> None:
+    root.mkdir()
+    store = Store(root / "runtime" / "localflow.db")
+    executor = DelayedStartExecutor()
+    service = TaskService(root, store, executor)
+    tasks = [
+        service.submit(
+            TaskCreate(
+                name=f"independent-{index}",
+                working_directory=str(root),
+                command=[sys.executable, "-c", "pass"],
+                mutex_keys=[f"task:{index}"],
+            )
+        )
+        for index in range(8)
+    ]
+    try:
+        await service._schedule()
+        assert [store.get_task(task.id).state for task in tasks] == [
+            TaskState.STARTING
+        ] * len(tasks)
+    finally:
+        for starter in service._starters.values():
+            starter.cancel()
+        if service._starters:
+            await asyncio.gather(*service._starters.values(), return_exceptions=True)
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_unlimited_admission_continues_after_bounded_scheduler_page(
+    root: Path, monkeypatch
+) -> None:
+    root.mkdir()
+    monkeypatch.setattr(service_module, "TASK_PAGE_SIZE", 3)
+    store = Store(root / "runtime" / "localflow.db")
+    executor = DelayedStartExecutor()
+    service = TaskService(root, store, executor)
+    tasks = [
+        service.submit(
+            TaskCreate(
+                name=f"paged-{index}",
+                working_directory=str(root),
+                command=[sys.executable, "-c", "pass"],
+            )
+        )
+        for index in range(5)
+    ]
+    try:
+        await service._schedule()
+        assert [store.get_task(task.id).state for task in tasks].count(
+            TaskState.STARTING
+        ) == 3
+        await service._schedule()
+        assert [store.get_task(task.id).state for task in tasks] == [
+            TaskState.STARTING
+        ] * len(tasks)
+    finally:
+        for starter in service._starters.values():
+            starter.cancel()
+        if service._starters:
+            await asyncio.gather(*service._starters.values(), return_exceptions=True)
+        store.close()
 
 
 @pytest.mark.asyncio

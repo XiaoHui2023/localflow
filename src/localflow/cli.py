@@ -127,6 +127,10 @@ def _serve(paths: LocalFlowPaths) -> None:
         ssl_certfile=settings.server.tls_certfile,
         ssl_keyfile=settings.server.tls_keyfile,
         forwarded_allow_ips=",".join(settings.server.trusted_proxies),
+        # Long-lived application streams close immediately on LocalFlow's
+        # shutdown event.  This finite outer bound prevents an unrelated ASGI
+        # connection defect from holding the controller forever.
+        timeout_graceful_shutdown=10,
         log_config=None,
     )
     server = uvicorn.Server(config)

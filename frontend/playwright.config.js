@@ -17,6 +17,7 @@ export default defineConfig({
   },
   projects: [
     { name: "edge-full", testMatch: "**/localflow.spec.js", use: { channel: "msedge" } },
+    { name: "edge-live-shutdown", testMatch: "**/shutdown-live.spec.js", use: { channel: "msedge" } },
     { name: "chromium-compat", testMatch: "**/compatibility.spec.js", use: { browserName: "chromium" } },
     { name: "chrome-compat", testMatch: "**/compatibility.spec.js", use: { browserName: "chromium", channel: "chrome" } },
     { name: "firefox-compat", testMatch: "**/compatibility.spec.js", use: { browserName: "firefox" } },

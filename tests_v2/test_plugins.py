@@ -1,3 +1,4 @@
+import shlex
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -63,9 +64,12 @@ async def test_verification_config_discovers_one_level_files_and_directories(roo
     schema = verification["api"]["configuration_schema"]
     assert {"plugin", "command", "case_directory", "case_names"}.issubset(schema["properties"])
     assert {"plugin", "working_directory", "command"}.issubset(schema["required"])
+    assert "compile_logs" not in schema["required"]
+    assert "run_logs" not in schema["required"]
     assert schema["additionalProperties"] is True
     assert {
         "variables",
+        "source",
         "labels",
         "mutex_keys",
         "compile_logs",
@@ -203,6 +207,33 @@ def test_verification_command_uses_only_variables_explicitly_requested(
     assert task.working_directory == str(root.resolve())
     assert "--case" not in task.command
     assert "--seed" not in task.command
+
+
+@pytest.mark.parametrize("plugin_name", ["command", "verification"])
+def test_every_command_plugin_receives_common_task_source(
+    root: Path, plugin_name: str
+) -> None:
+    initialize_root(root)
+    (root / "environment.csh").write_text(
+        "setenv PROJECT_MODE regression\n", encoding="utf-8"
+    )
+    registry = PluginRegistry(root / "plugins")
+    registry.load()
+    configuration = {
+        "plugin": plugin_name,
+        "name": "sourced-command",
+        "case_names": ["case-a"],
+        "working_directory": ".",
+        "shell": "/bin/tcsh",
+        "source": "environment.csh",
+        "command": "printf '%s' $PROJECT_MODE",
+    }
+    inputs = {"cases": ["case-a"]} if plugin_name == "verification" else {}
+    task = registry.expand_config(configuration, inputs, {"root": str(root)})[0]
+    command = task.command[-1]
+    expected_source = shlex.quote(str((root / "environment.csh").resolve()))
+    assert f"source {expected_source} && cd {shlex.quote(str(root.resolve()))} &&\n" in command
+    assert command.endswith("printf '%s' $PROJECT_MODE")
 
 
 def test_verification_queue_identity_requires_same_case_and_complete_label_set(
@@ -394,6 +425,51 @@ def test_verification_result_uses_final_uvm_summary_and_existing_logs(root: Path
     assert result["custom"] == {
         "自定义文本": ["build=nightly", "owner=verification"],
         "运行日志": [str(run_log)],
+    }
+
+
+@pytest.mark.parametrize("exit_code", [0, 7])
+def test_verification_without_run_log_evidence_is_neutral(
+    root: Path, exit_code: int
+) -> None:
+    initialize_root(root)
+    registry = PluginRegistry(root / "plugins")
+    registry.load()
+    verification = registry.plugins["verification"].instance
+
+    no_logs = SimpleNamespace(custom={"自定义文本": ["nightly"]}, exit_code=exit_code)
+    assert verification.evaluate_result(no_logs, {"root": str(root)}) == {
+        "status": "finished",
+        "custom": {"自定义文本": ["nightly"]},
+    }
+
+    missing_run = SimpleNamespace(
+        custom={"_run_logs": [str(root / "missing.run.log")]},
+        exit_code=exit_code,
+    )
+    assert verification.evaluate_result(missing_run, {"root": str(root)}) == {
+        "status": "finished",
+        "custom": {},
+    }
+
+
+def test_verification_without_run_logs_preserves_existing_compile_details(
+    root: Path,
+) -> None:
+    initialize_root(root)
+    registry = PluginRegistry(root / "plugins")
+    registry.load()
+    verification = registry.plugins["verification"].instance
+    compile_log = root / "compile.log"
+    compile_log.write_text("compiler output\n", encoding="utf-8")
+    task = SimpleNamespace(
+        custom={"_compile_logs": [str(compile_log)], "_run_logs": []},
+        exit_code=0,
+    )
+
+    assert verification.evaluate_result(task, {"root": str(root)}) == {
+        "status": "finished",
+        "custom": {"编译日志": [str(compile_log)]},
     }
 
 

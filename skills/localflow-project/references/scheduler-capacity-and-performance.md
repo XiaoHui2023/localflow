@@ -2,9 +2,9 @@
 
 ## Decision boundary
 
-“Every task is independent” means task IDs, snapshots, logs, PTYs, state transitions, signals and production cgroups do not alias. It cannot mean unlimited jobs receive unlimited CPU, RAM and I/O from finite hardware. Never implement unbounded launch as a substitute for capacity planning: Linux PSI explicitly treats CPU, memory and I/O contention as a source of latency, throughput loss and OOM risk.
+“Every task is independent” means task IDs, snapshots, logs, PTYs, state transitions, signals and production cgroups do not alias. It cannot mean unlimited jobs receive unlimited CPU, RAM and I/O from finite hardware. Distinguish an artificial persistent concurrency ceiling from bounded scheduler work: LocalFlow may admit every independent task without a fixed slot limit while still scanning and starting a bounded page per event-loop turn. Linux PSI explicitly treats CPU, memory and I/O contention as a source of latency, throughput loss and OOM risk.
 
-Default `execution.max_concurrency` to `auto`. Resolve the effective value from the process CPU affinity, cgroup v2 `cpu.max` quota and host logical CPU count, taking the smallest applicable positive value. This uses every CPU actually granted to the LocalFlow service without mistaking host CPUs outside a container/service allocation for usable capacity. Allow an explicit `1..4096` override for measured I/O-heavy workloads or task-internal parallelism. Return both configured and effective values from the status API.
+Default `execution.max_concurrency` to `unlimited`, meaning no LocalFlow task-slot ceiling. Treat the formerly generated `auto` value as an unlimited compatibility alias so upgrades change behavior without rewriting an operator's file; allow only an explicit `1..4096` integer to request a limit. Return both configured and effective values from the status API; preserve the configured alias but represent its effective no-ceiling state explicitly as `unlimited`, not zero or a guessed large integer.
 
 Do not apply implicit CPU, memory or I/O limits to task units. An independent systemd unit/cgroup is the lifecycle and attribution boundary; site policy can add resource control only through an explicit future contract. CPU-heavy tasks normally use one task slot per available CPU. If each job invokes `make -jN`, MPI or another threaded solver, operators must account for that nested parallelism when overriding the task count.
 
@@ -12,11 +12,11 @@ Do not apply implicit CPU, memory or I/O limits to task units. An independent sy
 
 Never use an API presentation cap as the scheduler truth cap. Active task enumeration must cover at least the full configured concurrency, and shutdown enumeration must cover the full supported active population. Queue selection uses a bounded advancing cursor:
 
-1. Build held mutex ownership from all active tasks.
-2. Scan at most `max(500, capacity * 4)`, capped at 10,000, oldest queued tasks per tick.
+1. Build held mutex ownership from all active tasks across storage pages.
+2. In unlimited mode scan at most 10,000 queued tasks per tick; with an explicit capacity scan `max(500, capacity * 4)`, capped at 10,000.
 3. Mark overlapping mutex tasks blocked and continue scanning instead of treating the prefix as the queue.
 4. Persist the last actually inspected `(created_at, id)`, not the last fetched row; otherwise filling capacity skips unexamined tasks.
-5. Wrap to the beginning after reaching the end so a newly unblocked old task eventually runs.
+5. Wrap to the beginning after reaching the end so a newly unblocked old task eventually runs. A per-tick page protects controller latency and must never be presented as a persistent concurrency limit.
 
 Shutdown must drain interruptible records page by page. Raising a storage limit is not enough: a controller may have more queued records than one page even though its running population is bounded. Recovery must enumerate the full supported persisted active population rather than the new configured concurrency, because an operator may lower capacity between controller runs.
 

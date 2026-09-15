@@ -214,7 +214,17 @@ def main() -> int:
                     / 1024,
                     3,
                 )
-                if bundle_metrics.get("initial_legacy_entry_gzip_mib") != actual_entry_gzip:
+                # Browser evidence is produced by Node's bundled zlib while
+                # this independent gate uses the host CPython zlib.  Their
+                # level-9 streams can differ slightly across zlib-ng/zlib
+                # builds even for identical source bytes, so compare within a
+                # narrow rounding allowance while source hashes remain exact.
+                recorded_entry_gzip = bundle_metrics.get("initial_legacy_entry_gzip_mib")
+                if (
+                    not isinstance(recorded_entry_gzip, int | float)
+                    or isinstance(recorded_entry_gzip, bool)
+                    or abs(recorded_entry_gzip - actual_entry_gzip) > 0.002
+                ):
                     errors.append("browser bundle metric does not match built legacy entry")
             for relative, expected in receipt.get("source_files", {}).items():
                 source = root / relative
@@ -237,6 +247,7 @@ def main() -> int:
                 "frontend/e2e/ui-quality.js",
                 "frontend/e2e/localflow.spec.js",
                 "frontend/e2e/compatibility.spec.js",
+                "frontend/e2e/shutdown-live.spec.js",
                 "frontend/e2e/legacy-browser.mjs",
                 "frontend/playwright.config.js",
                 "frontend/vite.config.js",
@@ -246,6 +257,7 @@ def main() -> int:
                 "tools/check_quality.py",
                 "tools/run_browser_quality.py",
                 "tools/run_linux_browser_quality.py",
+                "tests_target/test_browser_shutdown.py",
             }
             if set(receipt.get("source_files", {})) != expected_sources:
                 errors.append("browser receipt source scope mismatch")

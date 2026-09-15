@@ -30,14 +30,14 @@ server:
 execution:
   # auto uses systemd when its user manager is available, otherwise subprocess.
   backend: auto
-  # auto follows this service's CPU affinity/cgroup quota; an integer overrides it.
-  max_concurrency: auto
+  # unlimited (and legacy auto) adds no LocalFlow task-slot limit.
+  max_concurrency: unlimited
 retention:
   # One duration covers task details and terminal output.
   task_days: 3
 ```
 
-未写字段使用安全默认值：监听 `0.0.0.0`、匿名摘要读取、按服务实际可用 CPU 自动决定并发任务数和有界日志容量。`max_concurrency: auto` 取进程 CPU affinity、cgroup v2 `cpu.max` 配额与系统逻辑 CPU 数中的最小有效值，避免容器/服务只获部分 CPU 时误用整机核数；可用 `1..4096` 的整数显式覆盖。它是 LocalFlow 同时启动任务的控制面额度，不会给任务偷偷添加 CPU、内存或 I/O 限制。需要覆盖其它高级字段时参照 `Settings` 模型或运维文档添加。
+未写字段使用安全默认值：监听 `0.0.0.0`、匿名摘要读取、不设置 LocalFlow 任务槽位上限，并使用有界日志容量。`max_concurrency: unlimited` 不会因 CPU 核数把独立任务留在队列；旧版本生成的 `auto` 作为 `unlimited` 的兼容别名，保证升级后不会延续旧上限。只有 `1..4096` 的整数会由管理员显式限制并行任务数。无软件槽位上限不等于无限硬件资源：任务仍共享服务器的 CPU、内存和 I/O，过量负载可能降低吞吐或触发系统级资源失败。需要覆盖其它高级字段时参照 `Settings` 模型或运维文档添加。
 
 多服务器免重复登录只适用于一个共同管理的 DNS 父域。例如各节点均通过 HTTPS 使用 `node-a.localflow.example.test` 一类主机名，并安全配置相同的 `secrets/web-admin-key` 后，可在每台加入：
 
@@ -72,7 +72,22 @@ command: "printf 'hello world\\n' > hello-world.txt"
 
 字符串命令支持 Make、Shell、可执行文件以及管道、重定向等任意 Ubuntu shell 命令；参数列表用于完全绕过 shell。GNU Make 的 `-f` 只选择 Makefile，不会切换目录；要在项目目录运行，应设置 `working_directory`，或在命令中明确使用 `make -C <目录>`，LocalFlow 不从任意命令文本猜测目录。任务启动前，输出日志会记录解析后的工作目录和最终命令，自动 seed 也已替换，便于直接核对实际执行内容。
 
+需要为单个任务加载工具链环境时使用公共 `source` 字段，可写一个路径或路径列表：
+
+```yaml
+working_directory: /srv/project
+shell: /bin/tcsh
+source:
+  - env/license.csh
+  - env/toolchain.csh
+command: make all
+```
+
+相对 source 路径以最终任务工作目录解析并冻结成绝对路径。核心在同一个任务 Shell 内依次加载这些文件，加载后再次恢复冻结工作目录，全部成功后才执行 `command`；环境变量、函数和别名只属于该任务 Shell 及其子进程，不修改控制器或其它任务。bash/zsh/csh/tcsh/fish 使用 `source`，POSIX sh/dash 使用 `.`。`source` 只适用于字符串命令；精确 argv 列表没有 Shell 环境，配置时会直接诊断为无效。运行审查和任务详情把每个环境脚本独立显示，运行前只对缺失项标错；终端输出在用户命令前记录每个实际加载路径，而命令行仍只显示用户写入的 `command`。
+
 进入使用界面后，顶部只读检查区显示已经解析的工作目录、完整命令、Case 来源、标签、编译日志和运行日志，不再重复显示字符串命令的首词。插件决定检查内容：必须预先存在的输入路径可声明 availability，仅缺失时显示叉号；插件直接提供的 Case 列表以及普通信息和未来生成的日志均不显示图案。首次打开、保存成功、外部同步和相关运行输入变化都会重新检查；检查使用有界超时和旧请求取消。
+
+配置无效时仍保留同一运行入口位置，并把“问题”和“YAML 解析结果”作为主调试工作面展示。调试卡片占满配置标题栏以下的剩余高度；宽屏左右分栏，窄屏上下分区，各区独立滚动。不得按当前错误条数收缩卡片或用固定最大高度在下方留下空白。
 
 编辑器按文件保留未保存草稿。修改后的文件及其父目录在资源树显示圆点，切换文件不会丢失草稿；保存成功、删除或明确采用外部最新版本后清除对应状态。未保存配置可以进入运行审查，但必须先保存才能提交。
 
@@ -83,7 +98,7 @@ command: "printf 'hello world\\n' > hello-world.txt"
 - 出现 `plugin`：继续校验插件是否加载以及插件专属字段。
 - 语法、导入、类型、必填字段或插件字段错误：文件仍可编辑，但不可运行。
 
-YAML 使用 `python-library-configlib >= 0.1.11` 的显式 `!include`、根路径变量、相对变量、列表展开和字典深合并。变量在全部 include 合并后按整棵 YAML 树解析，因此任意 YAML 键都可被 `${project.command}` 这类路径引用；兼容的 `variables:` 表仍把自己的键作为短名别名。未知引用和循环引用会阻止运行。`|` / `>` 块标量内的独占行变量仍是命令文本，不参与结构层 spread/merge。需要复用时再创建共享参数文件；默认安装不生成空变量文件或共享默认文件。
+YAML 使用 `python-library-configlib >= 0.1.11` 的显式 `!include`、根路径变量、相对变量、列表展开和字典深合并。变量在全部 include 合并后按整棵 YAML 树解析，因此任意 YAML 键都可被 `${project.command}` 这类路径引用；兼容的 `variables:` 表仍把自己的键作为短名别名。未知引用和循环引用会阻止运行。公共任务字段和插件声明字段必须在变量全部结算后再次执行与提交期相同的类型校验，例如 `labels: ["${x}"]` 在 `x: null` 时直接进入网页调试状态，不能等到运行后才由任务模型失败。未被插件使用的站点自定义空值保持合法；可选公共字段的显式 `null` 按未提供处理。`|` / `>` 块标量内的独占行变量仍是命令文本，不参与结构层 spread/merge。需要复用时再创建共享参数文件；默认安装不生成空变量文件或共享默认文件。
 
 网页保存携带内容版本并在同目录写临时文件、刷新、原子替换。文本没有变化时保存按钮禁用；发生变化后启用，保存成功或重新载入后再次禁用。编辑变化经过 220 ms 防抖后取消旧请求并重新诊断；Monaco 在具体行列画错误标记，下方有界“问题”面板列出同一结果，点击可回到位置。语法或导入错误不阻断保存，也不跳离编辑页；公共字段、插件 schema 与运行路径只在插件使用界面诊断。所有插件都保留站点自定义顶层配置；这些键属于合并后的 YAML 变量树，可被其它值引用并原样传给插件，但插件专属模型只校验自己声明的字段。本次运行输入仍严格限制为插件声明的 `run_fields`。外部编辑由原生文件事件与至多一秒的内容校对自动同步，并通过 SSE 定向刷新资源树和当前文件；有效与无效 YAML 都载入无脏草稿的编辑器，无效内容直接投影到 Monaco 与“问题”面板。已有未保存草稿时保留草稿并提示版本冲突，不以磁盘内容静默覆盖。
 

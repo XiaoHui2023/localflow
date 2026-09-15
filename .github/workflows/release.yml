@@ -73,7 +73,8 @@ jobs:
             DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
             /opt/localflow/venv/bin/pytest -q \
             /work/tests_v2 /work/tests_target/test_localflow_systemd_executor.py \
-            /work/tests_target/test_secret_permissions.py
+            /work/tests_target/test_secret_permissions.py \
+            /work/tests_target/test_shell_profile.py
       - name: Build complete static executable on glibc 2.23 baseline
         run: |
           docker run --rm \

@@ -14,13 +14,16 @@ Use this topic for repeated browser login, multi-server access, secret rotation,
 
 - String commands are intentionally personalized. Select `$SHELL` when the service manager propagated it; otherwise read the effective user's passwd login Shell; use `/bin/sh` only as the final fallback. Reject `false` and `nologin` as launch choices.
 - Invoke the selected program with `-ic`, which is the common interface for bash, zsh, csh/tcsh, fish, and common POSIX-derived Shells. Explicit `shell` remains an escape hatch for unusual service deployments.
+- Treat explicit task environment scripts as a common execution concern, not plugin logic. Accept `source` as one literal path or a list only for string commands; resolve relative paths against the frozen task working directory, quote each absolute path, source them sequentially inside that task's Shell, restore the frozen cwd again in case a script changed it, and execute the exact user command only after success. Use `.` for sh/dash and `source` for bash/zsh/csh/tcsh/fish. Never mutate the controller `os.environ`: process inheritance then guarantees one task cannot leak sourced variables into another.
 - Exact argv lists never enter a Shell and never load startup configuration.
 - The Shell startup file may change directories. Prefix the actual command with a safely quoted `cd` to the frozen absolute task directory after startup completes.
-- Show the selected Shell in run inspection and freeze it in the task argv. A plugin never guesses, sources rc files itself, or owns this policy.
+- Freeze the selected Shell in the task argv but keep this executor mechanism out of the concise run inspection. A plugin never guesses, sources rc files itself, or owns this policy.
 
 ## Regression corpus
 
 Linux tests create isolated HOME directories with real `.bashrc` and `.cshrc` aliases, both of which deliberately `cd` to the LocalFlow root. Omitting the plugin `shell` field must still select the test user's Shell, expand the shortcut, write only below the configured external directory, and leave no root-side marker. Model tests cover bash and tcsh command shapes plus exact-argv rejection.
+
+Source-file coverage adds real bash and tcsh scripts, proves values are visible to the corresponding command, and runs an unsourced task beside a sourced one to prove environment isolation. Common plugin expansion tests must cover both command and verification so a plugin cannot accidentally omit the host field. Inspection and task-detail tests require one code-list item per frozen path and a failure state for missing files before submission; terminal history must record one `process.source` item per loaded path. Task command presentation strips host `cd`/source wrappers and retains exactly the configured command.
 
 ## References
 

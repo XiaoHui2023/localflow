@@ -32,11 +32,14 @@ async function surfaceReport(surface, inset) {
 }
 
 export async function assertFloatingSurface(surface, { inset = 3, viewportPadding = 4 } = {}) {
-  await expect(surface).toBeVisible();
-  const report = await surfaceReport(surface, inset);
+  let report;
+  await expect(async () => {
+    await expect(surface).toBeVisible();
+    report = await surfaceReport(surface, inset);
+    expect(report.rect.width).toBeGreaterThan(0);
+    expect(report.rect.height).toBeGreaterThan(0);
+  }).toPass({ timeout: 5_000 });
   expect(report.role).toBe("tooltip");
-  expect(report.rect.width).toBeGreaterThan(0);
-  expect(report.rect.height).toBeGreaterThan(0);
   expect(report.rect.left).toBeGreaterThanOrEqual(viewportPadding);
   expect(report.rect.top).toBeGreaterThanOrEqual(viewportPadding);
   expect(report.rect.right).toBeLessThanOrEqual(report.viewport.width - viewportPadding);
@@ -67,15 +70,21 @@ export async function assertTooltipInteraction(page, trigger, expectedText) {
   await page.keyboard.press("Escape");
   await expect(surface).toHaveCount(0);
   surface = page.getByRole("tooltip").filter({ hasText: expectedText });
+  let describedBy;
   await expect(async () => {
+    await page.keyboard.press("Escape");
+    await expect(surface).toHaveCount(0);
     await expect(trigger).toBeVisible();
-    await trigger.evaluate((node) => node.focus({ preventScroll: true }));
+    await trigger.evaluate((node) => {
+      if (document.activeElement === node) node.blur();
+      node.focus({ preventScroll: true });
+    });
     await expect(surface).toBeVisible();
-  }).toPass();
+    describedBy = await trigger.getAttribute("aria-describedby");
+    expect(describedBy).toBeTruthy();
+    expect(await surface.getAttribute("id")).toBe(describedBy);
+  }).toPass({ timeout: 10_000 });
   await assertFloatingSurface(surface);
-  const describedBy = await trigger.getAttribute("aria-describedby");
-  expect(describedBy).toBeTruthy();
-  expect(await surface.getAttribute("id")).toBe(describedBy);
   await expect.poll(() => trigger.boundingBox()).toEqual(before);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(pageWidthBefore);
   await page.keyboard.press("Escape");

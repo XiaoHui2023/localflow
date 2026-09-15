@@ -124,6 +124,50 @@ def test_config_imports_and_layered_diagnosis(root: Path) -> None:
     )
     assert command_extensible.runnable, command_extensible.errors
 
+    optional_nulls = {
+        "plugin": "command",
+        "name": "null optionals",
+        "working_directory": ".",
+        "command": "true",
+        "labels": None,
+        "mutex_keys": None,
+        "custom": None,
+        "site_optional": None,
+    }
+    optional_null_diagnosis = diagnose_config(optional_nulls, plugins)
+    assert optional_null_diagnosis.runnable, optional_null_diagnosis.errors
+    optional_null_task = plugins.expand_config(optional_nulls, {}, {"root": str(root)})[0]
+    assert optional_null_task.labels == []
+    assert optional_null_task.mutex_keys == []
+    assert optional_null_task.custom == {}
+
+    resolved_null_label = diagnose_config(
+        {
+            "plugin": "command",
+            "name": "resolved null label",
+            "working_directory": ".",
+            "command": "true",
+            "labels": ["${site_label}"],
+            "site_label": None,
+        },
+        plugins,
+    )
+    assert not resolved_null_label.runnable
+    assert any("labels.0" in item and "string" in item for item in resolved_null_label.errors)
+
+    resolved_null_required = diagnose_config(
+        {
+            "plugin": "command",
+            "name": "resolved null command",
+            "working_directory": ".",
+            "command": "${site_command}",
+            "site_command": None,
+        },
+        plugins,
+    )
+    assert not resolved_null_required.runnable
+    assert any("command: field required" in item for item in resolved_null_required.errors)
+
     for implicit_name in ("root", "scripts_dir", "cases_dir"):
         implicit = diagnose_config(
             {
@@ -274,6 +318,25 @@ def test_config_api_exposes_only_runnable_configuration_tree(admin: TestClient, 
     selected_items = {item["name"]: item for item in selected.json()["items"]}
     assert selected_items["custom_text_0"]["value"] == "Case: ${case}"
     assert selected_items["custom_text_1"]["value"] == "Seed: ${seed}"
+
+    sourced = root / "config" / "command" / "sourced.yaml"
+    sourced.write_text(
+        "plugin: command\nname: sourced\nworking_directory: .\n"
+        "source: [environment.sh, missing.csh]\ncommand: make all\n",
+        encoding="utf-8",
+    )
+    (root / "environment.sh").write_text("export MODE=fast\n", encoding="utf-8")
+    source_inspection = admin.post(
+        "/api/v1/config/files/command/sourced.yaml/inspection", json={"inputs": {}}
+    )
+    assert source_inspection.status_code == 200
+    source_item = next(
+        item for item in source_inspection.json()["items"] if item["name"] == "source"
+    )
+    assert source_item["kind"] == "code-list"
+    assert len(source_item["value"]) == 2
+    assert source_item["severity"] == "error"
+    assert "missing.csh" in source_item["message"]
 
     broken = root / "config" / "verification" / "broken-path.yaml"
     broken.write_text(

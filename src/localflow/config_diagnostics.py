@@ -117,9 +117,22 @@ def diagnose_config(document: Any, plugins: PluginRegistry) -> ConfigDiagnosis:
     if loaded is None:
         errors.append(f"plugin: plugin is not loaded: {plugin_name}")
     else:
+        validation_document = document
+        try:
+            validation_document = plugins.resolve_config_document(document)
+        except (KeyError, TypeError, ValueError) as error:
+            errors.append(f"variables: {error}")
+        if validation_document is not document:
+            try:
+                CommonConfigFields.model_validate(validation_document)
+            except ValidationError as error:
+                for message in _validation_errors(error):
+                    if message not in errors:
+                        errors.append(message)
         required = set(getattr(loaded.instance, "required_common_fields", set()))
-        for field in sorted(required - set(document)):
-            errors.append(f"{field}: field required by plugin {plugin_name}")
+        for field in sorted(required):
+            if field not in validation_document or validation_document[field] is None:
+                errors.append(f"{field}: field required by plugin {plugin_name}")
         config_model = getattr(loaded.instance, "config_model", None)
         if config_model is None:
             warnings.append(f"plugin {plugin_name} does not declare a plugin-field schema")
@@ -127,7 +140,7 @@ def diagnose_config(document: Any, plugins: PluginRegistry) -> ConfigDiagnosis:
             declared_plugin_fields = set(config_model.model_fields)
             plugin_values = {
                 key: value
-                for key, value in document.items()
+                for key, value in validation_document.items()
                 if key in declared_plugin_fields
             }
             try:
@@ -145,11 +158,6 @@ def diagnose_config(document: Any, plugins: PluginRegistry) -> ConfigDiagnosis:
                 errors.extend(plugin_errors)
             except (TypeError, ValueError) as error:
                 errors.append(f"plugin: configuration validation failed: {error}")
-        try:
-            plugins.validate_config_variables(document)
-        except (KeyError, TypeError, ValueError) as error:
-            errors.append(f"variables: {error}")
-
     return ConfigDiagnosis(
         kind="task",
         valid=not errors,

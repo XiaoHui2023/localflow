@@ -10,6 +10,7 @@ The run surface answers: “What exactly will LocalFlow run, and is any required
 | --- | --- | --- |
 | Resolved working directory | Proves the execution context | Keep; availability checked |
 | User-authored command | Proves the operator's intent | Keep; hide executor shell/`-ic`/`cd` wrappers |
+| Task-private source files | Proves which user-selected environment scripts precede the command | Keep as one code row per frozen path in run review and task detail; record the same paths in terminal history |
 | Command entry | Repeats only the first token of the full command and is unreliable for shell built-ins, aliases, wrappers, and compound commands | Remove |
 | Case directory | Required discovery input | Keep; plugin declares availability check |
 | Compile/run log paths | Lets the operator review future outputs | Keep; never check pre-run existence |
@@ -39,6 +40,7 @@ The run surface answers: “What exactly will LocalFlow run, and is any required
 - Inspection items default to no check. A plugin opts into availability only for an input that must exist before submission.
 - The UI renders a cross only when check is availability and severity is error. Existing inputs, informational items, warnings, and future outputs render no status icon.
 - A shell command is a complete string contract. Never derive a second “entry” row from its first token.
+- Source files are a separate user-authored execution input, not part of the displayed command wrapper. Resolve them against the frozen cwd, render each as its own copy target, persist them with the task snapshot, and emit one terminal lifecycle record per loaded path.
 - Shell choice and injected cwd wrapper are executor mechanics. Retain them in the durable API command array, but add a user-facing display command derived by removing only LocalFlow's known wrapper.
 - Labels use the typed `tokens` inspection kind; the host renders pills and no copy action. Do not overload `text` with comma-separated multi-values.
 - Ordered multi-line inspection values use `code-list`; the host renders one row-level stack containing one code block and copy target per element. Never stringify or whitespace-join the array.

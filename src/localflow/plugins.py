@@ -375,8 +375,11 @@ class PluginRegistry:
                     update={
                         "working_directory": frozen_directory,
                         "command": freeze_command_working_directory(
-                            draft.command, frozen_directory
+                            draft.command, frozen_directory, values.get("source")
                         ),
+                        # Keep the validated source value alive until TaskService
+                        # freezes its user-visible, absolute snapshot.
+                        "source": values.get("source"),
                         "plugin_snapshot": snapshot,
                         "template": name,
                         "stop": stop,
@@ -440,7 +443,12 @@ class PluginRegistry:
         instance = self.plugins[plugin_name].instance
         deferred = set(getattr(instance, "deferred_variables", set()))
         resolved = resolve_config_tree(document, deferred, {})
-        values = {key: value for key, value in resolved.items() if key not in {"plugin", "stop", "variables"}}
+        values = {
+            key: value
+            for key, value in resolved.items()
+            if key not in {"plugin", "stop", "variables"}
+            and not (key in COMMON_CONFIG_FIELDS and value is None)
+        }
         values.update({key: value for key, value in overrides.items() if key not in {"plugin", "stop", "variables"}})
         return values
 
@@ -541,6 +549,32 @@ class PluginRegistry:
                 "check": "availability",
                 "severity": "ok" if found else "error",
                 "message": None if found else f"找不到命令入口：{executable}",
+            })
+        source_files = values.get("source")
+        if source_files is not None:
+            source_values = [source_files] if isinstance(source_files, str) else source_files
+            resolved_sources = []
+            missing_sources = []
+            for item in source_values:
+                source_path = Path(str(item))
+                if not source_path.is_absolute():
+                    source_path = directory / source_path
+                source_path = source_path.resolve()
+                resolved_sources.append(str(source_path))
+                if not source_path.is_file():
+                    missing_sources.append(str(source_path))
+            items.append({
+                "name": "source",
+                "label": "加载环境",
+                "value": resolved_sources,
+                "kind": "code-list",
+                "check": "availability",
+                "severity": "error" if missing_sources else "ok",
+                "message": (
+                    "找不到环境脚本：" + "；".join(missing_sources)
+                    if missing_sources
+                    else None
+                ),
             })
         return items
 

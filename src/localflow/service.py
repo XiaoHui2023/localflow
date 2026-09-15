@@ -23,11 +23,13 @@ from .models import (
     TaskRecord,
     TaskState,
     freeze_command_working_directory,
+    resolve_source_files,
 )
 from .settings import LoggingSettings, RetentionSettings
 from .storage import Store
 
 logger = logging.getLogger(__name__)
+TASK_PAGE_SIZE = 10_000
 
 
 def _now() -> str:
@@ -49,7 +51,7 @@ class TaskService:
         root: Path,
         store: Store,
         executor: Executor,
-        max_concurrency: int = 4,
+        max_concurrency: int | None = None,
         on_terminal=None,
         retention: RetentionSettings | None = None,
         logging_settings: LoggingSettings | None = None,
@@ -72,6 +74,24 @@ class TaskService:
         self._result_evaluator = result_evaluator
         self._last_cleanup = 0.0
         self._queue_cursor: tuple[str, str] | None = None
+
+    def _all_tasks(self, states: list[TaskState | str]):
+        """Iterate scheduler-owned task state without a presentation-size ceiling."""
+        cursor: tuple[str, str] | None = None
+        while True:
+            page = self.store.list_tasks(
+                states=states,
+                limit=TASK_PAGE_SIZE,
+                after=cursor,
+                ascending=True,
+            )
+            if not page:
+                return
+            yield from page
+            if len(page) < TASK_PAGE_SIZE:
+                return
+            tail = page[-1]
+            cursor = (tail.created_at.isoformat(), tail.id)
 
     def submit(self, draft: TaskCreate) -> TaskRecord:
         draft = self._prepare_draft(draft)
@@ -130,10 +150,17 @@ class TaskService:
         if not working_directory.is_absolute():
             working_directory = self.working_root / working_directory
         frozen_directory = str(working_directory.resolve())
+        source_files = resolve_source_files(draft.source, frozen_directory)
         return draft.model_copy(
             update={
                 "working_directory": frozen_directory,
-                "command": freeze_command_working_directory(draft.command, frozen_directory),
+                "command": freeze_command_working_directory(
+                    draft.command, frozen_directory, draft.source
+                ),
+                "custom": {
+                    **draft.custom,
+                    **({"_source_files": source_files} if source_files else {}),
+                },
             }
         )
 
@@ -208,11 +235,11 @@ class TaskService:
                 await self.interrupt(task.id)
         deadline = time.monotonic() + timeout_seconds
         while time.monotonic() < deadline:
-            remaining = self.store.list_tasks(states=active_states, limit=10_000, ascending=True)
+            remaining = list(self._all_tasks(active_states))
             if not remaining:
                 return
             await asyncio.sleep(0.1)
-        remaining = self.store.list_tasks(states=active_states, limit=10_000, ascending=True)
+        remaining = list(self._all_tasks(active_states))
         forced_sequences = []
         for task in remaining:
             sequence = self._interrupts.get(task.id)
@@ -234,13 +261,9 @@ class TaskService:
             await self._confirm_forced_exit(task.id)
 
     async def recover(self) -> None:
-        for task in self.store.list_tasks(
-            states=["starting", "running", "stopping"],
-            # Recovery follows persisted ownership, not today's configured
-            # capacity. A host may restart after max_concurrency was lowered.
-            limit=10_000,
-            ascending=True,
-        ):
+        # Recovery follows every persisted owner, independent of today's
+        # optional admission limit and of the storage page size.
+        for task in self._all_tasks(["starting", "running", "stopping"]):
             completed_code = await self.executor.completed_code(task.id)
             if completed_code is not None:
                 state = TaskState.SUCCEEDED if completed_code == 0 else TaskState.FAILED
@@ -347,19 +370,27 @@ class TaskService:
         return {"tasks": len(deleted_ids), "log_directories": removed}
 
     async def _schedule(self) -> None:
-        active = self.store.list_tasks(
-            states=["starting", "running", "stopping"],
-            limit=max(self.max_concurrency, 500),
-        )
-        capacity = max(0, self.max_concurrency - len(active))
+        active = self._all_tasks(["starting", "running", "stopping"])
+        capacity = self.max_concurrency
         holders: dict[str, list[str]] = {}
         for task in active:
+            if capacity is not None:
+                capacity -= 1
             for key in task.mutex_keys:
                 holders.setdefault(key, []).append(task.id)
         held = set(holders)
-        if not capacity:
+        if capacity is not None:
+            capacity = max(0, capacity)
+        if capacity == 0:
             return
-        scan_limit = min(10_000, max(500, capacity * 4))
+        # Unlimited admission still uses bounded pages so a large backlog
+        # cannot monopolize the controller event loop. The cursor advances and
+        # the next scheduler tick continues immediately through the backlog.
+        scan_limit = (
+            TASK_PAGE_SIZE
+            if capacity is None
+            else min(TASK_PAGE_SIZE, max(500, capacity * 4))
+        )
         queued = self.store.list_tasks(
             states=["queued"],
             limit=scan_limit,
@@ -374,7 +405,7 @@ class TaskService:
         last_scanned: TaskRecord | None = None
         scanned_all = True
         for task in queued:
-            if not capacity:
+            if capacity == 0:
                 scanned_all = False
                 break
             last_scanned = task
@@ -399,7 +430,8 @@ class TaskService:
                 starter.add_done_callback(
                     lambda _finished, task_id=task.id: self._starters.pop(task_id, None)
                 )
-                capacity -= 1
+                if capacity is not None:
+                    capacity -= 1
         if last_scanned is not None:
             self._queue_cursor = (last_scanned.created_at.isoformat(), last_scanned.id)
         if scanned_all and len(queued) < scan_limit:

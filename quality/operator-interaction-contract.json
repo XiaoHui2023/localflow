@@ -8,6 +8,9 @@
         "setTimeout\\(repeat, 550\\)",
         "api\\.searchLog",
         "message\\.type === \"caught_up\"",
+        "term\\.hasSelection\\(\\)",
+        "copyTerminalSelection\\(term\\.getSelection\\(\\)\\)",
+        "className=\"terminal-copy-selection\"",
         "onMove=\\{onMove\\}",
         "sessionStorage\\.getItem\\(\"localflow-run-panel\"\\) !== \"closed\"",
         "disabled=\\{!file \\|\\| content === baseContentRef\\.current\\}",
@@ -39,6 +42,9 @@
         "localflow-explorer-collapsed",
         "localflow-favorite-configs",
         "current\\.filter\\(\\(path\\) => available\\.has\\(path\\)\\)",
+        "const openQuickConfig = async \\(path\\)",
+        "error\\.status !== 404 && error\\.status !== 410",
+        "Promise\\.allSettled\\(\\[reload\\(\\), reloadRecent\\(\\)\\]\\)",
         "data-explorer-view=\\{explorerView\\}",
         "api\\.recentConfigs\\(\\)",
         "\\[\"已收藏\", favoriteConfigs, true\\]",
@@ -55,7 +61,10 @@
         "data-terminal-group=\"active\"",
         "data-terminal-group=\"history\"",
         "className=\"terminal-unread\"",
-        "className=\"terminal-entry-activity\"",
+        "className=\"terminal-selection-activity\"",
+        "const selectedIsActive = Boolean",
+        "selectedOutputActivity &&",
+        "aria-label=\\{`距最后输出 \\${selectedOutputActivity}`\\}",
         "task\\.log_updated_at",
         "data-terminal-state=\\{task\\.state\\}",
         "task\\.template === \"verification\"",
@@ -79,7 +88,9 @@
         "className=\"terminal-entry-state\"",
         "onDoubleClick",
         "favorite-panel-toggle",
-        "quick-config-labels"
+        "quick-config-labels",
+        "className=\"terminal-entry-activity\"",
+        "尚无输出"
       ]
     },
     {
@@ -93,12 +104,12 @@
     },
     {
       "path": "../src/localflow/config_diagnostics.py",
-      "required": ["declared_plugin_fields = set\\(config_model\\.model_fields\\)", "if key in declared_plugin_fields"],
+      "required": ["validation_document = plugins\\.resolve_config_document\\(document\\)", "CommonConfigFields\\.model_validate\\(validation_document\\)", "validation_document\\[field\\] is None", "declared_plugin_fields = set\\(config_model\\.model_fields\\)", "if key in declared_plugin_fields"],
       "forbidden": ["if key not in COMMON_CONFIG_FIELDS"]
     },
     {
       "path": "../src/localflow/plugins.py",
-      "required": ["def _plugin_fields_schema", "schema\\[\"additionalProperties\"\\] = True", "\"additionalProperties\": True", "_SUPPORTED_DEFERRED_VARIABLES = \\{\"case\", \"seed\"\\}", "resolve_config_tree\\(document, deferred, \\{\\}\\)"],
+      "required": ["def _plugin_fields_schema", "schema\\[\"additionalProperties\"\\] = True", "\"additionalProperties\": True", "_SUPPORTED_DEFERRED_VARIABLES = \\{\"case\", \"seed\"\\}", "resolve_config_tree\\(document, deferred, \\{\\}\\)", "key in COMMON_CONFIG_FIELDS and value is None"],
       "forbidden": ["additional_properties = plugin_schema\\.get\\(\"additionalProperties\"", "\"scripts_dir\": str\\(root", "\"cases_dir\": str\\(root"]
     },
     {
@@ -126,17 +137,17 @@
     },
     {
       "path": "../frontend/src/extra.css",
-      "required": ["fresh-dot[^}]+background:var\\(--accent\\)", "inspection-token", "copy-value code\\{[^}]+padding:5px 8px", "inspection-code-list \\.copy-field\\{[^}]+display:block", "task-code-list[^}]+grid-template-columns:minmax\\(0,1fr\\)", "task-code-list \\.copy-field[^}]+display:block"],
+      "required": ["fresh-dot[^}]+background:var\\(--accent\\)", "inspection-token", "copy-value code\\{[^}]+padding:5px 8px", "inspection-code-list \\.copy-field\\{[^}]+display:block", "task-code-list[^}]+grid-template-columns:minmax\\(0,1fr\\)", "task-code-list \\.copy-field[^}]+display:block", "configuration-debug\\{[^}]+grid-template-rows:auto minmax\\(0,1fr\\)", "configuration-debug-body\\{[^}]+overflow:hidden", "configuration-debug-body>section\\{[^}]+overflow:auto"],
       "forbidden": ["fresh-dot[^}]+background:var\\(--danger\\)", "copy-affordance", "copy-confirm"]
     },
     {
       "path": "../frontend/src/round6.css",
-      "required": ["grid-template-columns:\\s*clamp\\(248px,22vw,320px\\)", "terminal-entry\\.has-unread\\{grid-template-columns:minmax\\(0,1fr\\) 10px", "terminal-entry-activity"],
-      "forbidden": ["terminal-readonly", "terminal-entry-icon", "terminal-entry\\.state-running \\.terminal-entry-name"]
+      "required": ["grid-template-columns:\\s*clamp\\(248px,22vw,320px\\)", "terminal-entry\\.has-unread\\{grid-template-columns:minmax\\(0,1fr\\) 10px", "terminal-selection-activity", "terminal-copy-selection", "terminal-find[^}]+background:var\\(--surface\\);background:color-mix"],
+      "forbidden": ["terminal-readonly", "terminal-entry-icon", "terminal-entry-activity", "terminal-entry\\.state-running \\.terminal-entry-name"]
     },
     {
       "path": "../frontend/src/round7.css",
-      "required": ["\\.task-workspace\\[hidden\\]\\{display:none\\}", "\\.task-workspace\\.run-open \\.task-pane\\{display:none\\}", "\\.task-workspace\\.split-ready\\.run-open", "minmax\\(830px,3fr\\)", "minmax\\(410px,2fr\\)", "\\.run-panel\\{height:100vh;min-height:520px\\}", "\\.config-source-tabs\\{"],
+      "required": ["\\.task-workspace\\[hidden\\]\\{display:none\\}", "\\.task-workspace\\.run-open \\.task-pane\\{display:none\\}", "\\.task-workspace\\.split-ready\\.run-open", "minmax\\(830px,3fr\\)", "minmax\\(410px,2fr\\)", "\\.run-panel\\{height:100vh;min-height:520px\\}", "\\.config-source-tabs\\{", "\\.run-panel \\.config-workbench\\{[^}]*display:flex", "\\.run-panel \\.use-config\\{[^}]+flex:1 1 auto", "use-config>\\.configuration-debug\\{[^}]+flex:1 1 auto"],
       "forbidden": ["grid-template-areas:\"run\" \"tasks\"", "height:72vh", "height:78vh", "\\.favorite-panel-toggle"]
     }
   ]

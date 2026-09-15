@@ -91,7 +91,7 @@ class VerificationInputs(BaseModel):
         return self
 
 
-@plugin("verification", version="4")
+@plugin("verification", version="5")
 class Verification:
     config_model = VerificationConfig
     input_model = VerificationInputs
@@ -118,6 +118,7 @@ class Verification:
         "starting": {"label": "准备仿真", "tone": "info", "finished": False},
         "simulating": {"label": "仿真中", "tone": "info", "finished": False},
         "stopping": {"label": "退出中", "tone": "warning", "finished": False},
+        "finished": {"label": "运行结束", "tone": "neutral", "finished": True},
         "passed": {"label": "验证通过", "tone": "success", "finished": True},
         "compile_error": {"label": "编译错误", "tone": "danger", "finished": True},
         "error": {"label": "ERROR", "tone": "danger", "finished": True},
@@ -229,8 +230,11 @@ class Verification:
 
         working = self._path(values["working_directory"], context).resolve()
         for name, label in (("compile_logs", "编译日志"), ("run_logs", "运行日志")):
+            configured = values.get(name, [])
+            if not configured:
+                continue
             resolved = []
-            for raw in values.get(name, []):
+            for raw in configured:
                 path = Path(preview(raw))
                 resolved.append(str(path if path.is_absolute() else (working / path).resolve()))
             items.append(
@@ -273,10 +277,21 @@ class Verification:
         runtime = {"seed": task.custom["seed"]} if "seed" in task.custom else {}
         if task.custom.get("自定义文本"):
             runtime["自定义文本"] = task.custom["自定义文本"]
-        if not compile_logs and not run_logs:
-            return "passed" if task.exit_code in {None, 0} else "crashed"
+        if not run_logs:
+            existing_compile = [path for path in compile_logs if path.is_file()]
+            details = {
+                **runtime,
+                **(
+                    {"编译日志": [str(path) for path in existing_compile]}
+                    if existing_compile
+                    else {}
+                ),
+            }
+            return {"status": "finished", "custom": details}
         existing_run = [path for path in run_logs if path.is_file()]
         if not existing_run:
+            if not compile_logs:
+                return {"status": "finished", "custom": runtime}
             existing_compile = [path for path in compile_logs if path.is_file()]
             return {
                 "status": "compile_error",

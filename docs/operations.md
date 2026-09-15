@@ -21,7 +21,7 @@ sudo -u localflow ./localflow --workspace /srv/localflow --data /var/lib/localfl
 
 默认 `execution.backend: auto`。已启用 linger 且用户 systemd 管理器可达时自动使用 transient unit；普通 shell/解压试用环境没有用户管理器时自动回退到 subprocess 并写服务告警。生产部署仍应启用用户管理器以获得网页服务重启后的任务接管；若配置为显式 `systemd`，启动失败不会降级，而会在该任务的 `output.log` 中留下完整诊断。
 
-默认 `execution.max_concurrency: auto` 会使用服务实际可调度的 CPU 数作为并发额度，并通过 `/api/v1/system/status` 返回结算后的 `max_concurrency` 和原始 `configured_max_concurrency`，方便自动化核对。CPU 密集型仿真通常保持 `auto`；大量 I/O 等待任务可按实测提高整数额度；单个任务内部已使用 `make -j` 或其它多线程并行时应相应降低任务级并发。不要把“无限并发”当作隔离：过量进程会增加上下文切换、内存回收和 I/O stall，Linux PSI 可用于现场确认 CPU/内存/I/O 争用。只有相同显式互斥键（以及插件明确生成的互斥身份）会排队，其余任务在额度内彼此独立启动。
+默认 `execution.max_concurrency: unlimited` 不设置 LocalFlow 任务槽位上限，状态 API 的 `max_concurrency` 和 `configured_max_concurrency` 都返回 `unlimited`。旧配置中的 `auto` 是无上限兼容别名，状态 API 会保留其配置原文，但结算结果返回 `unlimited`。调度器仍分有界批次接纳大队列，避免一次数据库扫描长期占住控制器；这不是持续并发上限。只有明确的 `1..4096` 整数才主动限流。不要把无软件上限当作无限算力或资源隔离：过量进程仍会增加上下文切换、内存回收和 I/O stall，Linux PSI 可用于现场确认 CPU/内存/I/O 争用。只有相同显式互斥键（以及插件明确生成的互斥身份）会排队，其余任务会被接纳启动。
 
 程序客户端从管理员分配的只读密钥文件读取当前代次。不要把密钥复制到 shell 历史、命令参数或网页地址。
 

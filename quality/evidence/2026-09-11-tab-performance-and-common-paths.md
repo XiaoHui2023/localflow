@@ -20,6 +20,7 @@
 - Chrome/Firefox 兼容旅程在真实 xterm 任务之后证明同一工作台标记保持且终端页卸载。
 - 两个编译日志条目各自的 row 与 copy surface 宽度至少为 `code-list` owner 宽度减 1 px。
 - 收藏条目的文本和 accessible name 都必须精确等于完整路径，不得包含 `strong/small/em` 元数据，且 `scrollWidth <= clientWidth`、`scrollHeight <= clientHeight`。
+- 网页内移动使用明确 source/target 迁移收藏；外部移动没有可靠文件身份时不按重名或内容猜测。工作区刷新会剔除消失路径，浏览器门还在收藏条目已渲染后故意让读取返回 404，证明条目和 localStorage 收藏被清理、没有“打开失败”噪声、当前工作台仍可使用。该竞态是正常失效处理，不得成为未处理 Promise 或页面级错误。
 - `tools/check_quality.py` 缺少交互指标或超预算即拒绝收据；静态操作契约拒绝重新出现 `quick-config-labels`、缺失路径 accessible name、缺失任务页稳定挂载或丢失列表单列覆盖。
 
 ## 自主学习与来源

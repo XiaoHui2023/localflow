@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from localflow import settings as settings_module
 from localflow.cli import _display_host, _endpoint
 from localflow.models import TaskCreate, TaskState
 from localflow.service import TaskService, _elapsed
@@ -126,16 +125,10 @@ def test_retained_log_budget_does_not_artificially_cap_concurrency() -> None:
     assert settings.execution.effective_max_concurrency == 4096
 
 
-def test_auto_concurrency_uses_process_cpu_affinity(monkeypatch) -> None:
-    monkeypatch.setattr(settings_module.os, "cpu_count", lambda: 64)
-    monkeypatch.setattr(
-        settings_module.os,
-        "sched_getaffinity",
-        lambda _pid: set(range(12)),
-        raising=False,
-    )
-    assert settings_module.available_cpu_capacity() == 12
-    assert ExecutionSettings().effective_max_concurrency == 12
+def test_legacy_auto_concurrency_upgrades_to_unlimited() -> None:
+    assert ExecutionSettings().max_concurrency == "unlimited"
+    assert ExecutionSettings().effective_max_concurrency is None
+    assert ExecutionSettings(max_concurrency="auto").effective_max_concurrency is None
     assert ExecutionSettings(max_concurrency=4096).effective_max_concurrency == 4096
     with pytest.raises(ValueError, match="max_concurrency"):
         ExecutionSettings(max_concurrency=4097)
