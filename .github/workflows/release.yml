@@ -128,7 +128,20 @@ jobs:
           make -C "$bundle" all CASE=release-case SEED=12345
           python3 tools/run_frozen_smoke.py --binary "$bundle/localflow" --bundle-root "$bundle"
       - name: Install Ubuntu Chrome and Firefox for release UI gate
-        run: npm --prefix frontend exec -- playwright install --with-deps chrome firefox
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if npm --prefix frontend exec -- playwright install --with-deps chrome firefox; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Browser installation failed after ${attempt} attempts" >&2
+              exit 1
+            fi
+            delay=$((attempt * 10))
+            echo "Browser installation attempt ${attempt} failed; retrying in ${delay}s" >&2
+            sleep "$delay"
+          done
       - name: Run Chrome and Firefox against final release executable
         run: |
           set -o pipefail
