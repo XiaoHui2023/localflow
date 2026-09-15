@@ -73,6 +73,26 @@ def test_task_source_files_are_frozen_before_the_exact_user_command(tmp_path) ->
     assert "source" not in task.model_dump()
 
 
+def test_tcsh_sources_on_separate_parse_lines_before_user_command(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    environment = project / "environment.csh"
+    environment.write_text("setenv PROJECT_MODE fast\n", encoding="utf-8")
+    task = TaskCreate(
+        name="tcsh-source",
+        working_directory=str(project),
+        shell="/bin/tcsh",
+        source="environment.csh",
+        command="printf '%s' \"$PROJECT_MODE\"",
+    )
+    frozen = freeze_command_working_directory(task.command, str(project), task.source)
+    body = frozen[2]
+    assert f"source {shlex.quote(str(environment))}\n" in body
+    assert "if ( $status != 0 ) exit $status\n" in body
+    assert "# localflow:user-command\nprintf" in body
+    assert command_for_log(frozen, str(project)) == "printf '%s' \"$PROJECT_MODE\""
+
+
 def test_source_requires_a_shell_command_and_valid_paths() -> None:
     with pytest.raises(ValidationError, match="source is only valid with a string command"):
         CommonConfigFields(source="environment.csh", command=["make", "all"])

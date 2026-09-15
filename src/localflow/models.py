@@ -18,6 +18,7 @@ def utc_now() -> datetime:
 CommandInput = str | list[str]
 SourceInput = str | list[str]
 _SHELL_CWD_SENTINEL = "__LOCALFLOW_RESTORE_FROZEN_CWD__"
+_SHELL_USER_COMMAND_BOUNDARY = "\n# localflow:user-command\n"
 
 
 def detected_login_shell() -> str:
@@ -96,18 +97,39 @@ def freeze_command_working_directory(
     ):
         user_command = command[2][len(_SHELL_CWD_SENTINEL) :]
         source_files = resolve_source_files(source, working_directory)
-        source_keyword = "." if Path(command[0]).name in {"sh", "dash"} else "source"
+        shell_name = Path(command[0]).name
+        source_keyword = "." if shell_name in {"sh", "dash"} else "source"
         source_prefix = " && ".join(
             f"{source_keyword} {shlex.quote(item)}" for item in source_files
         )
         # A sourced toolchain file may change directory.  Restore the frozen
         # task cwd once more so source remains an environment operation rather
         # than weakening the task working-directory contract.
-        body = (
-            f"{source_prefix} && cd {shlex.quote(working_directory)} &&\n{user_command}"
-            if source_prefix
-            else user_command
-        )
+        if source_files and shell_name in {"csh", "tcsh"}:
+            # tcsh expands variables across one compound `&&` expression before
+            # a preceding source has populated them.  Separate source commands
+            # into parsed lines and preserve fail-fast semantics explicitly.
+            source_lines = []
+            for item in source_files:
+                source_lines.extend(
+                    [
+                        f"source {shlex.quote(item)}",
+                        "if ( $status != 0 ) exit $status",
+                    ]
+                )
+            body = "\n".join(
+                [
+                    *source_lines,
+                    f"cd {shlex.quote(working_directory)}",
+                    "if ( $status != 0 ) exit $status",
+                ]
+            ) + _SHELL_USER_COMMAND_BOUNDARY + user_command
+        elif source_prefix:
+            body = (
+                f"{source_prefix} && cd {shlex.quote(working_directory)} &&\n{user_command}"
+            )
+        else:
+            body = user_command
         return [
             *command[:2],
             f"cd {shlex.quote(working_directory)} && {body}",
@@ -126,6 +148,8 @@ def command_for_log(command: list[str], working_directory: str) -> str:
             # Explicit source files are a separate user setting.  The command
             # row remains the exact command the user wrote.
             source_boundary = f" && cd {shlex.quote(working_directory)} &&\n"
+            if _SHELL_USER_COMMAND_BOUNDARY in visible:
+                return visible.split(_SHELL_USER_COMMAND_BOUNDARY, 1)[1]
             if source_boundary in visible:
                 return visible.split(source_boundary, 1)[1]
             return visible

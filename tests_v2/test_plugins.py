@@ -232,7 +232,9 @@ def test_every_command_plugin_receives_common_task_source(
     task = registry.expand_config(configuration, inputs, {"root": str(root)})[0]
     command = task.command[-1]
     expected_source = shlex.quote(str((root / "environment.csh").resolve()))
-    assert f"source {expected_source} && cd {shlex.quote(str(root.resolve()))} &&\n" in command
+    assert f"source {expected_source}\nif ( $status != 0 ) exit $status\n" in command
+    assert f"cd {shlex.quote(str(root.resolve()))}\n" in command
+    assert "# localflow:user-command\nprintf '%s' $PROJECT_MODE" in command
     assert command.endswith("printf '%s' $PROJECT_MODE")
 
 
