@@ -64,10 +64,12 @@
 
 字符串命令自动使用服务账号的 `$SHELL`，缺失时使用 passwd 登录 Shell，并以 `<shell> -ic` 读取 `.bashrc`、`.cshrc`、`.zshrc`、`config.fish` 等该 Shell 的交互启动文件，从而支持函数和别名；公共字段 `"shell": "/bin/bash"` 可显式覆盖自动选择。执行用户命令前核心会恢复请求中冻结的工作目录。参数数组禁止同时提供 `shell`，始终按精确 argv 执行且不读取启动文件。
 
-公共字段 `source` 的推荐形式是一条完整 Shell 语句，只能与字符串命令组合。调用者可直接提交在交互终端中使用的 `source setup.csh -env_path /abs/toolchain.env`，无需拆分路径和参数；语句由任务选定的 Shell 在冻结工作目录中解释，随后核心恢复该目录并执行用户命令。sh/dash 自动把开头的 `source` 适配为 `.`。旧的单路径、路径列表和 `{path, arguments}` 形式继续兼容。任务详情的 `source_invocations` 返回原始完整语句，纯路径兼容形式还会出现在 `source_files`；`display_command` 仍是用户原始命令，执行快照 `command` 保留实际包装供 Agent 精确审计，终端日志在 `process.command` 前记录同一 source 操作。
+公共字段 `source` 是非空的 Shell 脚本路径列表，只能与字符串命令组合。各路径以冻结工作目录解析，在同一个任务 Shell 中按数组顺序加载；任一项失败都会阻止用户命令，加载完成后核心恢复冻结工作目录。调用者需要先把带参数的厂商初始化命令封装进一个 Shell 脚本，再把该包装脚本路径加入列表。字符串、完整语句和对象会返回 `422`。任务详情的 `source_files` 返回冻结后的绝对路径，`source_invocations` 返回对应的可读操作；`display_command` 仍是用户原始命令，执行快照 `command` 保留实际包装供 Agent 精确审计，终端日志在 `process.command` 前逐项记录 source 路径。
 
 ```yaml
-source: source scripts/setup.csh -env_path /tools/project/toolchain.env
+source:
+  - scripts/license.csh
+  - scripts/setup.csh
 ```
 
 配置式提交是程序调用的首选入口。请求体与 `config/tasks` 文件使用同一合同：`configuration` 顶层必须有 `plugin`，`inputs` 只包含本次运行要改变的插件字段。插件校验、变量解析、任务展开和网页运行表面共用同一实现；一个 Case 多次运行或多个 Case 会在一次请求中返回多个任务 ID。

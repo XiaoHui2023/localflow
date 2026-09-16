@@ -72,23 +72,31 @@ command: "printf 'hello world\\n' > hello-world.txt"
 
 字符串命令支持 Make、Shell、可执行文件以及管道、重定向等任意 Ubuntu shell 命令；参数列表用于完全绕过 shell。GNU Make 的 `-f` 只选择 Makefile，不会切换目录；要在项目目录运行，应设置 `working_directory`，或在命令中明确使用 `make -C <目录>`，LocalFlow 不从任意命令文本猜测目录。任务启动前，输出日志会记录解析后的工作目录和最终命令，自动 seed 也已替换，便于直接核对实际执行内容。
 
-需要为单个任务加载工具链环境时使用公共 `source` 字段。直接粘贴一条在所选 Shell 中可工作的完整 source 语句即可，不必把路径和参数拆成多个配置项：
+需要为单个任务加载工具链环境时使用公共 `source` 字段。它是一个按顺序执行的非空脚本路径列表：
 
 ```yaml
 working_directory: /srv/project
-source: source env/toolchain.csh -env_path /tools/project/environment.env
+source:
+  - env/license.csh
+  - env/toolchain.csh
 command: make all
 ```
 
-这条语句由任务已经选择或自动检测的 Shell 解释，因而可使用该 Shell 自己的引用、变量展开和命令替换规则；环境只留在当前任务。语句从冻结后的 `working_directory` 开始执行，即使脚本内部切换目录，LocalFlow 也会在运行 `command` 前恢复工作目录。POSIX sh/dash 会把开头的 `source` 自动适配为 `.`。只有语句使用某一种 Shell 的专属语法时才需要显式填写 `shell`。
+相对路径以冻结后的 `working_directory` 为基准，绝对路径直接使用；包含空格和软链接的路径由核心安全引用。所有文件在任务选择或自动检测的同一个 Shell 进程中依次加载，前一个脚本设置的环境变量、函数和别名可供后一个脚本及最终命令使用，但不会泄漏到其它任务。即使脚本内部切换目录，LocalFlow 也会在运行 `command` 前恢复工作目录。POSIX sh/dash 使用等价的 `.` 语义。
 
-原有的单路径、路径列表和 `{path, arguments}` 写法继续兼容旧配置；新配置通常不需要使用：
+如果厂商脚本要求 `-env_path` 等参数，把调用封装在一个属于所选 Shell 的薄包装脚本中，配置仍然只填写包装脚本路径：
 
-```yaml
-source: env/toolchain.csh
+```csh
+# env/localflow-toolchain.csh
+source /tools/vendor/setup.csh -env_path /tools/project/environment.env
 ```
 
-完整语句按用户 Shell 原样显示，不做不可靠的通用路径猜测；Shell 自己负责给出脚本或参数错误。旧的纯路径写法仍以任务工作目录解析、冻结并检查文件存在性。`source` 只适用于字符串命令；精确 argv 列表没有 Shell 环境，配置时会直接诊断为无效。运行审查、任务详情和终端输出都显示同一条 source 语句，而命令行仍只显示用户写入的 `command`。
+```yaml
+source:
+  - env/localflow-toolchain.csh
+```
+
+脚本内容必须与任务所选 Shell 兼容；LocalFlow 不根据扩展名或 shebang 为每项启动不同的子 Shell，因为子进程无法把环境、函数和别名写回父任务 Shell。缺失、不可读或执行失败的任一项都会阻止用户命令。`source` 只适用于字符串命令；精确 argv 列表没有 Shell 环境，配置时会直接诊断为无效。运行审查、任务详情和终端输出逐项显示冻结路径，而命令行仍只显示用户写入的 `command`。字符串、完整 source 语句和 `{path, arguments}` 对象不是该字段的合法形式。
 
 进入使用界面后，顶部只读检查区显示已经解析的工作目录、完整命令、Case 来源、标签、编译日志和运行日志，不再重复显示字符串命令的首词。插件决定检查内容：必须预先存在的输入路径可声明 availability，仅缺失时显示叉号；插件直接提供的 Case 列表以及普通信息和未来生成的日志均不显示图案。首次打开、保存成功、外部同步和相关运行输入变化都会重新检查；检查使用有界超时和旧请求取消。
 

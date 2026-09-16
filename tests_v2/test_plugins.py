@@ -225,7 +225,7 @@ def test_every_command_plugin_receives_common_task_source(
         "case_names": ["case-a"],
         "working_directory": ".",
         "shell": "/bin/tcsh",
-        "source": "environment.csh",
+        "source": ["environment.csh"],
         "command": "printf '%s' $PROJECT_MODE",
     }
     inputs = {"cases": ["case-a"]} if plugin_name == "verification" else {}
@@ -239,20 +239,18 @@ def test_every_command_plugin_receives_common_task_source(
 
 
 @pytest.mark.asyncio
-async def test_common_source_inspection_preserves_one_shell_statement(root: Path) -> None:
+async def test_common_source_inspection_resolves_each_path(root: Path) -> None:
     initialize_root(root)
     source = root / "environment.csh"
-    environment = root / "toolchain.env"
     source.write_text("", encoding="utf-8")
-    environment.write_text("VALUE=ready\n", encoding="utf-8")
     registry = PluginRegistry(root / "plugins")
     registry.load()
     configuration = {
         "plugin": "command",
-        "name": "source-arguments",
+        "name": "source-paths",
         "working_directory": ".",
         "shell": "/bin/tcsh",
-        "source": f"source {source.name} -env_path {shlex.quote(str(environment))}",
+        "source": [source.name],
         "command": "printf ready",
     }
 
@@ -261,9 +259,7 @@ async def test_common_source_inspection_preserves_one_shell_statement(root: Path
     )
     source_item = next(item for item in items if item["name"] == "source")
     assert source_item["severity"] == "ok"
-    assert source_item["value"] == [
-        f"source {source.name} -env_path {shlex.quote(str(environment))}"
-    ]
+    assert source_item["value"] == [f"source {shlex.quote(str(source.resolve()))}"]
 
 
 def test_verification_queue_identity_requires_same_case_and_complete_label_set(

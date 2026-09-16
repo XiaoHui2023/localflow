@@ -99,25 +99,25 @@ def test_task_detail_exposes_frozen_source_files(admin: TestClient, root: Path) 
     assert task["custom"]["_source_files"] == [str(environment.resolve())]
 
 
-def test_task_detail_preserves_complete_source_statement(
+def test_source_contract_requires_a_non_empty_path_list(
     admin: TestClient, root: Path
 ) -> None:
-    statement = "source scripts/setup.csh -env_path './toolchain profile.env'"
-    task_id = admin.post(
-        "/api/v1/tasks",
-        json={
-            "name": "source-statement",
-            "working_directory": str(root),
-            "source": statement,
-            "command": "printf ready",
-        },
-    ).json()["task_id"]
+    base = {
+        "name": "source-contract",
+        "working_directory": str(root),
+        "command": "printf ready",
+    }
 
-    task = admin.get(f"/api/v1/tasks/{task_id}").json()
-
-    assert task["source_files"] == []
-    assert task["source_invocations"] == [statement]
-    assert task["custom"]["_source_invocations"] == [{"statement": statement}]
+    for invalid in (
+        "scripts/setup.csh",
+        "source scripts/setup.csh",
+        {"path": "scripts/setup.csh"},
+        [],
+        [""],
+        ["scripts/setup.csh", {"path": "scripts/second.csh"}],
+    ):
+        response = admin.post("/api/v1/tasks", json={**base, "source": invalid})
+        assert response.status_code == 422, invalid
 
 
 def test_one_request_inline_configuration_uses_plugin_and_creates_batch(

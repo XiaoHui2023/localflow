@@ -2101,31 +2101,42 @@ test("terminal to task navigation preserves the workbench within a paint budget"
   fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
 });
 
-test("a sourced task shows its complete source statement in task details", async ({ page }) => {
+test("a sourced task shows every frozen source path in task details", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("tab", { name: "设置" }).click();
   await ensureAdminSession(page);
   const sourcePath = path.join(qaRoot, "browser-source.sh");
   fs.writeFileSync(sourcePath, "export BROWSER_SOURCE=visible\n");
-  const sourceStatement = "source browser-source.sh";
+  const secondSourcePath = path.join(qaRoot, "browser-source-second.sh");
+  fs.writeFileSync(secondSourcePath, "export BROWSER_SOURCE=$BROWSER_SOURCE-second\n");
   const created = await browserApi(page, "/tasks", {
     method: "POST",
     body: {
       name: "browser-source-visibility",
       working_directory: qaRoot,
-      source: sourceStatement,
+      source: ["browser-source.sh", "browser-source-second.sh"],
       command: "echo $BROWSER_SOURCE",
     },
   });
   const detail = await browserApi(page, `/tasks/${created.task_id}`);
-  expect(detail.source_files).toEqual([]);
-  expect(detail.source_invocations).toEqual([sourceStatement]);
+  expect(detail.source_files).toHaveLength(2);
+  expect(detail.source_files.map((value) => path.basename(value))).toEqual([
+    "browser-source.sh",
+    "browser-source-second.sh",
+  ]);
+  expect(detail.source_files.every((value) => path.isAbsolute(value))).toBe(true);
+  expect(detail.source_invocations).toHaveLength(2);
+  expect(detail.source_invocations[0]).toMatch(/^source /);
+  expect(detail.source_invocations[0]).toContain("browser-source.sh");
+  expect(detail.source_invocations[1]).toMatch(/^source /);
+  expect(detail.source_invocations[1]).toContain("browser-source-second.sh");
   await page.getByRole("tab", { name: "任务" }).click();
   const row = page.locator(".task-item").filter({ hasText: "browser-source-visibility" });
   await expect(row).toBeVisible();
   await row.locator(".task-row").click();
   const sources = row.locator(".task-list-field").filter({ hasText: "加载环境" });
-  await expect(sources).toContainText(sourceStatement);
+  await expect(sources).toContainText(detail.source_files[0]);
+  await expect(sources).toContainText(detail.source_files[1]);
   await expect.poll(async () => (await browserApi(page, `/tasks/${created.task_id}`)).state).toMatch(
     /^(failed|succeeded)$/,
   );
@@ -2133,7 +2144,7 @@ test("a sourced task shows its complete source statement in task details", async
   const receipt = JSON.parse(fs.readFileSync(receiptPath, "utf8"));
   if (!receipt.assertions.includes("task-source-detail"))
     receipt.assertions.push("task-source-detail");
-  if (!receipt.assertions.includes("task-source-statement"))
-    receipt.assertions.push("task-source-statement");
+  if (!receipt.assertions.includes("task-source-path-list"))
+    receipt.assertions.push("task-source-path-list");
   fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
 });

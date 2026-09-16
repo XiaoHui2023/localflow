@@ -110,11 +110,16 @@ async def test_bash_source_environment_is_private_to_one_task(tmp_path: Path) ->
     project = tmp_path / "project"
     root.mkdir()
     project.mkdir()
-    (project / "task-env.sh").write_text(
+    (project / "task env.sh").write_text(
         "export LOCALFLOW_SCOPED_VALUE=only-this-task\n"
         f"cd {root}\n",
         encoding="utf-8",
     )
+    (project / "task-env-second.sh").write_text(
+        "export LOCALFLOW_SCOPED_VALUE=\"${LOCALFLOW_SCOPED_VALUE}-second\"\n",
+        encoding="utf-8",
+    )
+    (project / "task-env-link.sh").symlink_to("task-env-second.sh")
     store = Store(root / "runtime" / "localflow.db")
     service = TaskService(root, store, SubprocessExecutor(), max_concurrency=None)
     sourced = service.submit(
@@ -122,7 +127,7 @@ async def test_bash_source_environment_is_private_to_one_task(tmp_path: Path) ->
             name="sourced",
             working_directory=str(project),
             shell="/bin/bash",
-            source="task-env.sh",
+            source=["task env.sh", "task-env-link.sh"],
             command="printf '%s' \"$LOCALFLOW_SCOPED_VALUE\" > sourced.txt",
         )
     )
@@ -142,11 +147,12 @@ async def test_bash_source_environment_is_private_to_one_task(tmp_path: Path) ->
                 break
         assert store.get_task(sourced.id).state == "succeeded"
         assert store.get_task(independent.id).state == "succeeded"
-        assert (project / "sourced.txt").read_text() == "only-this-task"
+        assert (project / "sourced.txt").read_text() == "only-this-task-second"
         assert (project / "independent.txt").read_text() == "unset"
         output = (root / "logs" / sourced.id / "output.log").read_text()
         assert "] process.source " in output
-        assert f"path={str(project / 'task-env.sh')!r}" in output
+        assert f"path={str((project / 'task env.sh').resolve())!r}" in output
+        assert f"path={str((project / 'task-env-link.sh').resolve())!r}" in output
     finally:
         await service.stop()
         store.close()
@@ -174,7 +180,7 @@ async def test_tcsh_sources_csh_file_before_user_command(tmp_path: Path) -> None
             name="csh-source",
             working_directory=str(project),
             shell="/bin/tcsh",
-            source="source task-env.csh",
+            source=["task-env.csh"],
             command="printf '%s' \"$LOCALFLOW_SCOPED_VALUE\" > sourced.txt",
         )
     )
@@ -193,7 +199,7 @@ async def test_tcsh_sources_csh_file_before_user_command(tmp_path: Path) -> None
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Ubuntu shell contract")
 @pytest.mark.asyncio
-async def test_source_arguments_support_explicit_environment_file(tmp_path: Path) -> None:
+async def test_source_wrapper_can_initialize_a_vendor_environment(tmp_path: Path) -> None:
     root = tmp_path / "localflow"
     project = tmp_path / "project"
     root.mkdir()
@@ -206,17 +212,18 @@ async def test_source_arguments_support_explicit_environment_file(tmp_path: Path
         "export LOCALFLOW_SCOPED_VALUE=\"$(cat \"$2\")\"\n",
         encoding="utf-8",
     )
+    (project / "localflow-environment.sh").write_text(
+        "source task-env.sh -env_path " + shlex.quote(str(environment)) + "\n",
+        encoding="utf-8",
+    )
     store = Store(root / "runtime" / "localflow.db")
     service = TaskService(root, store, SubprocessExecutor(), max_concurrency=None)
     task = service.submit(
         TaskCreate(
-            name="source-arguments",
+            name="source-wrapper",
             working_directory=str(project),
             shell="/bin/bash",
-            source=(
-                "source task-env.sh -env_path "
-                f"{shlex.quote(str(environment))}"
-            ),
+            source=["localflow-environment.sh"],
             command="printf '%s' \"$LOCALFLOW_SCOPED_VALUE\" > sourced.txt",
         )
     )
@@ -230,7 +237,7 @@ async def test_source_arguments_support_explicit_environment_file(tmp_path: Path
         assert (project / "sourced.txt").read_text() == "argument-value"
         output = (root / "logs" / task.id / "output.log").read_text()
         assert "] process.source " in output
-        assert "task-env.sh -env_path" in output
+        assert "localflow-environment.sh" in output
     finally:
         await service.stop()
         store.close()
@@ -238,7 +245,7 @@ async def test_source_arguments_support_explicit_environment_file(tmp_path: Path
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Ubuntu shell contract")
 @pytest.mark.asyncio
-async def test_complete_source_statement_adapts_to_posix_sh_and_fails_closed(
+async def test_source_path_list_adapts_to_posix_sh_and_fails_closed(
     tmp_path: Path,
 ) -> None:
     root = tmp_path / "localflow"
@@ -255,7 +262,7 @@ async def test_complete_source_statement_adapts_to_posix_sh_and_fails_closed(
             name="source-posix-sh",
             working_directory=str(project),
             shell="/bin/sh",
-            source="source ./environment.sh",
+            source=["./environment.sh"],
             command="printf '%s' \"$LOCALFLOW_SOURCE_VALUE\" > sourced-sh.txt",
         )
     )
@@ -264,7 +271,7 @@ async def test_complete_source_statement_adapts_to_posix_sh_and_fails_closed(
             name="source-failure",
             working_directory=str(project),
             shell="/bin/sh",
-            source="source ./missing-environment.sh",
+            source=["./missing-environment.sh"],
             command="touch must-not-exist",
         )
     )

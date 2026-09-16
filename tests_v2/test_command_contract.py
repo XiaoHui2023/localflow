@@ -56,7 +56,7 @@ def test_task_source_files_are_frozen_before_the_exact_user_command(tmp_path) ->
         name="sourced",
         working_directory=str(project),
         shell="/bin/bash",
-        source="environment setup.sh",
+        source=["environment setup.sh"],
         command="printf '%s' \"$PROJECT_MODE\"",
     )
     frozen = freeze_command_working_directory(
@@ -80,7 +80,7 @@ def test_tcsh_sources_on_separate_parse_lines_before_user_command(tmp_path) -> N
         name="tcsh-source",
         working_directory=str(project),
         shell="/bin/tcsh",
-        source="environment.csh",
+        source=["environment.csh"],
         command="printf '%s' \"$PROJECT_MODE\"",
     )
     frozen = freeze_command_working_directory(task.command, str(project), task.source)
@@ -91,74 +91,56 @@ def test_tcsh_sources_on_separate_parse_lines_before_user_command(tmp_path) -> N
     assert command_for_log(frozen, str(project)) == "printf '%s' \"$PROJECT_MODE\""
 
 
-def test_source_script_accepts_argv_safe_arguments(tmp_path) -> None:
+def test_source_files_preserve_order_and_quote_paths(tmp_path) -> None:
     project = tmp_path / "project"
     project.mkdir()
-    source = project / "toolchain.csh"
-    environment = project / "toolchain.env"
-    source.write_text("", encoding="utf-8")
-    environment.write_text("VALUE=ready\n", encoding="utf-8")
+    first = project / "first setup.csh"
+    second = project / "second setup.csh"
+    first.write_text("", encoding="utf-8")
+    second.write_text("", encoding="utf-8")
 
     task = TaskCreate(
-        name="source-arguments",
+        name="source-list",
         working_directory=str(project),
         shell="/bin/tcsh",
-        source={
-            "path": source.name,
-            "arguments": ["-env_path", str(environment)],
-        },
+        source=[first.name, second.name],
         command="printf ready",
     )
     frozen = freeze_command_working_directory(task.command, str(project), task.source)
 
-    assert (
-        f"source {shlex.quote(str(source.resolve()))} -env_path "
-        f"{shlex.quote(str(environment))}"
-    ) in frozen[2]
+    first_command = f"source {shlex.quote(str(first.resolve()))}"
+    second_command = f"source {shlex.quote(str(second.resolve()))}"
+    assert first_command in frozen[2]
+    assert second_command in frozen[2]
+    assert frozen[2].index(first_command) < frozen[2].index(second_command)
 
 
-def test_source_accepts_one_complete_shell_statement(tmp_path) -> None:
-    project = tmp_path / "project"
-    project.mkdir()
-    task = TaskCreate(
-        name="source-shell",
-        working_directory=str(project),
-        shell="/bin/bash",
-        source="source setup.csh -env_path ./toolchain.env",
-        command="make all",
-    )
-
-    frozen = freeze_command_working_directory(task.command, str(project), task.source)
-
-    assert "source setup.csh -env_path ./toolchain.env" in frozen[2]
-    assert str(project / "source setup.csh -env_path toolchain.env") not in frozen[2]
-
-
-def test_source_statement_adapts_source_keyword_for_posix_sh(tmp_path) -> None:
+def test_source_paths_use_safe_wrapper_for_posix_sh(tmp_path) -> None:
     project = tmp_path / "project"
     project.mkdir()
     task = TaskCreate(
         name="source-sh",
         working_directory=str(project),
         shell="/bin/sh",
-        source="source ./environment.sh alpha",
+        source=["./environment.sh"],
         command="printf done",
     )
 
     frozen = freeze_command_working_directory(task.command, str(project), task.source)
 
-    assert "localflow_source ./environment.sh alpha" in frozen[2]
+    expected = shlex.quote(str((project / "environment.sh").resolve()))
+    assert f"localflow_source {expected}" in frozen[2]
     assert '. "$@"' in frozen[2]
 
 
 def test_source_requires_a_shell_command_and_valid_paths() -> None:
     with pytest.raises(ValidationError, match="source is only valid with a string command"):
-        CommonConfigFields(source="environment.csh", command=["make", "all"])
+        CommonConfigFields(source=["environment.csh"], command=["make", "all"])
     with pytest.raises(ValidationError, match="source is only valid with a string command"):
         TaskCreate(
             name="exact",
             working_directory=".",
-            source="environment.csh",
+            source=["environment.csh"],
             command=["make", "all"],
         )
     with pytest.raises(ValidationError, match="source must contain"):

@@ -16,13 +16,12 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .models import (
     COMMON_CONFIG_FIELDS,
     CommonConfigFields,
-    SourceStatement,
     StopStrategy,
     TaskCreate,
     TaskRecord,
     TaskStatus,
     freeze_command_working_directory,
-    normalize_source_entries,
+    normalize_source_files,
 )
 from .variables import resolve_config_tree
 
@@ -554,20 +553,15 @@ class PluginRegistry:
             })
         source_files = values.get("source")
         if source_files is not None:
-            source_values = normalize_source_entries(source_files)
+            source_values = normalize_source_files(source_files)
             resolved_sources = []
             missing_sources = []
             for item in source_values:
-                if isinstance(item, SourceStatement):
-                    resolved_sources.append(item.statement)
-                    continue
-                source_path = Path(item.path)
+                source_path = Path(item)
                 if not source_path.is_absolute():
                     source_path = directory / source_path
                 source_path = source_path.resolve()
-                resolved_sources.append(
-                    shlex.join(["source", str(source_path), *item.arguments])
-                )
+                resolved_sources.append(shlex.join(["source", str(source_path)]))
                 if not source_path.is_file():
                     missing_sources.append(str(source_path))
             items.append({

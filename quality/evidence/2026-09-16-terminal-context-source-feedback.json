@@ -31,8 +31,8 @@
       "expected": "one common source entry can carry a literal path plus an argv-safe argument list, remains task-private, and is visible in inspection and terminal lifecycle output",
       "observed": "source accepts only path strings, so the required argument cannot be expressed without moving source into the user command",
       "owner": "common task source contract",
-      "status": "passed",
-      "verification": "The common source contract accepts a string, structured mapping, or mixed list. Structured entries carry path plus argv-safe arguments through inspection, immutable task data, shell execution and lifecycle output; the real Bash target test sources a script that requires -env_path and verifies the imported environment."
+      "status": "superseded_by_user_clarification",
+      "verification": "The user clarified that source is a list of script paths only. Vendor arguments belong inside a wrapper script referenced by that list; LocalFlow no longer exposes a path/arguments mapping."
     },
     {
       "id": "source-shell-statement-too-verbose",
@@ -42,10 +42,23 @@
       "expected": "the one statement is executed in the task shell without requiring a path/arguments object",
       "observed": "the entire statement is treated as one literal filename and resolved beneath the task working directory",
       "owner": "common task source contract",
-      "status": "fixed_verified",
+      "status": "superseded_by_user_clarification",
       "reproduction": "The public TaskCreate path failed twice on baseline a05831a: the complete statement was embedded as a resolved filename instead of appearing verbatim in the frozen shell body.",
       "verification": "The primary form is now one YAML scalar containing the complete statement. Unit, plugin-inspection, API-detail and Ubuntu target tests preserve it end to end; Bash receives -env_path with a quoted-space argument, tcsh executes the raw statement, sh adapts source through a dot-based wrapper, a missing sh script fails immediately without entering an input prompt or running the user command, and legacy forms remain covered.",
-      "interaction_economy": "The normal configuration path changed from a mapping with path plus an arguments list to one pasteable scalar; no mode switch or secondary field is required."
+      "interaction_economy": "This interpretation was withdrawn after the user clarified that source is specifically a path collection rather than a command-text field."
+    },
+    {
+      "id": "source-is-an-ordered-path-list",
+      "entry": "command, verification, or third-party command plugin common source field",
+      "setup": "the operator has one or more Shell setup files and may need a vendor-specific wrapper",
+      "action": "submit source as an ordered YAML list of relative or absolute file paths",
+      "expected": "the same selected task Shell sources every path in order, preserves environment/functions/aliases across entries, restores task cwd, and rejects other shapes before execution",
+      "observed": "the prior revision also accepted scalar statements and structured argument objects, making the field ambiguous and contrary to the clarified list contract",
+      "owner": "common task source contract",
+      "status": "fixed_verified",
+      "reproduction": "The API contract test failed twice on 0a27b32 because a scalar path returned 202 instead of 422.",
+      "verification": "Model/API tests reject scalar paths, complete statements, mappings, empty lists, empty paths and mixed entries. Command/plugin/detail tests preserve ordered frozen paths. Ubuntu bash sources two files in one parent Shell and preserves the first value into the second, restores cwd, isolates a concurrent task, and validates a wrapper around a vendor-style -env_path call; sh fails closed on a missing path and tcsh loads its native script.",
+      "interaction_economy": "The YAML contains only the paths the operator owns. Tool-specific syntax stays in a wrapper file, avoiding an expanding union of command text, mappings and paths in one field."
     }
   ],
   "references": [

@@ -17,14 +17,13 @@ from .ids import new_id
 from .log_files import MIB, append_lifecycle
 from .models import (
     TERMINAL_STATES,
-    SourceScript,
     StopAction,
     StopStrategy,
     TaskCreate,
     TaskRecord,
     TaskState,
     freeze_command_working_directory,
-    resolve_source_entries,
+    resolve_source_files,
 )
 from .settings import LoggingSettings, RetentionSettings
 from .storage import Store
@@ -151,10 +150,7 @@ class TaskService:
         if not working_directory.is_absolute():
             working_directory = self.working_root / working_directory
         frozen_directory = str(working_directory.resolve())
-        source_entries = resolve_source_entries(draft.source, frozen_directory)
-        source_files = [
-            entry.path for entry in source_entries if isinstance(entry, SourceScript)
-        ]
+        source_files = resolve_source_files(draft.source, frozen_directory)
         return draft.model_copy(
             update={
                 "working_directory": frozen_directory,
@@ -167,10 +163,10 @@ class TaskService:
                     **(
                         {
                             "_source_invocations": [
-                                entry.model_dump() for entry in source_entries
+                                {"path": path} for path in source_files
                             ]
                         }
-                        if source_entries
+                        if source_files
                         else {}
                     ),
                 },

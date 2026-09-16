@@ -18,48 +18,7 @@ def utc_now() -> datetime:
 CommandInput = str | list[str]
 
 
-class SourceScript(BaseModel):
-    """One shell source operation with literal, argv-safe arguments."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    path: str = Field(min_length=1)
-    arguments: list[str] = Field(default_factory=list, max_length=128)
-
-    @field_validator("path")
-    @classmethod
-    def validate_path(cls, value: str) -> str:
-        value = value.strip()
-        if not value or "\x00" in value:
-            raise ValueError("source path must be non-empty and contain no NUL")
-        return value
-
-    @field_validator("arguments")
-    @classmethod
-    def validate_arguments(cls, value: list[str]) -> list[str]:
-        if any(not isinstance(item, str) or "\x00" in item for item in value):
-            raise ValueError("source arguments must be strings without NUL")
-        return value
-
-
-class SourceStatement(BaseModel):
-    """One complete source statement copied from the selected Shell."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    statement: str = Field(min_length=1)
-
-    @field_validator("statement")
-    @classmethod
-    def validate_statement(cls, value: str) -> str:
-        value = value.strip()
-        if "\x00" in value or not re.match(r"^(?:source|\.)\s+\S", value):
-            raise ValueError("source statement must start with 'source ' or '. '")
-        return value
-
-
-SourceEntry = str | SourceScript | SourceStatement
-SourceInput = SourceEntry | list[SourceEntry]
+SourceInput = list[str]
 _SHELL_CWD_SENTINEL = "__LOCALFLOW_RESTORE_FROZEN_CWD__"
 _SHELL_USER_COMMAND_BOUNDARY = "\n# localflow:user-command\n"
 
@@ -105,44 +64,23 @@ def normalize_command(value: CommandInput, shell: str | None = None) -> list[str
     return value
 
 
-def normalize_source_entries(
-    value: SourceInput | dict[str, Any] | None,
-) -> list[SourceScript | SourceStatement]:
+def normalize_source_files(value: SourceInput | None) -> list[str]:
+    """Validate the public source contract: an ordered, non-empty path list."""
     if value is None:
         return []
-    entries = (
-        [value]
-        if isinstance(value, (str, SourceScript, SourceStatement, dict))
-        else value
-    )
-    if not entries:
+    if not isinstance(value, list) or not value:
         raise ValueError("source must contain one or more non-empty paths without NUL")
-    normalized = []
-    for entry in entries:
-        if isinstance(entry, (SourceScript, SourceStatement)):
-            normalized.append(entry)
-        elif isinstance(entry, str):
-            stripped = entry.strip()
-            if re.match(r"^(?:source|\.)\s+\S", stripped):
-                normalized.append(SourceStatement(statement=stripped))
-            else:
-                normalized.append(SourceScript(path=stripped))
-        elif isinstance(entry, dict):
-            if "statement" in entry:
-                normalized.append(SourceStatement.model_validate(entry))
-            else:
-                normalized.append(SourceScript.model_validate(entry))
-        else:
-            raise ValueError("source entries must be shell statements, paths, or path objects")
+    if len(value) > 64:
+        raise ValueError("source must contain at most 64 paths")
+    normalized: list[str] = []
+    for entry in value:
+        if not isinstance(entry, str):
+            raise ValueError("source entries must be path strings")
+        stripped = entry.strip()
+        if not stripped or "\x00" in stripped:
+            raise ValueError("source paths must be non-empty and contain no NUL")
+        normalized.append(stripped)
     return normalized
-
-
-def normalize_source_files(value: SourceInput | dict[str, Any] | None) -> list[str]:
-    return [
-        entry.path
-        for entry in normalize_source_entries(value)
-        if isinstance(entry, SourceScript)
-    ]
 
 
 def resolve_source_files(
@@ -158,36 +96,10 @@ def resolve_source_files(
     return resolved
 
 
-def resolve_source_entries(
-    value: SourceInput | None, working_directory: str
-) -> list[SourceScript | SourceStatement]:
-    resolved = []
-    for entry in normalize_source_entries(value):
-        if isinstance(entry, SourceStatement):
-            resolved.append(entry)
-            continue
-        path = Path(entry.path)
-        if not path.is_absolute():
-            path = Path(working_directory) / path
-        resolved.append(
-            SourceScript(path=str(path.resolve()), arguments=list(entry.arguments))
-        )
-    return resolved
-
-
-def source_entry_command(
-    entry: SourceScript | SourceStatement, shell_name: str
-) -> str:
-    """Render one source entry for the selected task Shell."""
-    if isinstance(entry, SourceStatement):
-        statement = entry.statement
-        if shell_name in {"sh", "dash"}:
-            statement = re.sub(
-                r"^(?:source|\.)(?=\s)", "localflow_source", statement, count=1
-            )
-        return statement
+def source_file_command(path: str, shell_name: str) -> str:
+    """Render one validated source path for the selected task Shell."""
     keyword = "localflow_source" if shell_name in {"sh", "dash"} else "source"
-    return shlex.join([keyword, entry.path, *entry.arguments])
+    return shlex.join([keyword, path])
 
 
 def freeze_command_working_directory(
@@ -200,20 +112,20 @@ def freeze_command_working_directory(
         and command[2].startswith(_SHELL_CWD_SENTINEL)
     ):
         user_command = command[2][len(_SHELL_CWD_SENTINEL) :]
-        source_entries = resolve_source_entries(source, working_directory)
+        source_files = resolve_source_files(source, working_directory)
         shell_name = Path(command[0]).name
         # A sourced toolchain file may change directory.  Restore the frozen
         # task cwd once more so source remains an environment operation rather
         # than weakening the task working-directory contract.
-        if source_entries and shell_name in {"csh", "tcsh"}:
+        if source_files and shell_name in {"csh", "tcsh"}:
             # tcsh expands variables across one compound `&&` expression before
             # a preceding source has populated them.  Separate source commands
             # into parsed lines and preserve fail-fast semantics explicitly.
             source_lines = []
-            for entry in source_entries:
+            for path in source_files:
                 source_lines.extend(
                     [
-                        source_entry_command(entry, shell_name),
+                        source_file_command(path, shell_name),
                         "if ( $status != 0 ) exit $status",
                     ]
                 )
@@ -224,12 +136,12 @@ def freeze_command_working_directory(
                     "if ( $status != 0 ) exit $status",
                 ]
             ) + _SHELL_USER_COMMAND_BOUNDARY + user_command
-        elif source_entries and shell_name == "fish":
+        elif source_files and shell_name == "fish":
             source_lines = []
-            for entry in source_entries:
+            for path in source_files:
                 source_lines.extend(
                     [
-                        source_entry_command(entry, shell_name),
+                        source_file_command(path, shell_name),
                         "set localflow_source_status $status",
                         "if test $localflow_source_status -ne 0",
                         "exit $localflow_source_status",
@@ -239,7 +151,7 @@ def freeze_command_working_directory(
             body = "\n".join(
                 [*source_lines, f"cd {shlex.quote(working_directory)}"]
             ) + _SHELL_USER_COMMAND_BOUNDARY + user_command
-        elif source_entries:
+        elif source_files:
             source_lines = []
             if shell_name in {"sh", "dash"}:
                 source_lines.extend(
@@ -255,10 +167,10 @@ def freeze_command_working_directory(
                         "}",
                     ]
                 )
-            for entry in source_entries:
+            for path in source_files:
                 source_lines.extend(
                     [
-                        source_entry_command(entry, shell_name),
+                        source_file_command(path, shell_name),
                         "localflow_source_status=$?",
                         "if [ \"$localflow_source_status\" -ne 0 ]; then "
                         "exit \"$localflow_source_status\"; fi",
@@ -481,10 +393,8 @@ class TaskCreate(BaseModel):
 
     @field_validator("source", mode="before")
     @classmethod
-    def valid_source(
-        cls, value: SourceInput | None
-    ) -> list[SourceScript | SourceStatement]:
-        return normalize_source_entries(value)
+    def valid_source(cls, value: SourceInput | None) -> list[str]:
+        return normalize_source_files(value)
 
     @field_validator("labels", "mutex_keys")
     @classmethod
