@@ -221,6 +221,8 @@ def test_terminal_http_api_controls_and_fresh_offset_log(root: Path) -> None:
                 if message["type"] == "caught_up":
                     break
                 assert message["type"] == "output"
+                assert datetime.fromisoformat(message["log_updated_at"]).tzinfo == UTC
                 received += base64.b64decode(message["data"])
                 websocket.send_json({"type": "ack", "offset": message["offset"]})
             assert received == base64.b64decode(history["data"])
+            assert datetime.fromisoformat(message["log_updated_at"]).tzinfo == UTC

@@ -72,7 +72,7 @@ command: "printf 'hello world\\n' > hello-world.txt"
 
 字符串命令支持 Make、Shell、可执行文件以及管道、重定向等任意 Ubuntu shell 命令；参数列表用于完全绕过 shell。GNU Make 的 `-f` 只选择 Makefile，不会切换目录；要在项目目录运行，应设置 `working_directory`，或在命令中明确使用 `make -C <目录>`，LocalFlow 不从任意命令文本猜测目录。任务启动前，输出日志会记录解析后的工作目录和最终命令，自动 seed 也已替换，便于直接核对实际执行内容。
 
-需要为单个任务加载工具链环境时使用公共 `source` 字段，可写一个路径或路径列表：
+需要为单个任务加载工具链环境时使用公共 `source` 字段，可写一个路径、路径列表，或带独立参数数组的结构化调用：
 
 ```yaml
 working_directory: /srv/project
@@ -83,7 +83,15 @@ source:
 command: make all
 ```
 
-相对 source 路径以最终任务工作目录解析并冻结成绝对路径。核心在同一个任务 Shell 内依次加载这些文件，加载后再次恢复冻结工作目录，全部成功后才执行 `command`；环境变量、函数和别名只属于该任务 Shell 及其子进程，不修改控制器或其它任务。bash/zsh/csh/tcsh/fish 使用 `source`，POSIX sh/dash 使用 `.`。`source` 只适用于字符串命令；精确 argv 列表没有 Shell 环境，配置时会直接诊断为无效。运行审查和任务详情把每个环境脚本独立显示，运行前只对缺失项标错；终端输出在用户命令前记录每个实际加载路径，而命令行仍只显示用户写入的 `command`。
+工具链提示“脚本调用时请使用 `-env_path`”之类参数时，不要把整行伪装成文件路径，也不要移进 `command`：
+
+```yaml
+source:
+  path: env/toolchain.csh
+  arguments: ["-env_path", "/tools/project/environment.env"]
+```
+
+相对 source 路径以最终任务工作目录解析并冻结成绝对路径；`arguments` 每项独立引用，因此空格、通配符和 `$` 不会被 LocalFlow 二次拆词。核心在同一个任务 Shell 内依次加载这些文件，加载后再次恢复冻结工作目录，全部成功后才执行 `command`；环境变量、函数和别名只属于该任务 Shell 及其子进程，不修改控制器或其它任务。bash/zsh/csh/tcsh/fish 使用 `source`，POSIX sh/dash 使用 `.`。`source` 只适用于字符串命令；精确 argv 列表没有 Shell 环境，配置时会直接诊断为无效。运行审查和任务详情把每个完整调用独立显示，运行前只检查脚本路径是否存在；参数可能指向将来生成的文件，核心不擅自作存在性判断。终端输出在用户命令前记录每个实际加载路径和参数，而命令行仍只显示用户写入的 `command`。
 
 进入使用界面后，顶部只读检查区显示已经解析的工作目录、完整命令、Case 来源、标签、编译日志和运行日志，不再重复显示字符串命令的首词。插件决定检查内容：必须预先存在的输入路径可声明 availability，仅缺失时显示叉号；插件直接提供的 Case 列表以及普通信息和未来生成的日志均不显示图案。首次打开、保存成功、外部同步和相关运行输入变化都会重新检查；检查使用有界超时和旧请求取消。
 

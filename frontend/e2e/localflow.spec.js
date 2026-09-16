@@ -522,6 +522,14 @@ test("plugin configuration console remains concise and operable in Edge", async 
   });
   page.on("pageerror", (error) => consoleErrors.push(error.message));
   await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (text) => {
+          window.__localflowCopiedText = text;
+        },
+      },
+    });
     const original = Document.prototype.execCommand;
     Document.prototype.execCommand = function execCommand(command, ...args) {
       if (command === "copy") {
@@ -863,6 +871,31 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(selectedActivity).toHaveText(/^2m \d{1,2}s$/, {
     timeout: 5000,
   });
+  await page
+    .locator(".terminal-page .terminal-entry")
+    .filter({ hasText: "qa-finished" })
+    .click();
+  await page.evaluate(() => {
+    window.__localflowAgeDuringReplay = false;
+    window.__localflowReplayObserver = new MutationObserver(() => {
+      if (
+        document.querySelector(".terminal.hydrating") &&
+        document.querySelector(".terminal-selection-activity")
+      )
+        window.__localflowAgeDuringReplay = true;
+    });
+    window.__localflowReplayObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+  });
+  await liveTerminalEntry.click();
+  await expect(page.locator(".terminal-page .terminal.hydrated")).toBeVisible();
+  expect(await page.evaluate(() => window.__localflowAgeDuringReplay)).toBeFalsy();
+  await page.evaluate(() => window.__localflowReplayObserver.disconnect());
+  await expect(selectedActivity).toHaveText(/^2m \d{1,2}s$/);
   const firstOutputTimestamp = await selectedActivity.getAttribute("datetime");
   await expect(liveTerminalEntry.locator(".terminal-unread")).toHaveCount(0);
   const activeTerminalGroup = page.locator(
@@ -893,11 +926,22 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await page.mouse.down();
   await page.mouse.move(copyRowBox.x + 180, copyRowBox.y + copyRowBox.height / 2);
   await page.mouse.up();
-  await expect(page.getByRole("button", { name: "复制选中" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "复制选中" })).toHaveCount(0);
   await page.evaluate(() => {
     window.__localflowCopiedText = "";
   });
-  await page.getByRole("button", { name: "复制选中" }).click();
+  await page.mouse.click(
+    copyRowBox.x + 90,
+    copyRowBox.y + copyRowBox.height / 2,
+    { button: "right" },
+  );
+  const terminalCopyMenu = page.getByRole("menu");
+  await expect(terminalCopyMenu).toBeVisible();
+  const terminalCopyItem = terminalCopyMenu.getByRole("menuitem", {
+    name: /复制/,
+  });
+  await expect(terminalCopyItem).toBeEnabled();
+  await terminalCopyItem.click();
   await expect
     .poll(() => page.evaluate(() => window.__localflowCopiedText))
     .toContain("qa-terminal-ready");
@@ -1093,7 +1137,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
     historyCopyBox.y + historyCopyBox.height / 2,
   );
   await page.mouse.up();
-  await expect(page.getByRole("button", { name: "复制选中" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "复制选中" })).toHaveCount(0);
   await page.evaluate(() => {
     window.__localflowCopiedText = "";
   });
@@ -1101,8 +1145,20 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect
     .poll(() => page.evaluate(() => window.__localflowCopiedText))
     .toContain("qa-terminal-ready");
-  await page.getByRole("button", { name: "复制选中" }).click();
-  await expect(page.getByRole("button", { name: "已复制" })).toBeVisible();
+  await page.evaluate(() => {
+    window.__localflowCopiedText = "";
+  });
+  await page.mouse.click(
+    historyCopyBox.x + 90,
+    historyCopyBox.y + historyCopyBox.height / 2,
+    { button: "right" },
+  );
+  const historyCopyMenu = page.getByRole("menu");
+  await expect(historyCopyMenu).toBeVisible();
+  await historyCopyMenu.getByRole("menuitem", { name: /复制/ }).click();
+  await expect
+    .poll(() => page.evaluate(() => window.__localflowCopiedText))
+    .toContain("qa-terminal-ready");
   await expect(page.locator(".terminal-page .xterm-rows")).not.toContainText(
     "[只读回放已连接]",
   );
@@ -1857,6 +1913,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "common-config-path-identity",
           "terminal-bounded-archive-search",
           "terminal-output-freshness",
+          "terminal-context-selection-copy",
           "case-marquee-scope-only",
           "case-group-relative-edit",
           "case-group-fixed-edit",

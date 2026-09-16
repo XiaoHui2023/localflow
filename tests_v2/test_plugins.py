@@ -238,6 +238,39 @@ def test_every_command_plugin_receives_common_task_source(
     assert command.endswith("printf '%s' $PROJECT_MODE")
 
 
+@pytest.mark.asyncio
+async def test_common_source_inspection_preserves_arguments(root: Path) -> None:
+    initialize_root(root)
+    source = root / "environment.csh"
+    environment = root / "toolchain.env"
+    source.write_text("", encoding="utf-8")
+    environment.write_text("VALUE=ready\n", encoding="utf-8")
+    registry = PluginRegistry(root / "plugins")
+    registry.load()
+    configuration = {
+        "plugin": "command",
+        "name": "source-arguments",
+        "working_directory": ".",
+        "shell": "/bin/tcsh",
+        "source": {
+            "path": source.name,
+            "arguments": ["-env_path", str(environment)],
+        },
+        "command": "printf ready",
+    }
+
+    items = await registry.inspect_config(
+        configuration, {}, {"root": str(root), "config_path": "command/source.yaml"}
+    )
+    source_item = next(item for item in items if item["name"] == "source")
+    assert source_item["severity"] == "ok"
+    assert source_item["value"] == [
+        shlex.join(
+            ["source", str(source.resolve()), "-env_path", str(environment)]
+        )
+    ]
+
+
 def test_verification_queue_identity_requires_same_case_and_complete_label_set(
     root: Path,
 ) -> None:

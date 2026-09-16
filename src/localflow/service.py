@@ -23,7 +23,7 @@ from .models import (
     TaskRecord,
     TaskState,
     freeze_command_working_directory,
-    resolve_source_files,
+    resolve_source_entries,
 )
 from .settings import LoggingSettings, RetentionSettings
 from .storage import Store
@@ -150,7 +150,8 @@ class TaskService:
         if not working_directory.is_absolute():
             working_directory = self.working_root / working_directory
         frozen_directory = str(working_directory.resolve())
-        source_files = resolve_source_files(draft.source, frozen_directory)
+        source_entries = resolve_source_entries(draft.source, frozen_directory)
+        source_files = [entry.path for entry in source_entries]
         return draft.model_copy(
             update={
                 "working_directory": frozen_directory,
@@ -160,6 +161,15 @@ class TaskService:
                 "custom": {
                     **draft.custom,
                     **({"_source_files": source_files} if source_files else {}),
+                    **(
+                        {
+                            "_source_invocations": [
+                                entry.model_dump() for entry in source_entries
+                            ]
+                        }
+                        if source_entries
+                        else {}
+                    ),
                 },
             }
         )

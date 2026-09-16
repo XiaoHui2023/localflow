@@ -1,0 +1,43 @@
+{
+  "date": "2026-09-16",
+  "issues": [
+    {
+      "id": "terminal-replay-age-mismatch",
+      "entry": "administrator terminal page with a running task",
+      "setup": "open a task after its log already contains buffered bytes and has been quiet longer than the display threshold",
+      "action": "select the task while xterm is still receiving the bounded replay",
+      "expected": "do not describe a visually changing replay as live task silence; reveal authoritative last-output age only after replay catches up",
+      "observed": "xterm rows visibly change while the selected header can already show an old age such as 27s",
+      "owner": "terminal websocket replay state and selected-header metadata",
+      "status": "passed",
+      "verification": "WebSocket output and caught_up frames now carry the authoritative log mtime. The selected running terminal suppresses age during bounded replay and starts the timer only after caught_up; browser acceptance verifies the age resets on new live output and remains absent for history."
+    },
+    {
+      "id": "terminal-selection-copy-detached-action",
+      "entry": "administrator live or historical terminal",
+      "setup": "drag across part of one xterm row",
+      "action": "right-click the selected text",
+      "expected": "a solid pointer-anchored context menu offers Copy and copies exactly the xterm selection",
+      "observed": "selection creates a detached floating Copy selected button; right-click has no product-owned browser-like Copy action",
+      "owner": "terminal selection interaction",
+      "status": "passed",
+      "verification": "The detached copy action was removed. A Radix Context Menu is anchored to the pointer, is disabled without a selection, and copies exactly the selected xterm text in both live and historical terminals; Edge, Chrome 84 and Firefox 78 acceptance passed."
+    },
+    {
+      "id": "source-script-arguments-unrepresentable",
+      "entry": "command, verification, or third-party command plugin common fields",
+      "setup": "an environment script requires arguments when sourced from an automated shell, for example -env_path followed by its environment file",
+      "action": "describe the source operation in YAML and submit the task",
+      "expected": "one common source entry can carry a literal path plus an argv-safe argument list, remains task-private, and is visible in inspection and terminal lifecycle output",
+      "observed": "source accepts only path strings, so the required argument cannot be expressed without moving source into the user command",
+      "owner": "common task source contract",
+      "status": "passed",
+      "verification": "The common source contract accepts a string, structured mapping, or mixed list. Structured entries carry path plus argv-safe arguments through inspection, immutable task data, shell execution and lifecycle output; the real Bash target test sources a script that requires -env_path and verifies the imported environment."
+    }
+  ],
+  "references": [
+    "https://www.gnu.org/s/bash/manual/bash.html",
+    "https://www.radix-ui.com/primitives/docs/components/context-menu",
+    "https://xtermjs.org/docs/guides/flowcontrol/"
+  ]
+}

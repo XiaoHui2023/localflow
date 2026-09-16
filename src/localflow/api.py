@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import re
+import shlex
 import sys
 from collections.abc import Callable
 from contextlib import asynccontextmanager, suppress
@@ -125,6 +126,16 @@ def _detail(task: TaskRecord, root: Path) -> dict[str, Any]:
     value = task.model_dump(mode="json")
     value["display_command"] = command_for_log(task.command, task.working_directory)
     value["source_files"] = list(task.custom.get("_source_files", []))
+    value["source_invocations"] = [
+        shlex.join(
+            [
+                "source",
+                str(invocation["path"]),
+                *[str(item) for item in invocation.get("arguments", [])],
+            ]
+        )
+        for invocation in task.custom.get("_source_invocations", [])
+    ]
     log_path = root / "logs" / task.id / "output.log"
     value["log_path"] = str(log_path)
     try:
@@ -1287,6 +1298,14 @@ def create_app(
             return
         awaiting_ack = False
         caught_up = False
+
+        def log_updated_at() -> str | None:
+            try:
+                modified = (root / "logs" / task_id / "output.log").stat().st_mtime
+            except FileNotFoundError:
+                return None
+            return datetime.fromtimestamp(modified, UTC).isoformat()
+
         try:
             while True:
                 if app.state.shutdown_event.is_set():
@@ -1303,11 +1322,18 @@ def create_app(
                             "type": "output",
                             "data": base64.b64encode(data).decode(),
                             "offset": offset,
+                            "log_updated_at": log_updated_at(),
                         }
                     )
                     awaiting_ack = True
                 elif not caught_up:
-                    await websocket.send_json({"type": "caught_up", "offset": offset})
+                    await websocket.send_json(
+                        {
+                            "type": "caught_up",
+                            "offset": offset,
+                            "log_updated_at": log_updated_at(),
+                        }
+                    )
                     caught_up = True
                 try:
                     message = await asyncio.wait_for(websocket.receive_json(), 0.1)

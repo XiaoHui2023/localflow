@@ -9,12 +9,12 @@ The list answers two questions: “Which terminals are still live?” and “Whi
 | Channel | Source of truth | Presentation | Acknowledgement |
 | --- | --- | --- | --- |
 | Lifecycle | Task `state` and plugin status label | Visible `运行中`/`历史` groups; rows contain only name and tags | Changes only with task lifecycle |
-| Output activity | `log_updated_at` from the same filesystem metadata snapshot as `log_size` | For a selected terminal with output, one neutral semantic time beside the name; hide below 5s, then show `24s`, `5m 12s`, `3h 8m`, or `2d 4h`; no output renders nothing, and rail rows never contain it | Recomputed every second while selected and active; authoritative origin changes only when the log is written |
+| Output activity | `log_updated_at` from the filesystem metadata snapshot carried by task and WebSocket output/caught-up frames | For a selected, caught-up terminal with output, one neutral semantic time beside the name; hide during replay and below 5s, then show `24s`, `5m 12s`, `3h 8m`, or `2d 4h`; no output renders nothing, and rail rows never contain it | Recomputed every second while selected and active; authoritative origin changes only when the log is written |
 | New output | Increase in authoritative `log_size` after this page observed the task | One accent dot labelled `有新终端输出`, only on an unselected row | Selecting the terminal records the current size and removes the dot |
 
 ## Selection and search compatibility
 
-Keep Ctrl/Cmd+C as the primary xterm selection-copy gesture, but show a short-lived contextual copy action only while a selection exists. This is the robust fallback for remote desktops and browser/OS shortcut interception without adding permanent toolbar noise. Search overlays need a solid theme-color `background` declaration before any `color-mix()` enhancement; unsupported modern CSS must never make text controls transparent.
+Keep Ctrl/Cmd+C as the primary xterm selection-copy gesture. The pointer fallback is a mature context-menu primitive opened exactly where the user right-clicks: one solid-surface Copy item operates on `term.getSelection()`, supports keyboard/Escape/focus/collision behavior, and is disabled without a selection. Do not reveal a detached toolbar button after selection; it moves the action away from the user's pointer and does not match ordinary web text-copy expectations. Search overlays need a solid theme-color `background` declaration before any `color-mix()` enhancement; unsupported modern CSS must never make text controls transparent.
 
 Active terminals sort before retained history; each group sorts newest first. Rail rows contain only neutral names and tags plus conditional unread attention, selection uses an inset accent edge, and the rail expands to a bounded 248–320px on wide screens. “只读历史” is omitted because the history group and absence of input controls already express the state.
 
@@ -29,7 +29,7 @@ Preserve xterm's selection-first copy convention. When Ctrl/Cmd+C arrives with a
 - Infer “quiet for a long time” from task `updated_at` or polling time: neither is the last-output timestamp. Use the log file metadata already read for authoritative size, and do not label silence as a hang.
 - Persist unread unread state in local storage: cannot reconcile log truncation, retention, another browser or another administrator without a server cursor.
 
-Persistent unread still requires a per-user server acknowledgement cursor. Output age needs only the server-owned log timestamp; it must not be persisted or guessed by CSS.
+Persistent unread still requires a per-user server acknowledgement cursor. Output age needs only the server-owned log timestamp; it must not be persisted or guessed by CSS. Browser receive/render time is not the same fact: buffered replay may visibly change long after the producer wrote it. Hide activity age until the protocol sends `caught_up`, then use the timestamp on that frame and subsequent live output frames.
 
 ## Selected-header timer contract
 

@@ -51,8 +51,19 @@ def supervise(root: Path, task_id: str) -> int:
         int(limits.get("keep_free_bytes", 0)),
     ) as log:
         shown_command = command_for_log(task["command"], task["working_directory"])
-        for source_file in task.get("custom", {}).get("_source_files", []):
-            log.write(lifecycle_line("process.source", path=str(source_file)))
+        source_invocations = task.get("custom", {}).get("_source_invocations", [])
+        if source_invocations:
+            for invocation in source_invocations:
+                log.write(
+                    lifecycle_line(
+                        "process.source",
+                        path=str(invocation["path"]),
+                        arguments=list(invocation.get("arguments", [])),
+                    )
+                )
+        else:
+            for source_file in task.get("custom", {}).get("_source_files", []):
+                log.write(lifecycle_line("process.source", path=str(source_file)))
         log.write(lifecycle_line("process.command", cwd=task["working_directory"], command=shown_command))
         log.write(lifecycle_line("process.started", pid=child_pid, terminal="pty"))
         while True:

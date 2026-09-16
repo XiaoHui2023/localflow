@@ -16,7 +16,34 @@ def utc_now() -> datetime:
 
 
 CommandInput = str | list[str]
-SourceInput = str | list[str]
+
+
+class SourceScript(BaseModel):
+    """One shell source operation with literal, argv-safe arguments."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    path: str = Field(min_length=1)
+    arguments: list[str] = Field(default_factory=list, max_length=128)
+
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, value: str) -> str:
+        value = value.strip()
+        if not value or "\x00" in value:
+            raise ValueError("source path must be non-empty and contain no NUL")
+        return value
+
+    @field_validator("arguments")
+    @classmethod
+    def validate_arguments(cls, value: list[str]) -> list[str]:
+        if any(not isinstance(item, str) or "\x00" in item for item in value):
+            raise ValueError("source arguments must be strings without NUL")
+        return value
+
+
+SourceEntry = str | SourceScript
+SourceInput = SourceEntry | list[SourceEntry]
 _SHELL_CWD_SENTINEL = "__LOCALFLOW_RESTORE_FROZEN_CWD__"
 _SHELL_USER_COMMAND_BOUNDARY = "\n# localflow:user-command\n"
 
@@ -62,15 +89,27 @@ def normalize_command(value: CommandInput, shell: str | None = None) -> list[str
     return value
 
 
-def normalize_source_files(value: SourceInput | None) -> list[str]:
+def normalize_source_entries(value: SourceInput | dict[str, Any] | None) -> list[SourceScript]:
     if value is None:
         return []
-    files = [value] if isinstance(value, str) else value
-    if not files or any(
-        not isinstance(item, str) or not item.strip() or "\x00" in item for item in files
-    ):
+    entries = [value] if isinstance(value, (str, SourceScript, dict)) else value
+    if not entries:
         raise ValueError("source must contain one or more non-empty paths without NUL")
-    return [item.strip() for item in files]
+    normalized = []
+    for entry in entries:
+        if isinstance(entry, SourceScript):
+            normalized.append(entry)
+        elif isinstance(entry, str):
+            normalized.append(SourceScript(path=entry))
+        elif isinstance(entry, dict):
+            normalized.append(SourceScript.model_validate(entry))
+        else:
+            raise ValueError("source entries must be paths or path/arguments objects")
+    return normalized
+
+
+def normalize_source_files(value: SourceInput | dict[str, Any] | None) -> list[str]:
+    return [entry.path for entry in normalize_source_entries(value)]
 
 
 def resolve_source_files(
@@ -86,6 +125,20 @@ def resolve_source_files(
     return resolved
 
 
+def resolve_source_entries(
+    value: SourceInput | None, working_directory: str
+) -> list[SourceScript]:
+    resolved = []
+    for entry in normalize_source_entries(value):
+        path = Path(entry.path)
+        if not path.is_absolute():
+            path = Path(working_directory) / path
+        resolved.append(
+            SourceScript(path=str(path.resolve()), arguments=list(entry.arguments))
+        )
+    return resolved
+
+
 def freeze_command_working_directory(
     command: list[str], working_directory: str, source: SourceInput | None = None
 ) -> list[str]:
@@ -96,11 +149,13 @@ def freeze_command_working_directory(
         and command[2].startswith(_SHELL_CWD_SENTINEL)
     ):
         user_command = command[2][len(_SHELL_CWD_SENTINEL) :]
-        source_files = resolve_source_files(source, working_directory)
+        source_entries = resolve_source_entries(source, working_directory)
+        source_files = [entry.path for entry in source_entries]
         shell_name = Path(command[0]).name
         source_keyword = "." if shell_name in {"sh", "dash"} else "source"
         source_prefix = " && ".join(
-            f"{source_keyword} {shlex.quote(item)}" for item in source_files
+            shlex.join([source_keyword, entry.path, *entry.arguments])
+            for entry in source_entries
         )
         # A sourced toolchain file may change directory.  Restore the frozen
         # task cwd once more so source remains an environment operation rather
@@ -110,10 +165,10 @@ def freeze_command_working_directory(
             # a preceding source has populated them.  Separate source commands
             # into parsed lines and preserve fail-fast semantics explicitly.
             source_lines = []
-            for item in source_files:
+            for entry in source_entries:
                 source_lines.extend(
                     [
-                        f"source {shlex.quote(item)}",
+                        shlex.join(["source", entry.path, *entry.arguments]),
                         "if ( $status != 0 ) exit $status",
                     ]
                 )
@@ -342,8 +397,8 @@ class TaskCreate(BaseModel):
 
     @field_validator("source", mode="before")
     @classmethod
-    def valid_source(cls, value: SourceInput | None) -> list[str]:
-        return normalize_source_files(value)
+    def valid_source(cls, value: SourceInput | None) -> list[SourceScript]:
+        return normalize_source_entries(value)
 
     @field_validator("labels", "mutex_keys")
     @classmethod

@@ -21,6 +21,7 @@ from .models import (
     TaskRecord,
     TaskStatus,
     freeze_command_working_directory,
+    normalize_source_entries,
 )
 from .variables import resolve_config_tree
 
@@ -552,15 +553,17 @@ class PluginRegistry:
             })
         source_files = values.get("source")
         if source_files is not None:
-            source_values = [source_files] if isinstance(source_files, str) else source_files
+            source_values = normalize_source_entries(source_files)
             resolved_sources = []
             missing_sources = []
             for item in source_values:
-                source_path = Path(str(item))
+                source_path = Path(item.path)
                 if not source_path.is_absolute():
                     source_path = directory / source_path
                 source_path = source_path.resolve()
-                resolved_sources.append(str(source_path))
+                resolved_sources.append(
+                    shlex.join(["source", str(source_path), *item.arguments])
+                )
                 if not source_path.is_file():
                     missing_sources.append(str(source_path))
             items.append({

@@ -5,6 +5,7 @@ import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
+import * as ContextMenu from "@radix-ui/react-context-menu";
 import "@xterm/xterm/css/xterm.css";
 import {
   Activity,
@@ -169,14 +170,13 @@ function useUiRevision(paused = false) {
   }, [paused]);
 }
 
-function TaskTerminal({ task, interactive, theme }) {
+function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
   const windowBytes = 4 * 1024 * 1024;
   const host = useRef();
   const finder = useRef();
   const terminal = useRef();
-  const copyTimer = useRef();
+  const contextSelection = useRef("");
   const [selectedText, setSelectedText] = useState("");
-  const [selectionCopied, setSelectionCopied] = useState(false);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
   const [searchOptions, setSearchOptions] = useState({
@@ -200,15 +200,11 @@ function TaskTerminal({ task, interactive, theme }) {
     setArchiveResults([]);
     setArchiveSearchError("");
     setSelectedText("");
-    setSelectionCopied(false);
+    contextSelection.current = "";
   }, [task.id]);
-  useEffect(() => () => clearTimeout(copyTimer.current), []);
   const copyTerminalSelection = async (text = selectedText) => {
     if (!text) return;
     await writeClipboard(text);
-    setSelectionCopied(true);
-    clearTimeout(copyTimer.current);
-    copyTimer.current = setTimeout(() => setSelectionCopied(false), 1200);
   };
   const searchArchive = async () => {
     if (!query) return;
@@ -293,8 +289,9 @@ function TaskTerminal({ task, interactive, theme }) {
     finder.current = search;
     terminal.current = term;
     const selectionListener = term.onSelectionChange(() => {
-      setSelectedText(term.getSelection());
-      setSelectionCopied(false);
+      const selection = term.getSelection();
+      setSelectedText(selection);
+      if (selection) contextSelection.current = selection;
     });
     term.attachCustomKeyEventHandler((event) => {
       const modifier = event.ctrlKey || event.metaKey;
@@ -335,6 +332,8 @@ function TaskTerminal({ task, interactive, theme }) {
     const socket = new WebSocket(
       `${protocol}://${location.host}/api/v1/tasks/${task.id}/terminal?offset=${rangeStart}${end}`,
     );
+    let caughtUp = false;
+    onStreamStatus?.({ taskId: task.id, caughtUp: false, updatedAt: null });
     socket.onopen = () => {
       element.dataset.connection = "open";
     };
@@ -345,12 +344,25 @@ function TaskTerminal({ task, interactive, theme }) {
           value.charCodeAt(0),
         );
         term.write(bytes, () => {
+          onStreamStatus?.({
+            taskId: task.id,
+            caughtUp,
+            updatedAt: message.log_updated_at || null,
+          });
           if (socket.readyState === WebSocket.OPEN)
             socket.send(
               JSON.stringify({ type: "ack", offset: message.offset }),
             );
         });
-      } else if (message.type === "caught_up") setHydrated(true);
+      } else if (message.type === "caught_up") {
+        caughtUp = true;
+        setHydrated(true);
+        onStreamStatus?.({
+          taskId: task.id,
+          caughtUp: true,
+          updatedAt: message.log_updated_at || null,
+        });
+      }
     };
     socket.onclose = () => {
       if (element.isConnected) {
@@ -384,20 +396,11 @@ function TaskTerminal({ task, interactive, theme }) {
       terminal.current = undefined;
       term.dispose();
     };
-  }, [task.id, interactive, theme, rangeStart]);
+  }, [task.id, interactive, theme, rangeStart, onStreamStatus]);
   const rangeEnd = Math.min(Number(task.log_size || 0), rangeStart + windowBytes);
   return (
     <div className="terminal-shell">
       <div className="terminal-tools">
-        {selectedText && (
-          <button
-            className="terminal-copy-selection"
-            type="button"
-            onClick={() => copyTerminalSelection()}
-          >
-            {selectionCopied ? "已复制" : "复制选中"}
-          </button>
-        )}
         {searching && (
           <div className="terminal-find" role="search">
             <input
@@ -533,7 +536,39 @@ function TaskTerminal({ task, interactive, theme }) {
       {archiveSearchError && (
         <div className="terminal-search-error" role="alert">{archiveSearchError}</div>
       )}
-      <div className={`terminal ${hydrated ? "hydrated" : "hydrating"}`} ref={host} />
+      <ContextMenu.Root
+        onOpenChange={(open) => {
+          if (open) {
+            const selection = terminal.current?.getSelection() || "";
+            if (selection) contextSelection.current = selection;
+            setSelectedText(selection || contextSelection.current);
+          }
+        }}
+      >
+        <ContextMenu.Trigger asChild>
+          <div
+            className={`terminal ${hydrated ? "hydrated" : "hydrating"}`}
+            ref={host}
+            onContextMenuCapture={() => {
+              const selection = terminal.current?.getSelection() || "";
+              contextSelection.current = selection;
+              setSelectedText(selection);
+            }}
+          />
+        </ContextMenu.Trigger>
+        <ContextMenu.Portal>
+          <ContextMenu.Content className="terminal-context-menu" collisionPadding={8}>
+            <ContextMenu.Item
+              className="terminal-context-menu-item"
+              disabled={!selectedText}
+              onSelect={() => copyTerminalSelection(contextSelection.current)}
+            >
+              复制
+              <span>Ctrl+C</span>
+            </ContextMenu.Item>
+          </ContextMenu.Content>
+        </ContextMenu.Portal>
+      </ContextMenu.Root>
     </div>
   );
 }
@@ -565,8 +600,11 @@ function TaskDetail({ task, role, interrupt }) {
         {(task.display_command || task.command) && (
           <CopyValue label="命令" value={task.display_command || task.command.join(" ")} />
         )}
-        {!!task.source_files?.length && (
-          <TaskListValue label="加载环境" values={task.source_files} />
+        {!!(task.source_invocations?.length || task.source_files?.length) && (
+          <TaskListValue
+            label="加载环境"
+            values={task.source_invocations?.length ? task.source_invocations : task.source_files}
+          />
         )}
         <CopyValue label="工作目录" value={task.working_directory} />
         <CopyValue label="终端输出" value={task.log_path} />
@@ -733,6 +771,15 @@ function TerminalPage({ tasks, role, theme }) {
   const [unreadIds, setUnreadIds] = useState(new Set());
   const [input, setInput] = useState("");
   const [notice, setNotice] = useState("");
+  const [streamStatus, setStreamStatus] = useState({
+    taskId: null,
+    caughtUp: false,
+    updatedAt: null,
+  });
+  const updateStreamStatus = useCallback((next) => setStreamStatus(next), []);
+  useEffect(() => {
+    setStreamStatus({ taskId: selectedId || null, caughtUp: false, updatedAt: null });
+  }, [selectedId]);
   useEffect(() => {
     if (!available.some((task) => task.id === selectedId)) {
       manualSelection.current = false;
@@ -768,6 +815,12 @@ function TerminalPage({ tasks, role, theme }) {
   const selectedIsActive = Boolean(
     selected && ["starting", "running", "stopping"].includes(selected.state),
   );
+  const selectedStreamCaughtUp =
+    streamStatus.taskId === selected?.id && streamStatus.caughtUp;
+  const selectedOutputUpdatedAt =
+    streamStatus.taskId === selected?.id && streamStatus.updatedAt
+      ? streamStatus.updatedAt
+      : selected?.log_updated_at;
   const interactive =
     role === "admin" && selected && !finalStates.has(selected.state);
   const send = async () => {
@@ -863,10 +916,12 @@ function TerminalPage({ tasks, role, theme }) {
                 <TerminalSquare />
                 <span className="terminal-selection-copy">
                   <b>{selected.name}</b>
-                  {selectedIsActive && Number(selected.log_size || 0) > 0 && (
+                  {selectedIsActive &&
+                    selectedStreamCaughtUp &&
+                    Number(selected.log_size || 0) > 0 && (
                     <TerminalOutputAge
-                      updatedAt={selected.log_updated_at}
-                      title={`最后输出：${showTime(selected.log_updated_at)}`}
+                      updatedAt={selectedOutputUpdatedAt}
+                      title={`最后输出：${showTime(selectedOutputUpdatedAt)}`}
                     />
                   )}
                 </span>
@@ -911,6 +966,7 @@ function TerminalPage({ tasks, role, theme }) {
               task={selected}
               interactive={interactive}
               theme={theme}
+              onStreamStatus={updateStreamStatus}
             />
           </>
         ) : (

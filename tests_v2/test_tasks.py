@@ -1,3 +1,4 @@
+import shlex
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -92,6 +93,9 @@ def test_task_detail_exposes_frozen_source_files(admin: TestClient, root: Path) 
     ).json()["task_id"]
     task = admin.get(f"/api/v1/tasks/{task_id}").json()
     assert task["source_files"] == [str(environment.resolve())]
+    assert task["source_invocations"] == [
+        f"source {shlex.quote(str(environment.resolve()))}"
+    ]
     assert task["custom"]["_source_files"] == [str(environment.resolve())]
 
 

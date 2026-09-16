@@ -188,3 +188,47 @@ async def test_tcsh_sources_csh_file_before_user_command(tmp_path: Path) -> None
     finally:
         await service.stop()
         store.close()
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Ubuntu shell contract")
+@pytest.mark.asyncio
+async def test_source_arguments_support_explicit_environment_file(tmp_path: Path) -> None:
+    root = tmp_path / "localflow"
+    project = tmp_path / "project"
+    root.mkdir()
+    project.mkdir()
+    environment = project / "toolchain.env"
+    environment.write_text("argument-value\n", encoding="utf-8")
+    (project / "task-env.sh").write_text(
+        "test \"$1\" = -env_path || exit 41\n"
+        "test -f \"$2\" || exit 42\n"
+        "export LOCALFLOW_SCOPED_VALUE=\"$(cat \"$2\")\"\n",
+        encoding="utf-8",
+    )
+    store = Store(root / "runtime" / "localflow.db")
+    service = TaskService(root, store, SubprocessExecutor(), max_concurrency=None)
+    task = service.submit(
+        TaskCreate(
+            name="source-arguments",
+            working_directory=str(project),
+            shell="/bin/bash",
+            source={
+                "path": "task-env.sh",
+                "arguments": ["-env_path", str(environment)],
+            },
+            command="printf '%s' \"$LOCALFLOW_SCOPED_VALUE\" > sourced.txt",
+        )
+    )
+    await service.start()
+    try:
+        for _ in range(200):
+            await asyncio.sleep(0.02)
+            if store.get_task(task.id).ended_at:
+                break
+        assert store.get_task(task.id).state == "succeeded"
+        assert (project / "sourced.txt").read_text() == "argument-value"
+        output = (root / "logs" / task.id / "output.log").read_text()
+        assert "arguments=['-env_path'" in output
+    finally:
+        await service.stop()
+        store.close()

@@ -64,7 +64,13 @@
 
 字符串命令自动使用服务账号的 `$SHELL`，缺失时使用 passwd 登录 Shell，并以 `<shell> -ic` 读取 `.bashrc`、`.cshrc`、`.zshrc`、`config.fish` 等该 Shell 的交互启动文件，从而支持函数和别名；公共字段 `"shell": "/bin/bash"` 可显式覆盖自动选择。执行用户命令前核心会恢复请求中冻结的工作目录。参数数组禁止同时提供 `shell`，始终按精确 argv 执行且不读取启动文件。
 
-公共字段 `source` 接受单个脚本路径或脚本路径列表，只能与字符串命令组合。相对路径按任务工作目录冻结；脚本在该任务 Shell 内依次加载，环境不会返回控制器或传播到其它任务。任务详情的 `source_files` 返回冻结后的逐项绝对路径，`display_command` 仍是用户原始命令，执行快照 `command` 保留实际 source 包装供 Agent 精确审计；终端日志在 `process.command` 前逐项写入 `process.source`。
+公共字段 `source` 接受单个脚本路径、脚本路径列表，或结构化的 `{path, arguments}` 单项/列表，只能与字符串命令组合。后者用于 `source setup.csh -env_path /abs/toolchain.env` 这类必须向环境脚本传参的工具链；`arguments` 是字符串数组，每项独立引用，不经过 shell 拆词。相对脚本路径按任务工作目录冻结；脚本在该任务 Shell 内依次加载，环境不会返回控制器或传播到其它任务。任务详情的 `source_files` 返回冻结后的逐项绝对路径，`source_invocations` 返回适合显示/复制的完整调用，`display_command` 仍是用户原始命令，执行快照 `command` 保留实际 source 包装供 Agent 精确审计；终端日志在 `process.command` 前逐项写入含 path 与 arguments 的 `process.source`。
+
+```yaml
+source:
+  path: scripts/setup.csh
+  arguments: ["-env_path", "/tools/project/toolchain.env"]
+```
 
 配置式提交是程序调用的首选入口。请求体与 `config/tasks` 文件使用同一合同：`configuration` 顶层必须有 `plugin`，`inputs` 只包含本次运行要改变的插件字段。插件校验、变量解析、任务展开和网页运行表面共用同一实现；一个 Case 多次运行或多个 Case 会在一次请求中返回多个任务 ID。
 
@@ -225,7 +231,7 @@ with urllib.request.urlopen(request) as response:
 
 SSE 使用 `after` 查询参数从指定事件 ID 后续传，并在空闲时发送 keepalive。摘要访问者的事件数据同样经过字段投影。
 
-终端 WebSocket 输出消息为 `output`，包含 Base64 数据和下一字节偏移；浏览器必须在 xterm 完成该块写入后回复 `{type:"ack",offset}`，服务器才读取下一块。可用 `offset` 与可选 `end` 查询参数限定回放字节窗，服务到达当前窗口后发送 `caught_up`。输入与尺寸消息为 `input`、`resize`，拒绝结果为 `error`。单次块上限 64 KiB；这个应用层确认弥补浏览器 WebSocket API 缺少可靠背压的问题。
+终端 WebSocket 输出消息为 `output`，包含 Base64 数据、下一字节偏移和该次读取时的 `log_updated_at`；浏览器必须在 xterm 完成该块写入后回复 `{type:"ack",offset}`，服务器才读取下一块。可用 `offset` 与可选 `end` 查询参数限定回放字节窗，服务到达当前窗口后发送含最终偏移和日志时间的 `caught_up`。页面在收到 `caught_up` 前不得把历史日志时间渲染成当前活动时长。输入与尺寸消息为 `input`、`resize`，拒绝结果为 `error`。单次块上限 64 KiB；这个应用层确认弥补浏览器 WebSocket API 缺少可靠背压的问题。
 
 HTTP 日志响应的 `next_offset` 是下一次读取起点；正文 `data` 为 Base64。输出文件由监督程序以无缓冲二进制追加写入，因此接口不等待任务结束。HTTP 终端接口适合脚本控制，WebSocket/xterm 适合人在环；两者使用同一 PTY，调用方必须避免同时发送相互冲突的输入。
 

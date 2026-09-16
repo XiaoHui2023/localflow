@@ -93,6 +93,32 @@ def test_tcsh_sources_on_separate_parse_lines_before_user_command(tmp_path) -> N
     assert command_for_log(frozen, str(project)) == "printf '%s' \"$PROJECT_MODE\""
 
 
+def test_source_script_accepts_argv_safe_arguments(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    source = project / "toolchain.csh"
+    environment = project / "toolchain.env"
+    source.write_text("", encoding="utf-8")
+    environment.write_text("VALUE=ready\n", encoding="utf-8")
+
+    task = TaskCreate(
+        name="source-arguments",
+        working_directory=str(project),
+        shell="/bin/tcsh",
+        source={
+            "path": source.name,
+            "arguments": ["-env_path", str(environment)],
+        },
+        command="printf ready",
+    )
+    frozen = freeze_command_working_directory(task.command, str(project), task.source)
+
+    assert (
+        f"source {shlex.quote(str(source.resolve()))} -env_path "
+        f"{shlex.quote(str(environment))}"
+    ) in frozen[2]
+
+
 def test_source_requires_a_shell_command_and_valid_paths() -> None:
     with pytest.raises(ValidationError, match="source is only valid with a string command"):
         CommonConfigFields(source="environment.csh", command=["make", "all"])
