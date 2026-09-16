@@ -7,6 +7,7 @@ import "./extra.css";
 import "./round6.css";
 import "./round7.css";
 import "./case-picker.css";
+import "./run-inspection.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

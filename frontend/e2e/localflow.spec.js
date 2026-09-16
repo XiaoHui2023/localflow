@@ -300,6 +300,41 @@ test("a clean configuration reopens on its run surface", async ({ page }) => {
   await expect(page.locator(".monaco-editor")).toHaveCount(0);
 });
 
+test("command run information keeps content-driven compact rows", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openAdminTaskWorkspace(page);
+  await page.locator('[data-file="config/command/hello-world.yaml"]').click();
+  const rows = page.locator(".inspection-grid > .inspection-item");
+  await expect(rows).toHaveCount(2);
+  const assertCompact = async () => {
+    const geometry = await rows.evaluateAll((items) =>
+      items.map((item) => ({
+        height: item.getBoundingClientRect().height,
+        label: item.firstElementChild?.textContent?.trim(),
+      })),
+    );
+    for (const row of geometry)
+      expect(row.height, `${row.label} row is vertically stretched`).toBeLessThanOrEqual(44);
+  };
+  await assertCompact();
+  await page.screenshot({
+    path: path.join(evidence, "admin-run-command-compact-light.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 760, height: 900 });
+  await assertCompact();
+
+  await page.addStyleTag({
+    content: ".run-surface,.inspection-grid{align-content:stretch!important;grid-auto-rows:auto!important}",
+  });
+  expect(
+    await rows.evaluateAll((items) =>
+      items.some((item) => item.getBoundingClientRect().height > 44),
+    ),
+    "the geometry oracle must reject the former auto-track stretch failure",
+  ).toBe(true);
+});
+
 async function runAcceptance(page) {
   const helloSource = path.join(
     qaRoot,
@@ -759,7 +794,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await doneRow.click();
   await expect(page.getByText("qa://finished", { exact: true })).toHaveCount(0);
 
-  const liveCode = `import time; print('qa-terminal-ready', flush=True); time.sleep(12); print('qa-terminal-fresh', flush=True); time.sleep(168) # ${"long-command-".repeat(36)}`;
+  const liveCode = `import time; print('qa-terminal-ready', flush=True); time.sleep(168) # ${"long-command-".repeat(36)}`;
   const live = await browserApi(page, "/tasks", {
     method: "POST",
     body: {
@@ -791,17 +826,43 @@ test("plugin configuration console remains concise and operable in Edge", async 
     page.locator(".terminal-page .terminal-entry-activity"),
   ).toHaveCount(0);
   const selectedActivity = page.locator(".terminal-selection-activity");
-  await expect(selectedActivity).toBeVisible();
-  await expect(selectedActivity).toHaveText(/^\d+[smhd]$/);
+  const freshLogTime = new Date();
+  fs.utimesSync(
+    path.join(qaRoot, ".localflow", "logs", live.task_id, "output.log"),
+    freshLogTime,
+    freshLogTime,
+  );
+  await expect(selectedActivity).toHaveCount(0, { timeout: 5000 });
+  await expect(selectedActivity).toBeVisible({ timeout: 7000 });
+  await expect(selectedActivity).toHaveText(/^\d+s$/);
+  const firstAge = await selectedActivity.textContent();
+  await expect(selectedActivity).not.toHaveText(firstAge, { timeout: 2500 });
   await expect(selectedActivity).toHaveAttribute(
     "aria-label",
-    /^距最后输出 \d+[smhd]$/,
+    /^距最后输出 \d+s$/,
   );
   await expect(selectedActivity).toHaveAttribute(
     "datetime",
     /T.*(?:Z|\+00:00)$/,
   );
   await expect(selectedActivity).toHaveAttribute("title", /最后输出：/);
+  const selectionHeader = page.locator(".terminal-page > section > header");
+  const selectionName = page.locator(".terminal-selection-copy > b");
+  const headerBox = await selectionHeader.boundingBox();
+  const selectionNameBox = await selectionName.boundingBox();
+  const activityBox = await selectedActivity.boundingBox();
+  expect(headerBox.height).toBeLessThanOrEqual(52);
+  expect(Math.abs(selectionNameBox.y + selectionNameBox.height / 2 - (activityBox.y + activityBox.height / 2))).toBeLessThanOrEqual(3);
+  expect(activityBox.x).toBeGreaterThan(selectionNameBox.x);
+  const oldLogTime = new Date(Date.now() - 127_000);
+  fs.utimesSync(
+    path.join(qaRoot, ".localflow", "logs", live.task_id, "output.log"),
+    oldLogTime,
+    oldLogTime,
+  );
+  await expect(selectedActivity).toHaveText(/^2m \d{1,2}s$/, {
+    timeout: 5000,
+  });
   const firstOutputTimestamp = await selectedActivity.getAttribute("datetime");
   await expect(liveTerminalEntry.locator(".terminal-unread")).toHaveCount(0);
   const activeTerminalGroup = page.locator(
@@ -832,7 +893,11 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await page.mouse.down();
   await page.mouse.move(copyRowBox.x + 180, copyRowBox.y + copyRowBox.height / 2);
   await page.mouse.up();
-  await page.keyboard.press("Control+c");
+  await expect(page.getByRole("button", { name: "复制选中" })).toBeVisible();
+  await page.evaluate(() => {
+    window.__localflowCopiedText = "";
+  });
+  await page.getByRole("button", { name: "复制选中" }).click();
   await expect
     .poll(() => page.evaluate(() => window.__localflowCopiedText))
     .toContain("qa-terminal-ready");
@@ -893,6 +958,10 @@ test("plugin configuration console remains concise and operable in Edge", async 
     .filter({ hasText: "qa-finished" });
   await finishedTerminalEntry.click();
   await expect(liveTerminalEntry.locator(".terminal-unread")).toHaveCount(0);
+  fs.appendFileSync(
+    path.join(qaRoot, ".localflow", "logs", live.task_id, "output.log"),
+    "\nqa-terminal-fresh\n",
+  );
   await expect(liveTerminalEntry.locator(".terminal-unread")).toBeVisible({
     timeout: 18_000,
   });
@@ -1659,7 +1728,10 @@ test("plugin configuration console remains concise and operable in Edge", async 
     "frontend/public/compat-boot.js",
     "frontend/public/theme-boot.js",
     "frontend/src/App.jsx",
+    "frontend/src/CopyValue.jsx",
     "frontend/src/MonacoEditors.jsx",
+    "frontend/src/RunInspection.jsx",
+    "frontend/src/TerminalOutputAge.jsx",
     "frontend/src/Tooltip.jsx",
     "frontend/src/api.js",
     "frontend/src/main.jsx",
@@ -1668,6 +1740,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
     "frontend/src/round6.css",
     "frontend/src/round7.css",
     "frontend/src/case-picker.css",
+    "frontend/src/run-inspection.css",
     "frontend/e2e/ui-quality.js",
     "frontend/e2e/localflow.spec.js",
     "frontend/e2e/compatibility.spec.js",
@@ -1780,6 +1853,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "config-dirty-save",
           "config-quick-history",
           "config-code-list-full-width",
+          "command-run-info-content-density",
           "common-config-path-identity",
           "terminal-bounded-archive-search",
           "terminal-output-freshness",

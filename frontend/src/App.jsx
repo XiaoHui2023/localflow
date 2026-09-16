@@ -51,6 +51,9 @@ import {
   X,
 } from "lucide-react";
 import { api } from "./api";
+import { CopyValue, TaskListValue, writeClipboard } from "./CopyValue";
+import { InspectionItems } from "./RunInspection";
+import { TerminalOutputAge } from "./TerminalOutputAge";
 import { Hint } from "./Tooltip";
 
 const Editor = lazy(() =>
@@ -81,17 +84,6 @@ const showTime = (value) =>
         second: "2-digit",
       }).format(new Date(value))
     : "—";
-const terminalActivity = (task, now = Date.now()) => {
-  if (!task.log_updated_at) return null;
-  const seconds = Math.max(
-    0,
-    Math.floor((now - Date.parse(task.log_updated_at)) / 1000),
-  );
-  if (seconds < 60) return `${seconds}s`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
-  return `${Math.floor(seconds / 86400)}d`;
-};
 const taskLabel = (task) =>
   task.status?.label || coreLabels[task.state] || task.state;
 const taskTone = (task) =>
@@ -546,74 +538,6 @@ function TaskTerminal({ task, interactive, theme }) {
   );
 }
 
-async function writeClipboard(text) {
-  if (navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return;
-    } catch {
-      /* compatible fallback */
-    }
-  }
-  const input = document.createElement("textarea");
-  input.value = text;
-  input.setAttribute("readonly", "");
-  input.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
-  document.body.appendChild(input);
-  input.select();
-  const copied = document.execCommand("copy");
-  input.remove();
-  if (!copied) throw new Error("copy unavailable");
-}
-function CopyValue({ label, value, customText = false, ariaContext = "" }) {
-  const [copied, setCopied] = useState(false);
-  const timer = useRef();
-  useEffect(() => () => clearTimeout(timer.current), []);
-  const text =
-    typeof value === "object" ? JSON.stringify(value) : String(value ?? "—");
-  const copy = async () => {
-    await writeClipboard(text);
-    setCopied(true);
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setCopied(false), 1200);
-  };
-  return (
-    <div className="copy-field" data-custom-text={customText || undefined}>
-      {label && <span className="copy-label">{label}</span>}
-      <span className="copy-shell" data-copied={copied}>
-        <Hint label={copied ? "已复制" : "点击复制"}>
-          <button
-            className="copy-value"
-            type="button"
-            onClick={copy}
-            aria-label={`${label ? `${label}，` : ariaContext ? `${ariaContext}，` : customText ? `${text}，` : ""}${copied ? "已复制" : "点击复制"}`}
-          >
-            <code>{text}</code>
-          </button>
-        </Hint>
-        <span className="copy-status" role="status">
-          {copied ? "已复制" : ""}
-        </span>
-      </span>
-    </div>
-  );
-}
-
-function TaskListValue({ label, values }) {
-  return (
-    <div className="task-list-field">
-      <span className="copy-label">{label}</span>
-      <div className="task-code-list" role="list" aria-label={label}>
-        {values.map((value, index) => (
-          <div role="listitem" key={`${label}-${index}`}>
-            <CopyValue value={value} ariaContext={`${label} ${index + 1}`} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function TaskDetail({ task, role, interrupt }) {
   const hidden = new Set(["source", "variable_sources"]);
   if (task.template === "verification") {
@@ -844,9 +768,6 @@ function TerminalPage({ tasks, role, theme }) {
   const selectedIsActive = Boolean(
     selected && ["starting", "running", "stopping"].includes(selected.state),
   );
-  const selectedOutputActivity = selectedIsActive
-    ? terminalActivity(selected)
-    : null;
   const interactive =
     role === "admin" && selected && !finalStates.has(selected.state);
   const send = async () => {
@@ -942,15 +863,11 @@ function TerminalPage({ tasks, role, theme }) {
                 <TerminalSquare />
                 <span className="terminal-selection-copy">
                   <b>{selected.name}</b>
-                  {selectedOutputActivity && (
-                    <time
-                      className="terminal-selection-activity"
-                      dateTime={selected.log_updated_at}
+                  {selectedIsActive && Number(selected.log_size || 0) > 0 && (
+                    <TerminalOutputAge
+                      updatedAt={selected.log_updated_at}
                       title={`最后输出：${showTime(selected.log_updated_at)}`}
-                      aria-label={`距最后输出 ${selectedOutputActivity}`}
-                    >
-                      {selectedOutputActivity}
-                    </time>
+                    />
                   )}
                 </span>
               </div>
@@ -1451,69 +1368,6 @@ function withoutCaseSelections(plugin, values) {
 function pathLeaf(value) {
   const parts = value.split("/");
   return parts[parts.length - 1];
-}
-
-function InspectionItems({ items, error }) {
-  if (error)
-    return (
-      <div className="inspection-error" role="alert">
-        <TriangleAlert />
-        <span>{error}</span>
-      </div>
-    );
-  if (!items.length) return null;
-  return (
-    <div className="inspection-grid">
-      {items.map((item) => {
-        const customText = item.name.startsWith("custom_text_");
-        const tokens = item.kind === "tokens" && Array.isArray(item.value);
-        const codeList = item.kind === "code-list" && Array.isArray(item.value);
-        const unavailable =
-          item.check === "availability" && item.severity === "error";
-        return (
-        <div
-          className={`inspection-item severity-${item.severity}`}
-          key={item.name}
-          data-custom-text={customText || undefined}
-        >
-          {!customText && <span>{item.label || item.name}</span>}
-          {tokens ? (
-            <div
-              className="inspection-tokens"
-              aria-label={`${item.label || item.name}：${item.value.length ? item.value.join("，") : "未配置"}`}
-            >
-              {item.value.length ? item.value.map((value, index) => (
-                <span className="inspection-token" key={`${value}-${index}`}>{value}</span>
-              )) : <span className="inspection-empty">未配置</span>}
-            </div>
-          ) : codeList ? (
-            <div className="inspection-code-list">
-              {item.value.length ? item.value.map((value, index) => (
-                <CopyValue value={value} key={`${value}-${index}`} />
-              )) : <span className="inspection-empty">未配置</span>}
-            </div>
-          ) : (
-            <CopyValue value={item.value} customText={customText} />
-          )}
-          <span className="inspection-status-slot">
-            {unavailable && (
-              <Hint label={item.message || "不可用"}>
-                <span
-                  className="inspection-state"
-                  role="img"
-                  tabIndex={0}
-                  aria-label="路径不存在"
-                >
-                  <CircleX />
-                </span>
-              </Hint>
-            )}
-          </span>
-        </div>
-        );
-      })}
-    </div>
-  );
 }
 
 function ConfigurationDebug({ preview }) {

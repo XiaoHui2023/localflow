@@ -34,6 +34,8 @@ The run surface answers: “What exactly will LocalFlow run, and is any required
 | Persist every draft in browser storage | Survives reload | Quota/privacy/stale-version complexity | Defer until explicitly required |
 | Toast after copy | Highly visible | Detaches feedback and can stack/shift attention | Reject |
 | Whole-value in-place state transition | Strong local causality, no repeated glyph, stable geometry | Needs clear hover/focus and reduced-motion handling | Selected |
+| Full-height auto-track inspection grid | Visually fills an otherwise empty workbench | Turns two command fields into half-screen rows and makes density depend on viewport height | Reject |
+| Intrinsic structured list with explicit start alignment | Stable scan density for two or many fields; list values can still grow | Leaves honest unused space below short content | Selected |
 
 ## Contracts
 
@@ -49,6 +51,8 @@ The run surface answers: “What exactly will LocalFlow run, and is any required
 - Dirty state is byte equality against the loaded base, independent of syntax diagnosis.
 - A dirty configuration cannot submit a run based on stale persisted bytes.
 - Presentation hiding is template-scoped. Verification task details omit `seed` and `运行日志`, but storage, API, deferred allocation and plugin result evaluation remain unchanged.
+- The run surface and inspection grid use explicit start content alignment and max-content implicit rows. A full-height parent may stretch the component box, but never the semantic rows inside it.
+- Inspection rendering owns a dedicated component and stylesheet. Scalar, tokens, code-list and failure-only availability are value variants of that component; general workbench CSS must not redefine their row geometry.
 
 ## Direct proof
 
@@ -56,6 +60,7 @@ The run surface answers: “What exactly will LocalFlow run, and is any required
 - Edge changes one YAML, switches away and back, observes exact draft recovery, saves, and observes the file decoration disappear.
 - Edge sees zero inspection status icons for the valid verification configuration and one keyboard-focusable cross with a tooltip for a missing Case directory.
 - Copy tests prove the full value surface copies without a glyph and keeps dimensions fixed; CSS disables motion under reduced-motion preference.
+- Edge opens a real command configuration at 1440px and 760px, proves every scalar inspection row is at most 44px, captures the compact surface, then injects the former Grid stretch behavior and proves the same geometry oracle rejects it.
 
 ## Sources and learning record
 
@@ -64,5 +69,7 @@ Checked 2026-09-08:
 - Carbon disclosure, accordion, and form patterns: https://carbondesignsystem.com/patterns/disclosures-pattern/ , https://carbondesignsystem.com/components/accordion/usage/ , https://carbondesignsystem.com/patterns/forms-pattern/
 - VS Code API dirty state and file decorations: https://code.visualstudio.com/api/references/vscode-api
 - VS Code modified editor and Explorer indicators: https://code.visualstudio.com/updates/v1_29 and https://code.visualstudio.com/docs/sourcecontrol/staging-commits
+
+Checked 2026-09-16: MDN Grid box alignment documents that Grid's default `normal` alignment resolves to stretch and that auto-sized tracks share remaining block-axis space. Carbon spacing guidance treats density as a deliberate contextual scale rather than a way to consume every available pixel. LocalFlow therefore makes repeated inspection rows intrinsic and gates their rendered geometry instead of relying on screenshots or field-presence assertions.
 
 The external Skills registry query for “concise operator inspection information hierarchy” and then “information hierarchy” produced no output and did not exit within a bounded 60 seconds; both processes were terminated. This prevented comparing third-party Skill packages, but did not block implementation because the installed operator-interface catalog and official Carbon/VS Code material covered the decision. Retry only when the Skills CLI/registry responds.

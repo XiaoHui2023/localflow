@@ -1,0 +1,71 @@
+{
+  "capability_id": "localflow-command-density-and-live-output-age",
+  "owner": "modern-web-interface-design",
+  "problem": "Command 插件的少量运行信息被网格剩余高度拉伸，终端最后输出时长冻结并与标题上下堆叠。",
+  "scope": "Command 运行检查组件、选中终端标题与输出时长；不改变插件数据、PTY、日志存储或任务生命周期。",
+  "benchmarks": [
+    "MDN Grid box alignment",
+    "MDN Flexbox alignment",
+    "React useEffect interval cleanup"
+  ],
+  "metrics": [
+    {"name": "inspection_row_height", "unit": "px", "threshold": 44},
+    {"name": "terminal_header_height", "unit": "px", "threshold": 52},
+    {"name": "output_age_refresh", "unit": "seconds", "threshold": 1},
+    {"name": "output_age_suppression", "unit": "seconds", "threshold": 5}
+  ],
+  "hard_gates": [
+    "Command 两行运行信息按内容高度排列",
+    "标题和时长保持单行左右关系",
+    "时长每秒重算且分钟保留秒",
+    "无输出、阈值内和终态均不显示"
+  ],
+  "failure_fixtures": [
+    "恢复 grid align-content: stretch",
+    "恢复 terminal-selection-copy display:grid",
+    "只在任务轮询时格式化时长",
+    "分钟只显示整数 m"
+  ],
+  "files": [
+    {
+      "path": "../../frontend/src/run-inspection.css",
+      "required": [
+        "\\.run-surface \\{[\\s\\S]*?align-content: start",
+        "\\.inspection-grid \\{[\\s\\S]*?grid-auto-rows: max-content"
+      ],
+      "forbidden": [
+        "\\.inspection-grid \\{[^}]*align-content: stretch"
+      ]
+    },
+    {
+      "path": "../../frontend/src/TerminalOutputAge.jsx",
+      "required": [
+        "OUTPUT_AGE_THRESHOLD_SECONDS = 5",
+        "setInterval\\(\\(\\) => setNow\\(Date\\.now\\(\\)\\), 1000\\)",
+        "clearInterval\\(timer\\)",
+        "\\$\\{Math\\.floor\\(seconds / 60\\)\\}m \\$\\{seconds % 60\\}s"
+      ],
+      "forbidden": [
+        "return `\\$\\{Math\\.floor\\(seconds / 60\\)\\}m`;"
+      ]
+    },
+    {
+      "path": "../../frontend/src/round6.css",
+      "required": [
+        "\\.terminal-selection-copy\\{[^}]*display:flex[^}]*white-space:nowrap"
+      ],
+      "forbidden": [
+        "\\.terminal-selection-copy\\{[^}]*display:grid"
+      ]
+    },
+    {
+      "path": "../../frontend/e2e/localflow.spec.js",
+      "required": [
+        "toHaveCount\\(0, \\{ timeout: 5000 \\}\\)",
+        "not\\.toHaveText\\(firstAge",
+        "toHaveText\\(/\\^2m \\\\d\\{1,2\\}s\\$/",
+        "headerBox\\.height\\)\\.toBeLessThanOrEqual\\(52\\)"
+      ]
+    }
+  ]
+}

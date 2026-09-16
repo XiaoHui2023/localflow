@@ -23,7 +23,6 @@
 .explorer .icon:disabled{opacity:.35;cursor:default}.explorer .danger-icon:not(:disabled){color:var(--danger)}
 .use-config>p,.ready-hint{display:none}
 .run-fields:empty{display:none}
-.run-surface{display:grid;gap:22px}.inspection-grid{display:grid;gap:1px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--border)}.inspection-item{min-width:0;display:grid;grid-template-columns:82px minmax(0,1fr) 24px;align-items:center;gap:9px;padding:7px 9px;background:var(--surface-subtle)}.inspection-item>span:first-child{color:var(--muted);font-size:11px}.inspection-item>.copy-field{display:block}.inspection-item .copy-value{border-color:transparent;background:transparent}.inspection-item .copy-value:hover{border-color:var(--border-strong);background:var(--code-bg)}.inspection-state{position:relative;width:24px;height:24px;display:grid;place-items:center;border-radius:50%;color:var(--success);outline:0}.inspection-state>svg{width:15px;height:15px}.severity-warning .inspection-state{color:var(--warning)}.severity-error .inspection-state{color:var(--danger)}.inspection-state:focus-visible{box-shadow:0 0 0 2px var(--accent-soft)}.inspection-error{display:flex;align-items:center;gap:8px;color:var(--danger);font-size:12px}.inspection-error svg{width:16px}
 .ui-tooltip{z-index:var(--layer-tooltip);width:max-content;max-width:min(280px,calc(100vw - 16px));padding:6px 8px;border:1px solid var(--border-strong);border-radius:6px;background:var(--text);color:var(--surface);box-shadow:0 5px 18px rgba(0,0,0,.2);font-size:11px;line-height:1.4;overflow-wrap:anywhere;user-select:none;animation:tooltip-in .12s ease-out}.ui-tooltip-arrow{fill:var(--text)}@keyframes tooltip-in{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}@media(prefers-reduced-motion:reduce){.ui-tooltip{animation:none}}
 @media(max-width:760px){.mode-switch{display:none}}
 
@@ -109,7 +108,6 @@
 .problems-panel button:hover,.problems-panel button:focus-visible{background:var(--surface-selected)}
 .problems-panel svg{width:15px;color:var(--danger)}
 .problems-panel code{color:var(--muted);font-size:11px}
-.inspection-item[data-custom-text="true"]{grid-template-columns:minmax(0,1fr) 24px}
 .details>.copy-field[data-custom-text="true"]{grid-template-columns:minmax(0,1fr)}
 @media(max-width:760px){.problems-panel{max-height:150px}}
 
@@ -123,10 +121,6 @@
 .copy-value{position:relative;transition:border-color .1s,background-color .1s,box-shadow .1s,transform .06s}
 .copy-value:active{transform:translateY(1px)}
 .copy-shell[data-copied="true"] .copy-value{border-color:color-mix(in srgb,var(--success) 56%,var(--border));background:color-mix(in srgb,var(--success-bg) 45%,var(--code-bg));box-shadow:0 0 0 2px color-mix(in srgb,var(--success) 14%,transparent)}
-.inspection-tokens{min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:2px 0}
-.inspection-token{max-width:100%;overflow:hidden;text-overflow:ellipsis;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--muted);font-size:11px;font-style:normal;line-height:16px;white-space:nowrap;transition:border-color .12s,background-color .12s,color .12s}.inspection-token:hover{border-color:var(--border-strong);background:var(--surface-selected);color:var(--text)}
-.inspection-code-list{width:100%;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:5px}.inspection-code-list .copy-field{width:100%;min-width:0;display:block}.inspection-code-list .copy-shell{display:block;width:100%;min-width:0}.inspection-code-list .copy-value{display:block;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.inspection-empty{color:var(--muted);font-size:12px}
 .configuration-debug{min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr);overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
 .configuration-debug>header{min-height:58px;display:grid;grid-template-columns:20px minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface-subtle)}
 .configuration-debug>header>svg{width:18px;color:var(--danger)}.configuration-debug>header div{display:grid;gap:2px}.configuration-debug>header b{font-size:13px}.configuration-debug>header span{color:var(--muted);font-size:11px}.configuration-debug>header strong{min-width:24px;padding:2px 7px;border-radius:999px;background:var(--danger-bg);color:var(--danger);font-size:11px;text-align:center;font-variant-numeric:tabular-nums}
@@ -136,9 +130,4 @@
 @media(max-width:760px){.configuration-debug-body{grid-template-columns:1fr;grid-template-rows:minmax(120px,2fr) minmax(160px,3fr)}.configuration-debug-body>section+section{border-top:1px solid var(--border);border-left:0}}
 .detail-time>span{display:inline-flex;align-items:center;gap:4px}.detail-time>span svg{width:12px;height:12px}.detail-time time{width:max-content;padding:2px 6px;border-radius:4px;background:var(--surface-subtle);font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
 
-/* Only an explicitly requested availability failure owns a visible status
-   glyph. Successful and informational rows remain visually quiet. */
-.inspection-status-slot{width:24px;height:24px;display:grid;place-items:center}
-.inspection-state{color:var(--danger)}
-.severity-warning .inspection-state{color:var(--danger)}
 @media(prefers-reduced-motion:reduce){.copy-value{transition:none}}

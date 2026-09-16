@@ -9,7 +9,7 @@ The list answers two questions: “Which terminals are still live?” and “Whi
 | Channel | Source of truth | Presentation | Acknowledgement |
 | --- | --- | --- | --- |
 | Lifecycle | Task `state` and plugin status label | Visible `运行中`/`历史` groups; rows contain only name and tags | Changes only with task lifecycle |
-| Output activity | `log_updated_at` from the same filesystem metadata snapshot as `log_size` | For a selected terminal with output, one neutral semantic time containing only an integer and `s`/`m`/`h`/`d` (`24s`); no output renders nothing, and rail rows never contain it | Changes only when the log file is written or the selection changes |
+| Output activity | `log_updated_at` from the same filesystem metadata snapshot as `log_size` | For a selected terminal with output, one neutral semantic time beside the name; hide below 5s, then show `24s`, `5m 12s`, `3h 8m`, or `2d 4h`; no output renders nothing, and rail rows never contain it | Recomputed every second while selected and active; authoritative origin changes only when the log is written |
 | New output | Increase in authoritative `log_size` after this page observed the task | One accent dot labelled `有新终端输出`, only on an unselected row | Selecting the terminal records the current size and removes the dot |
 
 ## Selection and search compatibility
@@ -31,9 +31,13 @@ Preserve xterm's selection-first copy convention. When Ctrl/Cmd+C arrives with a
 
 Persistent unread still requires a per-user server acknowledgement cursor. Output age needs only the server-owned log timestamp; it must not be persisted or guessed by CSS.
 
+## Selected-header timer contract
+
+Keep task identity and output age in one non-wrapping flex row. The age is supporting metadata, so the name owns remaining width and ellipsizes before the timer; do not turn the pair into a two-row grid. Mount one one-second interval only while the terminal page is mounted, clean it up symmetrically, and compute from `Date.now() - log_updated_at` rather than incrementing a counter that can drift. A short 5-second suppression window avoids flashing `0s`–`4s` immediately after every write. Preserve seconds through the minute range because `5m` is too coarse for watching a recently quiet process; bound longer values to two adjacent units.
+
 ## Test oracle
 
-Edge opens a live terminal with output and sees exactly one semantic output-activity time matching `\\d+[smhd]` in the selected-terminal header and none in any rail row. An output-less selection and every retained-history selection render no activity element or placeholder: a completed task cannot still be described by an ever-growing stall timer. It copies a selected live output token with Ctrl+C without stopping the task, repeats selection/copy in retained history, then verifies history still has no input controls. It selects retained history; when the live task's real log size grows, the background unread marker advances without adding a row timestamp. Selecting the live row clears the marker and refreshes the single header timestamp. The same journey proves “运行中” precedes “历史,” per-row lifecycle prose and “只读历史” are absent, names/tags remain visible, terminal bytes contain no connection/replay notices, and wide/mobile layouts do not overflow.
+Edge opens a live terminal with output, resets its real log mtime, sees no age inside 5 seconds, then observes the single semantic age appear and advance without another server write. It rewinds the same real mtime by 127 seconds and requires `2m Ns`, a header no taller than 52px, vertically aligned name/time centers, and time to the right of the name; no rail row may contain a time. An output-less selection and every retained-history selection render no activity element or placeholder: a completed task cannot still be described by an ever-growing stall timer. It copies a selected live output token with Ctrl+C without stopping the task, repeats selection/copy in retained history, then verifies history still has no input controls. It selects retained history; when the live task's real log size grows, the background unread marker advances without adding a row timestamp. Selecting the live row clears the marker and refreshes the single header timestamp. The same journey proves “运行中” precedes “历史,” per-row lifecycle prose and “只读历史” are absent, names/tags remain visible, terminal bytes contain no connection/replay notices, and wide/mobile layouts do not overflow.
 
 ## Primary references
 

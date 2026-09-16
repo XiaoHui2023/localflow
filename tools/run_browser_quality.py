@@ -114,6 +114,7 @@ def main() -> int:
         "admin-run-verification-dark.png",
         "admin-run-verification-empty-dark.png",
         "admin-run-verification-scope-dark.png",
+        "admin-run-command-compact-light.png",
         "admin-common-configurations-light.png",
         "browser-receipt.json",
     ):
