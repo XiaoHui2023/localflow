@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import shlex
 import shutil
 import sys
 from pathlib import Path
@@ -173,7 +174,7 @@ async def test_tcsh_sources_csh_file_before_user_command(tmp_path: Path) -> None
             name="csh-source",
             working_directory=str(project),
             shell="/bin/tcsh",
-            source="task-env.csh",
+            source="source task-env.csh",
             command="printf '%s' \"$LOCALFLOW_SCOPED_VALUE\" > sourced.txt",
         )
     )
@@ -197,7 +198,7 @@ async def test_source_arguments_support_explicit_environment_file(tmp_path: Path
     project = tmp_path / "project"
     root.mkdir()
     project.mkdir()
-    environment = project / "toolchain.env"
+    environment = project / "toolchain profile.env"
     environment.write_text("argument-value\n", encoding="utf-8")
     (project / "task-env.sh").write_text(
         "test \"$1\" = -env_path || exit 41\n"
@@ -212,10 +213,10 @@ async def test_source_arguments_support_explicit_environment_file(tmp_path: Path
             name="source-arguments",
             working_directory=str(project),
             shell="/bin/bash",
-            source={
-                "path": "task-env.sh",
-                "arguments": ["-env_path", str(environment)],
-            },
+            source=(
+                "source task-env.sh -env_path "
+                f"{shlex.quote(str(environment))}"
+            ),
             command="printf '%s' \"$LOCALFLOW_SCOPED_VALUE\" > sourced.txt",
         )
     )
@@ -228,7 +229,55 @@ async def test_source_arguments_support_explicit_environment_file(tmp_path: Path
         assert store.get_task(task.id).state == "succeeded"
         assert (project / "sourced.txt").read_text() == "argument-value"
         output = (root / "logs" / task.id / "output.log").read_text()
-        assert "arguments=['-env_path'" in output
+        assert "] process.source " in output
+        assert "task-env.sh -env_path" in output
+    finally:
+        await service.stop()
+        store.close()
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Ubuntu shell contract")
+@pytest.mark.asyncio
+async def test_complete_source_statement_adapts_to_posix_sh_and_fails_closed(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "localflow"
+    project = tmp_path / "project"
+    root.mkdir()
+    project.mkdir()
+    (project / "environment.sh").write_text(
+        "export LOCALFLOW_SOURCE_VALUE=from-sh\n", encoding="utf-8"
+    )
+    store = Store(root / "runtime" / "localflow.db")
+    service = TaskService(root, store, SubprocessExecutor(), max_concurrency=None)
+    valid = service.submit(
+        TaskCreate(
+            name="source-posix-sh",
+            working_directory=str(project),
+            shell="/bin/sh",
+            source="source ./environment.sh",
+            command="printf '%s' \"$LOCALFLOW_SOURCE_VALUE\" > sourced-sh.txt",
+        )
+    )
+    invalid = service.submit(
+        TaskCreate(
+            name="source-failure",
+            working_directory=str(project),
+            shell="/bin/sh",
+            source="source ./missing-environment.sh",
+            command="touch must-not-exist",
+        )
+    )
+    await service.start()
+    try:
+        for _ in range(200):
+            await asyncio.sleep(0.02)
+            if all(store.get_task(task.id).ended_at for task in (valid, invalid)):
+                break
+        assert store.get_task(valid.id).state == "succeeded"
+        assert (project / "sourced-sh.txt").read_text() == "from-sh"
+        assert store.get_task(invalid.id).state == "failed"
+        assert not (project / "must-not-exist").exists()
     finally:
         await service.stop()
         store.close()

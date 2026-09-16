@@ -239,7 +239,7 @@ def test_every_command_plugin_receives_common_task_source(
 
 
 @pytest.mark.asyncio
-async def test_common_source_inspection_preserves_arguments(root: Path) -> None:
+async def test_common_source_inspection_preserves_one_shell_statement(root: Path) -> None:
     initialize_root(root)
     source = root / "environment.csh"
     environment = root / "toolchain.env"
@@ -252,10 +252,7 @@ async def test_common_source_inspection_preserves_arguments(root: Path) -> None:
         "name": "source-arguments",
         "working_directory": ".",
         "shell": "/bin/tcsh",
-        "source": {
-            "path": source.name,
-            "arguments": ["-env_path", str(environment)],
-        },
+        "source": f"source {source.name} -env_path {shlex.quote(str(environment))}",
         "command": "printf ready",
     }
 
@@ -265,9 +262,7 @@ async def test_common_source_inspection_preserves_arguments(root: Path) -> None:
     source_item = next(item for item in items if item["name"] == "source")
     assert source_item["severity"] == "ok"
     assert source_item["value"] == [
-        shlex.join(
-            ["source", str(source.resolve()), "-env_path", str(environment)]
-        )
+        f"source {source.name} -env_path {shlex.quote(str(environment))}"
     ]
 
 

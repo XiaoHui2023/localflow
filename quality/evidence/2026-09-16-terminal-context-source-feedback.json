@@ -33,6 +33,19 @@
       "owner": "common task source contract",
       "status": "passed",
       "verification": "The common source contract accepts a string, structured mapping, or mixed list. Structured entries carry path plus argv-safe arguments through inspection, immutable task data, shell execution and lifecycle output; the real Bash target test sources a script that requires -env_path and verifies the imported environment."
+    },
+    {
+      "id": "source-shell-statement-too-verbose",
+      "entry": "command, verification, or third-party command plugin common source field",
+      "setup": "the operator already has one source statement that works in the selected interactive shell",
+      "action": "paste source setup.csh -env_path ./toolchain.env into the source field",
+      "expected": "the one statement is executed in the task shell without requiring a path/arguments object",
+      "observed": "the entire statement is treated as one literal filename and resolved beneath the task working directory",
+      "owner": "common task source contract",
+      "status": "fixed_verified",
+      "reproduction": "The public TaskCreate path failed twice on baseline a05831a: the complete statement was embedded as a resolved filename instead of appearing verbatim in the frozen shell body.",
+      "verification": "The primary form is now one YAML scalar containing the complete statement. Unit, plugin-inspection, API-detail and Ubuntu target tests preserve it end to end; Bash receives -env_path with a quoted-space argument, tcsh executes the raw statement, sh adapts source through a dot-based wrapper, a missing sh script fails immediately without entering an input prompt or running the user command, and legacy forms remain covered.",
+      "interaction_economy": "The normal configuration path changed from a mapping with path plus an arguments list to one pasteable scalar; no mode switch or secondary field is required."
     }
   ],
   "references": [

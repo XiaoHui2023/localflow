@@ -2101,29 +2101,31 @@ test("terminal to task navigation preserves the workbench within a paint budget"
   fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
 });
 
-test("a sourced task shows its environment file in task details", async ({ page }) => {
+test("a sourced task shows its complete source statement in task details", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("tab", { name: "设置" }).click();
   await ensureAdminSession(page);
   const sourcePath = path.join(qaRoot, "browser-source.sh");
   fs.writeFileSync(sourcePath, "export BROWSER_SOURCE=visible\n");
+  const sourceStatement = "source browser-source.sh";
   const created = await browserApi(page, "/tasks", {
     method: "POST",
     body: {
       name: "browser-source-visibility",
       working_directory: qaRoot,
-      source: [sourcePath],
+      source: sourceStatement,
       command: "echo $BROWSER_SOURCE",
     },
   });
   const detail = await browserApi(page, `/tasks/${created.task_id}`);
-  expect(path.isAbsolute(detail.source_files[0])).toBe(true);
+  expect(detail.source_files).toEqual([]);
+  expect(detail.source_invocations).toEqual([sourceStatement]);
   await page.getByRole("tab", { name: "任务" }).click();
   const row = page.locator(".task-item").filter({ hasText: "browser-source-visibility" });
   await expect(row).toBeVisible();
   await row.locator(".task-row").click();
   const sources = row.locator(".task-list-field").filter({ hasText: "加载环境" });
-  await expect(sources).toContainText(detail.source_files[0]);
+  await expect(sources).toContainText(sourceStatement);
   await expect.poll(async () => (await browserApi(page, `/tasks/${created.task_id}`)).state).toMatch(
     /^(failed|succeeded)$/,
   );
@@ -2131,5 +2133,7 @@ test("a sourced task shows its environment file in task details", async ({ page 
   const receipt = JSON.parse(fs.readFileSync(receiptPath, "utf8"));
   if (!receipt.assertions.includes("task-source-detail"))
     receipt.assertions.push("task-source-detail");
+  if (!receipt.assertions.includes("task-source-statement"))
+    receipt.assertions.push("task-source-statement");
   fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
 });

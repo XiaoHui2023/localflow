@@ -42,7 +42,23 @@ class SourceScript(BaseModel):
         return value
 
 
-SourceEntry = str | SourceScript
+class SourceStatement(BaseModel):
+    """One complete source statement copied from the selected Shell."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    statement: str = Field(min_length=1)
+
+    @field_validator("statement")
+    @classmethod
+    def validate_statement(cls, value: str) -> str:
+        value = value.strip()
+        if "\x00" in value or not re.match(r"^(?:source|\.)\s+\S", value):
+            raise ValueError("source statement must start with 'source ' or '. '")
+        return value
+
+
+SourceEntry = str | SourceScript | SourceStatement
 SourceInput = SourceEntry | list[SourceEntry]
 _SHELL_CWD_SENTINEL = "__LOCALFLOW_RESTORE_FROZEN_CWD__"
 _SHELL_USER_COMMAND_BOUNDARY = "\n# localflow:user-command\n"
@@ -89,27 +105,44 @@ def normalize_command(value: CommandInput, shell: str | None = None) -> list[str
     return value
 
 
-def normalize_source_entries(value: SourceInput | dict[str, Any] | None) -> list[SourceScript]:
+def normalize_source_entries(
+    value: SourceInput | dict[str, Any] | None,
+) -> list[SourceScript | SourceStatement]:
     if value is None:
         return []
-    entries = [value] if isinstance(value, (str, SourceScript, dict)) else value
+    entries = (
+        [value]
+        if isinstance(value, (str, SourceScript, SourceStatement, dict))
+        else value
+    )
     if not entries:
         raise ValueError("source must contain one or more non-empty paths without NUL")
     normalized = []
     for entry in entries:
-        if isinstance(entry, SourceScript):
+        if isinstance(entry, (SourceScript, SourceStatement)):
             normalized.append(entry)
         elif isinstance(entry, str):
-            normalized.append(SourceScript(path=entry))
+            stripped = entry.strip()
+            if re.match(r"^(?:source|\.)\s+\S", stripped):
+                normalized.append(SourceStatement(statement=stripped))
+            else:
+                normalized.append(SourceScript(path=stripped))
         elif isinstance(entry, dict):
-            normalized.append(SourceScript.model_validate(entry))
+            if "statement" in entry:
+                normalized.append(SourceStatement.model_validate(entry))
+            else:
+                normalized.append(SourceScript.model_validate(entry))
         else:
-            raise ValueError("source entries must be paths or path/arguments objects")
+            raise ValueError("source entries must be shell statements, paths, or path objects")
     return normalized
 
 
 def normalize_source_files(value: SourceInput | dict[str, Any] | None) -> list[str]:
-    return [entry.path for entry in normalize_source_entries(value)]
+    return [
+        entry.path
+        for entry in normalize_source_entries(value)
+        if isinstance(entry, SourceScript)
+    ]
 
 
 def resolve_source_files(
@@ -127,9 +160,12 @@ def resolve_source_files(
 
 def resolve_source_entries(
     value: SourceInput | None, working_directory: str
-) -> list[SourceScript]:
+) -> list[SourceScript | SourceStatement]:
     resolved = []
     for entry in normalize_source_entries(value):
+        if isinstance(entry, SourceStatement):
+            resolved.append(entry)
+            continue
         path = Path(entry.path)
         if not path.is_absolute():
             path = Path(working_directory) / path
@@ -137,6 +173,21 @@ def resolve_source_entries(
             SourceScript(path=str(path.resolve()), arguments=list(entry.arguments))
         )
     return resolved
+
+
+def source_entry_command(
+    entry: SourceScript | SourceStatement, shell_name: str
+) -> str:
+    """Render one source entry for the selected task Shell."""
+    if isinstance(entry, SourceStatement):
+        statement = entry.statement
+        if shell_name in {"sh", "dash"}:
+            statement = re.sub(
+                r"^(?:source|\.)(?=\s)", "localflow_source", statement, count=1
+            )
+        return statement
+    keyword = "localflow_source" if shell_name in {"sh", "dash"} else "source"
+    return shlex.join([keyword, entry.path, *entry.arguments])
 
 
 def freeze_command_working_directory(
@@ -150,17 +201,11 @@ def freeze_command_working_directory(
     ):
         user_command = command[2][len(_SHELL_CWD_SENTINEL) :]
         source_entries = resolve_source_entries(source, working_directory)
-        source_files = [entry.path for entry in source_entries]
         shell_name = Path(command[0]).name
-        source_keyword = "." if shell_name in {"sh", "dash"} else "source"
-        source_prefix = " && ".join(
-            shlex.join([source_keyword, entry.path, *entry.arguments])
-            for entry in source_entries
-        )
         # A sourced toolchain file may change directory.  Restore the frozen
         # task cwd once more so source remains an environment operation rather
         # than weakening the task working-directory contract.
-        if source_files and shell_name in {"csh", "tcsh"}:
+        if source_entries and shell_name in {"csh", "tcsh"}:
             # tcsh expands variables across one compound `&&` expression before
             # a preceding source has populated them.  Separate source commands
             # into parsed lines and preserve fail-fast semantics explicitly.
@@ -168,7 +213,7 @@ def freeze_command_working_directory(
             for entry in source_entries:
                 source_lines.extend(
                     [
-                        shlex.join(["source", entry.path, *entry.arguments]),
+                        source_entry_command(entry, shell_name),
                         "if ( $status != 0 ) exit $status",
                     ]
                 )
@@ -179,10 +224,49 @@ def freeze_command_working_directory(
                     "if ( $status != 0 ) exit $status",
                 ]
             ) + _SHELL_USER_COMMAND_BOUNDARY + user_command
-        elif source_prefix:
-            body = (
-                f"{source_prefix} && cd {shlex.quote(working_directory)} &&\n{user_command}"
-            )
+        elif source_entries and shell_name == "fish":
+            source_lines = []
+            for entry in source_entries:
+                source_lines.extend(
+                    [
+                        source_entry_command(entry, shell_name),
+                        "set localflow_source_status $status",
+                        "if test $localflow_source_status -ne 0",
+                        "exit $localflow_source_status",
+                        "end",
+                    ]
+                )
+            body = "\n".join(
+                [*source_lines, f"cd {shlex.quote(working_directory)}"]
+            ) + _SHELL_USER_COMMAND_BOUNDARY + user_command
+        elif source_entries:
+            source_lines = []
+            if shell_name in {"sh", "dash"}:
+                source_lines.extend(
+                    [
+                        "localflow_source() {",
+                        "if [ \"$#\" -eq 0 ]; then return 2; fi",
+                        "case \"$1\" in",
+                        "*/*) [ -r \"$1\" ] || return 127 ;;",
+                        "*) command -v \"$1\" >/dev/null 2>&1 || "
+                        "[ -r \"$1\" ] || return 127 ;;",
+                        "esac",
+                        ". \"$@\"",
+                        "}",
+                    ]
+                )
+            for entry in source_entries:
+                source_lines.extend(
+                    [
+                        source_entry_command(entry, shell_name),
+                        "localflow_source_status=$?",
+                        "if [ \"$localflow_source_status\" -ne 0 ]; then "
+                        "exit \"$localflow_source_status\"; fi",
+                    ]
+                )
+            body = "\n".join(
+                [*source_lines, f"cd {shlex.quote(working_directory)}"]
+            ) + _SHELL_USER_COMMAND_BOUNDARY + user_command
         else:
             body = user_command
         return [
@@ -397,7 +481,9 @@ class TaskCreate(BaseModel):
 
     @field_validator("source", mode="before")
     @classmethod
-    def valid_source(cls, value: SourceInput | None) -> list[SourceScript]:
+    def valid_source(
+        cls, value: SourceInput | None
+    ) -> list[SourceScript | SourceStatement]:
         return normalize_source_entries(value)
 
     @field_validator("labels", "mutex_keys")

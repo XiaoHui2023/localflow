@@ -62,13 +62,11 @@ def test_task_source_files_are_frozen_before_the_exact_user_command(tmp_path) ->
     frozen = freeze_command_working_directory(
         task.command, str(project), task.source
     )
-    assert frozen == [
-        "/bin/bash",
-        "-ic",
-        f"cd {shlex.quote(str(project))} && source {shlex.quote(str(environment))} "
-        f"&& cd {shlex.quote(str(project))} &&\n"
-        "printf '%s' \"$PROJECT_MODE\"",
-    ]
+    assert frozen[:2] == ["/bin/bash", "-ic"]
+    assert f"source {shlex.quote(str(environment))}\n" in frozen[2]
+    assert "localflow_source_status=$?\n" in frozen[2]
+    assert f"cd {shlex.quote(str(project))}\n" in frozen[2]
+    assert frozen[2].endswith("printf '%s' \"$PROJECT_MODE\"")
     assert command_for_log(frozen, str(project)) == "printf '%s' \"$PROJECT_MODE\""
     assert "source" not in task.model_dump()
 
@@ -117,6 +115,40 @@ def test_source_script_accepts_argv_safe_arguments(tmp_path) -> None:
         f"source {shlex.quote(str(source.resolve()))} -env_path "
         f"{shlex.quote(str(environment))}"
     ) in frozen[2]
+
+
+def test_source_accepts_one_complete_shell_statement(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    task = TaskCreate(
+        name="source-shell",
+        working_directory=str(project),
+        shell="/bin/bash",
+        source="source setup.csh -env_path ./toolchain.env",
+        command="make all",
+    )
+
+    frozen = freeze_command_working_directory(task.command, str(project), task.source)
+
+    assert "source setup.csh -env_path ./toolchain.env" in frozen[2]
+    assert str(project / "source setup.csh -env_path toolchain.env") not in frozen[2]
+
+
+def test_source_statement_adapts_source_keyword_for_posix_sh(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    task = TaskCreate(
+        name="source-sh",
+        working_directory=str(project),
+        shell="/bin/sh",
+        source="source ./environment.sh alpha",
+        command="printf done",
+    )
+
+    frozen = freeze_command_working_directory(task.command, str(project), task.source)
+
+    assert "localflow_source ./environment.sh alpha" in frozen[2]
+    assert '. "$@"' in frozen[2]
 
 
 def test_source_requires_a_shell_command_and_valid_paths() -> None:

@@ -17,6 +17,7 @@ from .ids import new_id
 from .log_files import MIB, append_lifecycle
 from .models import (
     TERMINAL_STATES,
+    SourceScript,
     StopAction,
     StopStrategy,
     TaskCreate,
@@ -151,7 +152,9 @@ class TaskService:
             working_directory = self.working_root / working_directory
         frozen_directory = str(working_directory.resolve())
         source_entries = resolve_source_entries(draft.source, frozen_directory)
-        source_files = [entry.path for entry in source_entries]
+        source_files = [
+            entry.path for entry in source_entries if isinstance(entry, SourceScript)
+        ]
         return draft.model_copy(
             update={
                 "working_directory": frozen_directory,

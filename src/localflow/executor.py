@@ -89,13 +89,15 @@ class SubprocessExecutor:
             source_invocations = task.custom.get("_source_invocations", [])
             if source_invocations:
                 for invocation in source_invocations:
-                    log.write(
-                        lifecycle_line(
-                            "process.source",
-                            path=str(invocation["path"]),
-                            arguments=list(invocation.get("arguments", [])),
-                        )
+                    fields = (
+                        {"statement": str(invocation["statement"])}
+                        if "statement" in invocation
+                        else {
+                            "path": str(invocation["path"]),
+                            "arguments": list(invocation.get("arguments", [])),
+                        }
                     )
+                    log.write(lifecycle_line("process.source", **fields))
             else:
                 for source_file in task.custom.get("_source_files", []):
                     log.write(lifecycle_line("process.source", path=str(source_file)))

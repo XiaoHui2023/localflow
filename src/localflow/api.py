@@ -127,12 +127,16 @@ def _detail(task: TaskRecord, root: Path) -> dict[str, Any]:
     value["display_command"] = command_for_log(task.command, task.working_directory)
     value["source_files"] = list(task.custom.get("_source_files", []))
     value["source_invocations"] = [
-        shlex.join(
-            [
-                "source",
-                str(invocation["path"]),
-                *[str(item) for item in invocation.get("arguments", [])],
-            ]
+        (
+            str(invocation["statement"])
+            if "statement" in invocation
+            else shlex.join(
+                [
+                    "source",
+                    str(invocation["path"]),
+                    *[str(item) for item in invocation.get("arguments", [])],
+                ]
+            )
         )
         for invocation in task.custom.get("_source_invocations", [])
     ]

@@ -1,8 +1,8 @@
 {
-  "completed_at": "2026-09-16T03:42:03.376Z",
+  "completed_at": "2026-09-16T16:32:30.135Z",
   "browser": "Microsoft Edge",
   "browser_version": "153.0.4234.32",
-  "base_url": "http://192.168.1.118:2836",
+  "base_url": "http://192.168.1.118:10259",
   "result": "passed",
   "source_files": {
     "frontend/index.html": "a6a84d305fed5896d32ad37d64a7b0260ddf6176c01aa9461cb13217f99e1e64",
@@ -23,7 +23,7 @@
     "frontend/src/case-picker.css": "b45bffa1c903b3c4215fcbe1e45daef3f3bbd01d93e3b49792c442276f86b20f",
     "frontend/src/run-inspection.css": "5554d32c3e5b5c8718614d29db76aed8b9b87ce96df1bcc1f841aeabc5f5c93f",
     "frontend/e2e/ui-quality.js": "28a73c9a34c6d2321c7083e67dc2ff2281db5254573abd3e00b42ce0e510a68f",
-    "frontend/e2e/localflow.spec.js": "53f30275d4b69fe4c445a79964ec092f7183988b36708b909ee7c963c031f15f",
+    "frontend/e2e/localflow.spec.js": "75d96ffcf53917cce840dd9bf9e01d18768e33399628382fdefbbf21500b9580",
     "frontend/e2e/compatibility.spec.js": "afe8a31f18911b07d348dea6f95b873add3bf78b734e4c748535348e5edc57d3",
     "frontend/e2e/shutdown-live.spec.js": "f59728c0a57e6a4908ccc836a9775cdb8d08fb1e98fc3932b16d5db5c2324444",
     "frontend/e2e/legacy-browser.mjs": "554915976f2b1db1e488bd80df3da1eaa218625edf472eefab9fa3d8df248165",
@@ -38,18 +38,18 @@
     "tests_target/test_browser_shutdown.py": "5bb0199b9d3065fbe1c828d6592bdef0a5904ab6c20719285bba92ee10289a9a"
   },
   "screenshots": {
-    "admin-common-configurations-light.png": "ac4e107ec1bef1d1450abf5303289bb5725070faa798fcd19e34d5c28b660a2e",
-    "admin-config-explorer-dark.png": "de8b47380c38c94debb0c8a43d9c53d39b4681edb3590800014382b2c6372b99",
+    "admin-common-configurations-light.png": "2fd05e5d755ac41b9ca15fd11038449ec2114e2960229d240a2e2b7f05d4d8f7",
+    "admin-config-explorer-dark.png": "9338d6c276557b82f8d63a97ccd9efa890979fe118f8cbcb47141185964970e8",
     "admin-empty-light.png": "5ffe7583b9cfcd4c9f999b3ca59cde670114e763263428182fc2546b3790da06",
-    "admin-mobile-390.png": "6662cf3ee4b4238f157888e0a76eaaf7e06b149969a664a3db1b50863f20addc",
+    "admin-mobile-390.png": "60b5586a07d56c99856143b107cf22d85afcc18a8c0ef18effb06730bd7f3265",
     "admin-run-command-compact-light.png": "8160811b2ed5cbc688929c8b388e247ee4a4cf2666e744370dbf1b2f392eceed",
-    "admin-run-verification-dark.png": "d55d01b024c0419e259e5f65a68ab4a9691fdf6a430cddf3cb9a3fbf0e4c97ee",
-    "admin-run-verification-empty-dark.png": "8ee1f7bf5ca9278a6a4254a6c9168a7066c954dcda1ca0abb3f2b4af1b9a626c",
-    "admin-run-verification-scope-dark.png": "4c8a6b22d24b91f1c2f8d87a1057c577739ee1fa23f5dd6f1580f1efffbbec17",
-    "admin-settings-compact-light.png": "9bddeb3ae722a2eedc83f027eccdae8c56b5ff3b1a8c4dfd1962a9c4c434469f",
-    "admin-shutdown-confirmation.png": "9bba121f49de571cf41070c59c81456fa151a775bbbf13b22ee0b299da220dac",
-    "admin-task-inline-dark.png": "34b94c32419ac77ba00839ffee101f3c86db23dfbe79e34c467d8a1adf6a7fcc",
-    "admin-terminal-dark.png": "09cd4ff11d483b785da61128217a7bc0a6890d75c54bde54930b8d31800384ab",
+    "admin-run-verification-dark.png": "3343c86ed060870af72b34db620dd1ca6571f7dad72dbf65f4fd4cdeb18c6eb4",
+    "admin-run-verification-empty-dark.png": "2b52df33ffa31eb1e79cd6be51b11eb2f2133d5dca5743f8e8334f4a218bc8df",
+    "admin-run-verification-scope-dark.png": "5834f80333221ee4ff828d68c240126ca76b310e4cee433f5f27caf0a4589070",
+    "admin-settings-compact-light.png": "3a9d67d98aeff1f461f57e593d71d0a776ca9b06c95338679d498708e7f6ea4e",
+    "admin-shutdown-confirmation.png": "889556377c5d3dcec800e003f1f1ab2939b90c1dc2f768ad9b4ebe9dfed3c283",
+    "admin-task-inline-dark.png": "98d55b2cfcc4feb4bdbd9dc520e28a3c1b776e1f4844d31246dc06aa6509db30",
+    "admin-terminal-dark.png": "df2294c0be610fa3b3cd0624641c7b67bdcd5dedc05a4da408d25fb83850d170",
     "anonymous-settings-login-light.png": "2590243d938aaaca9780df1edf2e7be8bb394ce38957fee016193d8bb9eb2e56",
     "anonymous-settings-login-mobile.png": "5579b9bbc1acadbdd172e0ea531ded7d8d1832c9cb690fce6791b0efb1a49e6b"
   },
@@ -81,11 +81,11 @@
   "resource_metrics": {
     "task_process_count": 0,
     "service_process_count": 2,
-    "idle_window_seconds": 6.007,
-    "server_rss_mib": 61.301,
-    "server_cpu_one_core_percent": 1.277,
-    "renderer_js_heap_mib": 8.491,
-    "renderer_idle_cpu_one_core_percent": 0.7,
+    "idle_window_seconds": 6.008,
+    "server_rss_mib": 61.285,
+    "server_cpu_one_core_percent": 1.535,
+    "renderer_js_heap_mib": 8.507,
+    "renderer_idle_cpu_one_core_percent": 0.681,
     "dom_nodes": 1876,
     "dom_documents": 4,
     "dom_event_listeners": 459,
@@ -186,9 +186,10 @@
     "wcag-a-aa",
     "mobile-no-overflow",
     "task-route-next-paint",
-    "task-source-detail"
+    "task-source-detail",
+    "task-source-statement"
   ],
   "interaction_metrics": {
-    "terminal_to_tasks_next_paint_ms": 18.5
+    "terminal_to_tasks_next_paint_ms": 17.6
   }
 }

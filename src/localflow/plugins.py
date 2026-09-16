@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .models import (
     COMMON_CONFIG_FIELDS,
     CommonConfigFields,
+    SourceStatement,
     StopStrategy,
     TaskCreate,
     TaskRecord,
@@ -557,6 +558,9 @@ class PluginRegistry:
             resolved_sources = []
             missing_sources = []
             for item in source_values:
+                if isinstance(item, SourceStatement):
+                    resolved_sources.append(item.statement)
+                    continue
                 source_path = Path(item.path)
                 if not source_path.is_absolute():
                     source_path = directory / source_path
