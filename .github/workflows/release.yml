@@ -218,21 +218,48 @@ jobs:
           git tag -f "$TAG" "$GITHUB_SHA"
           git push origin "refs/tags/$TAG" --force
       - name: Publish rolling GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: LocalFlow ${{ steps.version.outputs.tag }}
-          body: |
-            Rolling static release built from `${{ github.sha }}`.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          # Releases are mutable here by design: this is the rolling artifact
+          # for a fixed version tag.  GitHub's upload endpoint can transiently
+          # return a 5xx HTML response, so retry the idempotent edit/upload
+          # sequence instead of publishing a verified tag without its assets.
+          notes="Rolling static release built from \`${SHA}\`.
 
-            `localflow` is the directly executable Linux x86_64 staticx artifact. The archive also contains the systemd deployment files. Verify downloads with `SHA256SUMS`.
-          prerelease: false
-          make_latest: true
-          fail_on_unmatched_files: true
-          files: |
-            dist/localflow
-            dist/localflow-*-linux-x86_64.tar.gz
-            dist/SHA256SUMS
+          \`localflow\` is the directly executable Linux x86_64 staticx artifact. The archive also contains the systemd deployment files. Verify downloads with \`SHA256SUMS\`."
+          for attempt in 1 2 3; do
+            if {
+              gh release view "$TAG" >/dev/null 2>&1 ||
+                gh release create "$TAG" \
+                  --verify-tag \
+                  --title "LocalFlow $TAG" \
+                  --notes "$notes" \
+                  --latest
+            } && \
+              gh release edit "$TAG" \
+                --title "LocalFlow $TAG" \
+                --notes "$notes" \
+                --prerelease=false \
+                --latest && \
+              gh release upload "$TAG" \
+                dist/localflow \
+                dist/localflow-*-linux-x86_64.tar.gz \
+                dist/SHA256SUMS \
+                --clobber; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "GitHub Release upload failed after ${attempt} attempts" >&2
+              exit 1
+            fi
+            delay=$((attempt * 10))
+            echo "GitHub Release upload attempt ${attempt} failed; retrying in ${delay}s" >&2
+            sleep "$delay"
+          done
 
   verify-published-release:
     needs: [build, publish]
