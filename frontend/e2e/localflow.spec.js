@@ -924,7 +924,14 @@ test("plugin configuration console remains concise and operable in Edge", async 
   const copyRowBox = await copyRow.boundingBox();
   await page.mouse.move(copyRowBox.x + 3, copyRowBox.y + copyRowBox.height / 2);
   await page.mouse.down();
-  await page.mouse.move(copyRowBox.x + 180, copyRowBox.y + copyRowBox.height / 2);
+  // Exercise a real operator gesture, not a synthetic selection event: hold
+  // first, traverse several mouse positions, then release and consume the
+  // resulting xterm selection through the product context menu.
+  await page.waitForTimeout(380);
+  await page.mouse.move(copyRowBox.x + 180, copyRowBox.y + copyRowBox.height / 2, {
+    steps: 8,
+  });
+  await page.waitForTimeout(120);
   await page.mouse.up();
   await expect(page.getByRole("button", { name: "复制选中" })).toHaveCount(0);
   await page.evaluate(() => {
@@ -1132,10 +1139,13 @@ test("plugin configuration console remains concise and operable in Edge", async 
     historyCopyBox.y + historyCopyBox.height / 2,
   );
   await page.mouse.down();
+  await page.waitForTimeout(380);
   await page.mouse.move(
     historyCopyBox.x + 180,
     historyCopyBox.y + historyCopyBox.height / 2,
+    { steps: 8 },
   );
+  await page.waitForTimeout(120);
   await page.mouse.up();
   await expect(page.getByRole("button", { name: "复制选中" })).toHaveCount(0);
   await page.evaluate(() => {
@@ -1922,6 +1932,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "terminal-tail-first-opening",
           "terminal-output-freshness",
           "terminal-context-selection-copy",
+          "terminal-native-drag-selection",
           "case-marquee-scope-only",
           "case-group-relative-edit",
           "case-group-fixed-edit",

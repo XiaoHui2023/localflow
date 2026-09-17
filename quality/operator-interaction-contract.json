@@ -10,7 +10,7 @@
         "message\\.type === \"caught_up\"",
         "term\\.hasSelection\\(\\)",
         "copyTerminalSelection\\(term\\.getSelection\\(\\)\\)",
-        "className=\"terminal-copy-selection\"",
+        "className=\"terminal-selection-copy\"",
         "onMove=\\{onMove\\}",
         "sessionStorage\\.getItem\\(\"localflow-run-panel\"\\) !== \"closed\"",
         "disabled=\\{!file \\|\\| content === baseContentRef\\.current\\}",
@@ -23,15 +23,10 @@
         "contentRef\\.current !== cleanSyncBase",
         "window\\.addEventListener\\(\"pointerup\", stop, true\\)",
         "repeatRef\\.current !== state",
-        "data-custom-text=\\{customText \\|\\| undefined\\}",
         "className=\"tree-dirty\"",
         "draftsRef\\.current\\.get\\(path\\)",
         "draft \\|\\| !value\\.content",
         "if \\(next === contentRef\\.current\\) return",
-        "item\\.kind === \"tokens\"",
-        "className=\"inspection-tokens\"",
-        "item\\.kind === \"code-list\"",
-        "className=\"inspection-code-list\"",
         "inspectConfig\\(filePath, \\{\\}",
         "data\\.affected_paths",
         "className=\"configuration-debug\"",
@@ -57,20 +52,14 @@
         "if \\(!rect\\?\\.width \\|\\| !rect\\?\\.height\\) return",
         "aria-selected=\\{explorerView === id\\}",
         "initialOpenState=\\{initialTreeOpenState\\.current\\}",
-        "item\\.check === \"availability\" && item\\.severity === \"error\"",
         "data-terminal-group=\"active\"",
         "data-terminal-group=\"history\"",
         "className=\"terminal-unread\"",
-        "className=\"terminal-selection-activity\"",
         "const selectedIsActive = Boolean",
-        "selectedOutputActivity &&",
-        "aria-label=\\{`距最后输出 \\${selectedOutputActivity}`\\}",
-        "task\\.log_updated_at",
+        "selected\\?\\.log_updated_at",
         "data-terminal-state=\\{task\\.state\\}",
         "task\\.template === \"verification\"",
         "hidden\\.add\\(\"运行日志\"\\)",
-        "function TaskListValue",
-        "role=\"list\" aria-label=\\{label\\}",
         "<span>开始时间</span>"
       ],
       "forbidden": [
@@ -97,6 +86,18 @@
       "path": "../src/localflow/workspace_repository.py",
       "required": ["parts\\[0\\] != \"config\""],
       "forbidden": ["for scope in \\(\"config\", \"plugins\"\\)", "breaks configuration imports"]
+    },
+    {
+      "path": "../frontend/src/CopyValue.jsx",
+      "required": ["data-custom-text=\\{customText \\|\\| undefined\\}", "function TaskListValue", "role=\"list\" aria-label=\\{label\\}"]
+    },
+    {
+      "path": "../frontend/src/RunInspection.jsx",
+      "required": ["item\\.kind === \"tokens\"", "className=\"inspection-tokens\"", "item\\.kind === \"code-list\"", "className=\"inspection-code-list\"", "item\\.check === \"availability\" && item\\.severity === \"error\""]
+    },
+    {
+      "path": "../frontend/src/TerminalOutputAge.jsx",
+      "required": ["className=\"terminal-selection-activity\"", "aria-label=\\{`距最后输出 \\${value}`\\}"]
     },
     {
       "path": "../src/localflow/api.py",
@@ -136,13 +137,22 @@
       "required": ["setRect\\(\\{ width: 1000, height: 900 \\}\\)", "verify adaptive focused panes", "task pane must be hidden while configuration is open at 1000px", "unsaved adaptive draft", "unsaved configuration editor state changed across pane switching"]
     },
     {
+      "path": "../frontend/e2e/localflow.spec.js",
+      "required": ["await page\\.waitForTimeout\\(380\\);", "steps: 8", "button: \"right\"", "window\\.__localflowCopiedText"],
+      "forbidden": ["page\\.evaluate\\(\\(\\) => .*select", "dispatchEvent\\(new MouseEvent"]
+    },
+    {
       "path": "../frontend/src/extra.css",
-      "required": ["fresh-dot[^}]+background:var\\(--accent\\)", "inspection-token", "copy-value code\\{[^}]+padding:5px 8px", "inspection-code-list \\.copy-field\\{[^}]+display:block", "task-code-list[^}]+grid-template-columns:minmax\\(0,1fr\\)", "task-code-list \\.copy-field[^}]+display:block", "configuration-debug\\{[^}]+grid-template-rows:auto minmax\\(0,1fr\\)", "configuration-debug-body\\{[^}]+overflow:hidden", "configuration-debug-body>section\\{[^}]+overflow:auto"],
+      "required": ["fresh-dot[^}]+background:var\\(--accent\\)", "copy-value code\\{[^}]+padding:5px 8px", "task-code-list[^}]+grid-template-columns:minmax\\(0,1fr\\)", "task-code-list \\.copy-field[^}]+display:block", "configuration-debug\\{[^}]+grid-template-rows:auto minmax\\(0,1fr\\)", "configuration-debug-body\\{[^}]+overflow:hidden", "configuration-debug-body>section\\{[^}]+overflow:auto"],
       "forbidden": ["fresh-dot[^}]+background:var\\(--danger\\)", "copy-affordance", "copy-confirm"]
     },
     {
+      "path": "../frontend/src/run-inspection.css",
+      "required": ["inspection-token", "inspection-code-list\\s+\\.copy-field\\s*\\{[^}]+display:\\s*block"]
+    },
+    {
       "path": "../frontend/src/round6.css",
-      "required": ["grid-template-columns:\\s*clamp\\(248px,22vw,320px\\)", "terminal-entry\\.has-unread\\{grid-template-columns:minmax\\(0,1fr\\) 10px", "terminal-selection-activity", "terminal-copy-selection", "terminal-find[^}]+background:var\\(--surface\\);background:color-mix"],
+      "required": ["grid-template-columns:\\s*clamp\\(248px,22vw,320px\\)", "terminal-entry\\.has-unread\\{grid-template-columns:minmax\\(0,1fr\\) 10px", "terminal-selection-activity", "terminal-selection-copy", "terminal-find[^}]+background:var\\(--surface\\);background:color-mix"],
       "forbidden": ["terminal-readonly", "terminal-entry-icon", "terminal-entry-activity", "terminal-entry\\.state-running \\.terminal-entry-name"]
     },
     {

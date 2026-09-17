@@ -197,6 +197,58 @@ async def test_tcsh_sources_csh_file_before_user_command(tmp_path: Path) -> None
         store.close()
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux" or shutil.which("tcsh") is None,
+    reason="tcsh is not installed",
+)
+@pytest.mark.asyncio
+async def test_tcsh_source_keeps_interactive_contract_for_vendor_setup_files(
+    tmp_path: Path,
+) -> None:
+    """Reproduce a csh setup file that rejects the non-interactive ``-c`` path.
+
+    Vendors commonly permit a setup file from an interactive csh session, but
+    require an ``-env_path`` escape hatch when the same file sees itself being
+    loaded by an unattended script.  LocalFlow's source list has no vendor
+    arguments by design, so its selected csh must retain the interactive shell
+    contract instead of forcing every such user to invent a wrapper.
+    """
+    root = tmp_path / "localflow"
+    project = tmp_path / "project"
+    root.mkdir()
+    project.mkdir()
+    (project / "vendor-setup.csh").write_text(
+        "if ( ! $?prompt ) then\n"
+        "  echo 'Error: Environment variables file does not exist. If called inside a script make sure you are using -env_path <path to env file>'\n"
+        "  exit 64\n"
+        "endif\n"
+        "setenv LOCALFLOW_VENDOR_READY yes\n",
+        encoding="utf-8",
+    )
+    store = Store(root / "runtime" / "localflow.db")
+    service = TaskService(root, store, SubprocessExecutor(), max_concurrency=1)
+    task = service.submit(
+        TaskCreate(
+            name="interactive-csh-source",
+            working_directory=str(project),
+            shell="/bin/tcsh",
+            source=["vendor-setup.csh"],
+            command="printf '%s' \"$LOCALFLOW_VENDOR_READY\" > sourced.txt",
+        )
+    )
+    await service.start()
+    try:
+        for _ in range(200):
+            await asyncio.sleep(0.02)
+            if store.get_task(task.id).ended_at:
+                break
+        assert store.get_task(task.id).state == "succeeded"
+        assert (project / "sourced.txt").read_text() == "yes"
+    finally:
+        await service.stop()
+        store.close()
+
+
 @pytest.mark.skipif(sys.platform != "linux", reason="Ubuntu shell contract")
 @pytest.mark.asyncio
 async def test_source_wrapper_can_initialize_a_vendor_environment(tmp_path: Path) -> None:

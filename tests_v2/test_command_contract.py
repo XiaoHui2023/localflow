@@ -85,6 +85,7 @@ def test_tcsh_sources_on_separate_parse_lines_before_user_command(tmp_path) -> N
     )
     frozen = freeze_command_working_directory(task.command, str(project), task.source)
     body = frozen[2]
+    assert 'if ( ! $?prompt ) set prompt = "localflow"\n' in body
     assert f"source {shlex.quote(str(environment))}\n" in body
     assert "if ( $status != 0 ) exit $status\n" in body
     assert "# localflow:user-command\nprintf" in body

@@ -1,0 +1,68 @@
+{
+  "date": "2026-09-17",
+  "baseline_revision": "6ece5e6",
+  "issues": [
+    {
+      "id": "LF-20260917-001-csh-source-interactive-contract",
+      "summary": "A csh setup path emits a vendor -env_path request when LocalFlow sources it.",
+      "entry": "public TaskCreate with shell=/bin/tcsh and source=[relative .csh path]",
+      "expected": "The selected task shell sources the ordered path list as an interactive csh setup without LocalFlow inventing vendor arguments or a vendor environment-file path.",
+      "actual": "The reported setup emits 'Environment variables file does not exist ... -env_path'. A bounded tcsh container probe showed tcsh -ic evaluates the command body with prompt unset (prompt=0), the usual condition used by setup files to take their noninteractive error branch.",
+      "status": "reproduction_blocked",
+      "owner_paths": ["src/localflow/models.py", "tests_target/test_shell_profile.py"],
+      "reproduction_paths": ["quality/evidence/2026-09-17-source-and-terminal-feedback.json", "tests_target/test_shell_profile.py"],
+      "reproduction_proves": "The selected shell's missing prompt is a concrete, path-list-compatible trigger for the supplied diagnostic class.",
+      "reproduction_does_not_prove": "It does not identify the user's proprietary setup file or establish that every vendor uses prompt for this branch.",
+      "attempts": [
+        {
+          "hypothesis": "tcsh -ic loses the interactive prompt contract before LocalFlow sources paths.",
+          "method": "Run /bin/tcsh -ic and read $?prompt inside the LocalFlow target image.",
+          "observed": "prompt=0, shell=/bin/tcsh, zero=/bin/tcsh.",
+          "analysis": "A csh file guarded by !$?prompt naturally follows the vendor error branch without any missing source path.",
+          "why_not_reproduced": "The exact vendor source file and its server environment were not supplied.",
+          "evidence": "2026-09-17 local Docker console capture before Docker Desktop became unavailable.",
+          "next_condition": "Run the public TaskService regression in the Ubuntu target image and, if it persists, capture the resolved source path plus the vendor file's guard condition."
+        },
+        {
+          "hypothesis": "The public Linux target regression can be run locally.",
+          "method": "Build/run the systemd source-list target container.",
+          "observed": "Docker Desktop Linux engine pipe npipe:////./pipe/dockerDesktopLinuxEngine was unavailable; starting the manual service was denied by host permissions.",
+          "analysis": "The target environment did not start, so this is an environment block rather than a product pass/fail.",
+          "why_not_reproduced": "No usable local Linux container daemon remained after bounded retries.",
+          "evidence": "docker build/docker version failure output on 2026-09-17.",
+          "next_condition": "Restore Docker Desktop Linux Engine access or consume the GitHub Ubuntu target receipt."
+        }
+      ],
+      "fix_candidate": "Before every csh/tcsh source line, set prompt only when it is absent; preserve ordered source paths, fail-fast behavior and the frozen working directory. No -env_path is generated."
+    },
+    {
+      "id": "LF-20260917-002-terminal-native-hold-drag-selection",
+      "summary": "The user reports that a left-button hold and drag cannot select terminal text.",
+      "entry": "terminal page, live and retained xterm output",
+      "expected": "A normal pointer hold, multi-position drag and release creates xterm's native selection; right-click Copy and Ctrl+C copy exactly that selection.",
+      "actual": "The user reports no text selection. The current local Edge public journey performs a 380 ms hold, eight-step drag and release in both live and retained output, then verifies exact clipboard text through the native selection path.",
+      "status": "reproduction_blocked",
+      "owner_paths": ["frontend/src/App.jsx", "frontend/e2e/localflow.spec.js"],
+      "reproduction_paths": ["frontend/e2e/localflow.spec.js", "quality/evidence/2026-09-17-source-and-terminal-feedback.json"],
+      "reproduction_proves": "The current built application accepts the complete native pointer sequence in the local Edge environment.",
+      "reproduction_does_not_prove": "It does not identify the user's deployed artifact, browser/device or any host overlay that may intercept the gesture.",
+      "attempts": [
+        {
+          "hypothesis": "A synthetic/short drag previously hid a held-pointer regression.",
+          "method": "Use Playwright mouse.down, wait 380 ms, mouse.move with eight steps, wait, mouse.up; consume selection by Ctrl+C and context-menu Copy in live and history views.",
+          "observed": "The current local production browser journey passes and copies qa-terminal-ready exactly.",
+          "analysis": "The gate now measures the user gesture rather than a programmatic selection surrogate.",
+          "why_not_reproduced": "The reported server/browser artifact was not available to automate.",
+          "evidence": "quality/evidence/browser/browser-receipt.json after the refreshed journey.",
+          "next_condition": "Verify the exact published artifact, then capture browser/version and overlay diagnostics if a deployed instance still blocks selection."
+        }
+      ],
+      "fix_candidate": "No speculative runtime interception change: strengthen the real-gesture gate and publish the verified build; investigate only from a reproducible deployed artifact if the behavior remains."
+    }
+  ],
+  "learning": {
+    "source": "tcsh interactive prompt behavior and the installed LocalFlow shell-boundary contract",
+    "terminal": "xterm native selection plus the installed operator-interaction catalog",
+    "machine_gate": "feedback records cannot advance past reproduction_blocked merely because a local substitute passes; target-environment evidence is required for release claims."
+  }
+}

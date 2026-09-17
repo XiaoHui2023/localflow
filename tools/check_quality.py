@@ -60,6 +60,7 @@ BROWSER_ASSERTIONS = {
     "terminal-archive-search-navigation",
     "terminal-tail-first-opening",
     "terminal-output-freshness",
+    "terminal-native-drag-selection",
     "case-marquee-scope-only",
     "case-group-relative-edit",
     "case-group-fixed-edit",
@@ -152,10 +153,19 @@ def main() -> int:
         if status not in STATUSES:
             errors.append(f"metric[{index}] invalid status: {status}")
         for path_field in ("test", "evidence"):
-            raw_path = item.get(path_field, "")
-            path = root / raw_path
-            if not raw_path or not path.exists():
-                errors.append(f"metric[{index}] missing {path_field} path: {raw_path}")
+            raw_paths = [
+                value.strip()
+                for value in str(item.get(path_field, "")).split(";")
+                if value.strip()
+            ]
+            if not raw_paths:
+                errors.append(f"metric[{index}] missing {path_field} path")
+            for raw_path in raw_paths:
+                path = root / raw_path
+                if not path.exists():
+                    errors.append(
+                        f"metric[{index}] missing {path_field} path: {raw_path}"
+                    )
         if status == "passed" and "no-" in item.get("claim_scope", ""):
             errors.append(f"metric[{index}] passed status exceeds claim scope")
     omitted = requirements - covered

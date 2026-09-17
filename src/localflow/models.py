@@ -121,7 +121,16 @@ def freeze_command_working_directory(
             # tcsh expands variables across one compound `&&` expression before
             # a preceding source has populated them.  Separate source commands
             # into parsed lines and preserve fail-fast semantics explicitly.
-            source_lines = []
+            #
+            # ``tcsh -ic`` does not populate ``prompt`` while it evaluates its
+            # ``-c`` body.  Several vendor setup files use that variable to
+            # distinguish a normal interactive source from an unattended
+            # wrapper and otherwise demand a vendor-only ``-env_path``.  This
+            # task already has an interactive csh contract; make that fact
+            # visible without guessing a vendor environment-file path.
+            source_lines = [
+                'if ( ! $?prompt ) set prompt = "localflow"',
+            ]
             for path in source_files:
                 source_lines.extend(
                     [
