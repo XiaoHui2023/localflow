@@ -1912,6 +1912,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "command-run-info-content-density",
           "common-config-path-identity",
           "terminal-bounded-archive-search",
+          "terminal-tail-first-opening",
           "terminal-output-freshness",
           "terminal-context-selection-copy",
           "case-marquee-scope-only",
@@ -2147,4 +2148,60 @@ test("a sourced task shows every frozen source path in task details", async ({ p
   if (!receipt.assertions.includes("task-source-path-list"))
     receipt.assertions.push("task-source-path-list");
   fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
+});
+
+test("terminal first opens a large archive at its newest bounded window", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await openAdminTaskWorkspace(page);
+  const task = await browserApi(page, "/tasks", {
+    method: "POST",
+    body: {
+      name: "qa-terminal-tail-first",
+      working_directory: qaRoot,
+      command: [
+        qaPython,
+        "-u",
+        "-c",
+        [
+          "import sys,time",
+          "line='qa-terminal-archive-' + 'x' * 1000 + '\\n'",
+          "sys.stdout.write(line * 4300)",
+          "sys.stdout.write('qa-terminal-tail-first-marker\\n')",
+          "sys.stdout.flush()",
+          "time.sleep(30)",
+        ].join("; "),
+      ],
+      labels: ["browser", "tail-first"],
+    },
+  });
+  await expect
+    .poll(async () => Number((await browserApi(page, `/tasks/${task.task_id}`)).log_size), {
+      timeout: 20_000,
+    })
+    .toBeGreaterThan(4 * 1024 * 1024);
+
+  // The task list refreshes independently from the detail poll above.  Waiting
+  // one refresh makes the terminal's initial range a real UI input, rather than
+  // testing a stale task projection.
+  await page.waitForTimeout(2_250);
+  const tailStreamOffsets = [];
+  page.on("websocket", (socket) => {
+    const url = socket.url();
+    if (url.includes(`/api/v1/tasks/${task.task_id}/terminal`)) {
+      tailStreamOffsets.push(Number(new URL(url).searchParams.get("offset")));
+    }
+  });
+  await page.locator("#nav-terminal").click();
+  await expect.poll(() => tailStreamOffsets.length).toBeGreaterThan(0);
+  // This is the regression shape: a zero first offset makes xterm visibly
+  // replay the whole archive before the later tail-window correction occurs.
+  expect(tailStreamOffsets[0]).toBeGreaterThan(0);
+  await expect(page.locator(".terminal.hydrated")).toBeVisible();
+  await expect(page.locator(".terminal-page .xterm-rows")).toContainText(
+    "qa-terminal-tail-first-marker",
+  );
+  await browserApi(page, `/tasks/${task.task_id}/interrupt`, { method: "POST" });
+  await waitForState(page, task.task_id, ["cancelled"]);
 });

@@ -172,6 +172,8 @@ function useUiRevision(paused = false) {
 
 function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
   const windowBytes = 4 * 1024 * 1024;
+  const tailWindowStart = (size) =>
+    Math.max(0, Number(size || 0) - windowBytes);
   const host = useRef();
   const finder = useRef();
   const terminal = useRef();
@@ -189,19 +191,23 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
     resultCount: 0,
     invalid: false,
   });
-  const [rangeStart, setRangeStart] = useState(0);
+  // A terminal is keyed by task id below.  Derive its first window synchronously:
+  // an effect that corrects an initial zero offset would already have opened a
+  // WebSocket and visibly replayed the complete archive before reaching this tail.
+  const [rangeStart, setRangeStart] = useState(() =>
+    tailWindowStart(task.log_size),
+  );
   const [hydrated, setHydrated] = useState(false);
   const [archiveResults, setArchiveResults] = useState([]);
   const [archiveTruncated, setArchiveTruncated] = useState(false);
   const [archiveSearching, setArchiveSearching] = useState(false);
   const [archiveSearchError, setArchiveSearchError] = useState("");
   useEffect(() => {
-    setRangeStart(Math.max(0, Number(task.log_size || 0) - windowBytes));
     setArchiveResults([]);
     setArchiveSearchError("");
     setSelectedText("");
     contextSelection.current = "";
-  }, [task.id]);
+  }, []);
   const copyTerminalSelection = async (text = selectedText) => {
     if (!text) return;
     await writeClipboard(text);
@@ -333,6 +339,7 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
       `${protocol}://${location.host}/api/v1/tasks/${task.id}/terminal?offset=${rangeStart}${end}`,
     );
     let caughtUp = false;
+    let revealFrame;
     onStreamStatus?.({ taskId: task.id, caughtUp: false, updatedAt: null });
     socket.onopen = () => {
       element.dataset.connection = "open";
@@ -356,11 +363,23 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
         });
       } else if (message.type === "caught_up") {
         caughtUp = true;
-        setHydrated(true);
-        onStreamStatus?.({
-          taskId: task.id,
-          caughtUp: true,
-          updatedAt: message.log_updated_at || null,
+        // xterm can retain the viewport at the first replayed row even while it
+        // is hidden.  Anchor before revealing it so an opened terminal always
+        // starts at the newest available output instead of visibly scrolling
+        // through its archive.
+        term.scrollToBottom();
+        cancelAnimationFrame(revealFrame);
+        revealFrame = requestAnimationFrame(() => {
+          if (!element.isConnected) return;
+          // Commit the caught-up metadata with visibility.  Otherwise React can
+          // show an old-output age in the single frame where the terminal is
+          // still intentionally hidden during replay.
+          setHydrated(true);
+          onStreamStatus?.({
+            taskId: task.id,
+            caughtUp: true,
+            updatedAt: message.log_updated_at || null,
+          });
         });
       }
     };
@@ -387,6 +406,7 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
     return () => {
       observer.disconnect();
       cancelAnimationFrame(frame);
+      cancelAnimationFrame(revealFrame);
       socket.onopen = null;
       socket.onmessage = null;
       socket.onclose = null;
@@ -963,6 +983,7 @@ function TerminalPage({ tasks, role, theme }) {
               {notice}
             </span>
             <TaskTerminal
+              key={selected.id}
               task={selected}
               interactive={interactive}
               theme={theme}

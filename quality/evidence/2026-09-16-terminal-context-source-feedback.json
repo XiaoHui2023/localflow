@@ -2,6 +2,18 @@
   "date": "2026-09-16",
   "issues": [
     {
+      "id": "terminal-open-replays-from-top",
+      "entry": "administrator terminal page with an archived task log larger than one display window",
+      "setup": "select a task whose retained output exceeds 4 MiB",
+      "action": "open the terminal page or select the terminal",
+      "expected": "the first visible terminal frame is anchored at the newest bounded output; older history remains reachable only by explicit navigation or search",
+      "observed": "the component first connected with byte offset zero and only later corrected its state to the tail, so xterm visibly replayed the log from top to bottom",
+      "owner": "terminal initial range and reveal lifecycle",
+      "status": "fixed_verified",
+      "reproduction": "The prior TaskTerminal state initialized rangeStart to 0 and corrected it in a task-id effect; React opens the WebSocket effect using the initial state before that correction.",
+      "verification": "The xterm owner is keyed by task identity and initializes its byte offset synchronously from log_size minus 4 MiB. The terminal stays hidden during ACK-backed replay, scrolls to bottom on caught_up, then reveals on the next animation frame. Edge creates a real >4 MiB task and proves the first terminal WebSocket offset is nonzero and its tail marker is visible."
+    },
+    {
       "id": "terminal-replay-age-mismatch",
       "entry": "administrator terminal page with a running task",
       "setup": "open a task after its log already contains buffered bytes and has been quiet longer than the display threshold",
