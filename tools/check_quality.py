@@ -57,6 +57,7 @@ BROWSER_ASSERTIONS = {
     "config-dirty-save",
     "config-quick-history",
     "terminal-bounded-archive-search",
+    "terminal-archive-search-navigation",
     "terminal-tail-first-opening",
     "terminal-output-freshness",
     "case-marquee-scope-only",

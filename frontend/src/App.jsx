@@ -172,10 +172,15 @@ function useUiRevision(paused = false) {
 
 function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
   const windowBytes = 4 * 1024 * 1024;
+  // A raw-byte window can contain far more than xterm's bounded number of
+  // visual rows when lines wrap.  Keep a search hit in a deliberately smaller
+  // neighbourhood so the matching line survives terminal scrollback.
+  const archiveHitWindowBytes = 256 * 1024;
   const tailWindowStart = (size) =>
     Math.max(0, Number(size || 0) - windowBytes);
   const host = useRef();
   const finder = useRef();
+  const searchInput = useRef();
   const terminal = useRef();
   const contextSelection = useRef("");
   const [selectedText, setSelectedText] = useState("");
@@ -197,11 +202,15 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
   const [rangeStart, setRangeStart] = useState(() =>
     tailWindowStart(task.log_size),
   );
+  const [rangeBytes, setRangeBytes] = useState(windowBytes);
   const [hydrated, setHydrated] = useState(false);
   const [archiveResults, setArchiveResults] = useState([]);
   const [archiveTruncated, setArchiveTruncated] = useState(false);
   const [archiveSearching, setArchiveSearching] = useState(false);
   const [archiveSearchError, setArchiveSearchError] = useState("");
+  const [followingLatest, setFollowingLatest] = useState(true);
+  const pendingArchiveHit = useRef();
+  const archiveRequest = useRef(0);
   useEffect(() => {
     setArchiveResults([]);
     setArchiveSearchError("");
@@ -212,21 +221,60 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
     if (!text) return;
     await writeClipboard(text);
   };
+  const closeSearch = useCallback(() => {
+    archiveRequest.current += 1;
+    setSearching(false);
+    setArchiveResults([]);
+    setArchiveTruncated(false);
+    setArchiveSearchError("");
+    finder.current?.clearDecorations();
+    setSearchResult({ resultIndex: -1, resultCount: 0, invalid: false });
+    // A find dialog must return keyboard ownership to its terminal.  Without
+    // this, Ctrl+F immediately after Escape/close is handled by the browser
+    // instead of reopening the terminal finder.
+    requestAnimationFrame(() => terminal.current?.focus());
+  }, []);
   const searchArchive = async () => {
     if (!query) return;
+    const request = ++archiveRequest.current;
     setArchiveSearching(true);
     setArchiveSearchError("");
     try {
       const result = await api.searchLog(task.id, query, searchOptions);
+      if (request !== archiveRequest.current) return;
       setArchiveResults(result.items);
       setArchiveTruncated(result.truncated);
     } catch (error) {
+      if (request !== archiveRequest.current) return;
       setArchiveResults([]);
       setArchiveTruncated(false);
       setArchiveSearchError(error.message || "检索失败");
     } finally {
-      setArchiveSearching(false);
+      if (request === archiveRequest.current) setArchiveSearching(false);
     }
+  };
+  const browseRange = (nextStart) => {
+    pendingArchiveHit.current = undefined;
+    setFollowingLatest(false);
+    setRangeBytes(windowBytes);
+    setRangeStart(Math.max(0, nextStart));
+  };
+  const openArchiveHit = (item) => {
+    pendingArchiveHit.current = {
+      query,
+      options: searchOptions,
+      offset: item.offset,
+    };
+    setFollowingLatest(false);
+    setRangeBytes(archiveHitWindowBytes);
+    setRangeStart(Math.max(0, item.offset - 8192));
+    closeSearch();
+  };
+  const returnToLatest = () => {
+    pendingArchiveHit.current = undefined;
+    setFollowingLatest(true);
+    setRangeBytes(windowBytes);
+    setRangeStart(tailWindowStart(task.log_size));
   };
   const search = (direction = "next", incremental = false, options = searchOptions) => {
     if (!query || !finder.current) return;
@@ -261,12 +309,21 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
     search("next", false, next);
   };
   useEffect(() => {
+    archiveRequest.current += 1;
+    setArchiveResults([]);
+    setArchiveTruncated(false);
+    setArchiveSearchError("");
     if (searching && query) search("next", true);
     else if (!query) {
       finder.current?.clearDecorations();
       setSearchResult({ resultIndex: -1, resultCount: 0, invalid: false });
     }
-  }, [query, searching]);
+  }, [query, searching, searchOptions.caseSensitive, searchOptions.wholeWord, searchOptions.regex]);
+  useEffect(() => {
+    if (!searching) return undefined;
+    const frame = requestAnimationFrame(() => searchInput.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [searching]);
   useEffect(() => {
     const element = host.current;
     setHydrated(false);
@@ -332,9 +389,15 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
     element.dataset.rows = String(term.rows);
     element.dataset.columns = String(term.cols);
     const protocol = location.protocol === "https:" ? "wss" : "ws";
-    const end = interactive
-      ? ""
-      : `&end=${Math.min(Number(task.log_size || 0), rangeStart + windowBytes)}`;
+    const endOffset = Math.min(
+      Number(task.log_size || 0),
+      rangeStart + rangeBytes,
+    );
+    // A live terminal follows its tail only until the operator intentionally
+    // visits an earlier range or a full-archive hit.  Historical browsing must
+    // freeze an end offset; otherwise a live WebSocket silently catches up to
+    // newest output and defeats the chosen reading position.
+    const end = interactive && followingLatest ? "" : `&end=${endOffset}`;
     const socket = new WebSocket(
       `${protocol}://${location.host}/api/v1/tasks/${task.id}/terminal?offset=${rangeStart}${end}`,
     );
@@ -367,7 +430,15 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
         // is hidden.  Anchor before revealing it so an opened terminal always
         // starts at the newest available output instead of visibly scrolling
         // through its archive.
-        term.scrollToBottom();
+        const archiveHit = pendingArchiveHit.current;
+        if (archiveHit) {
+          pendingArchiveHit.current = undefined;
+          term.scrollToTop();
+          // The target begins within an 8 KiB context before the server offset;
+          // use xterm's mature Search addon to put the matching row in view.
+          search.findNext(archiveHit.query, archiveHit.options);
+        } else if (followingLatest) term.scrollToBottom();
+        else term.scrollToTop();
         cancelAnimationFrame(revealFrame);
         revealFrame = requestAnimationFrame(() => {
           if (!element.isConnected) return;
@@ -416,14 +487,15 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
       terminal.current = undefined;
       term.dispose();
     };
-  }, [task.id, interactive, theme, rangeStart, onStreamStatus]);
-  const rangeEnd = Math.min(Number(task.log_size || 0), rangeStart + windowBytes);
+  }, [task.id, interactive, theme, rangeStart, rangeBytes, followingLatest, onStreamStatus]);
+  const rangeEnd = Math.min(Number(task.log_size || 0), rangeStart + rangeBytes);
   return (
     <div className="terminal-shell">
       <div className="terminal-tools">
         {searching && (
           <div className="terminal-find" role="search">
             <input
+              ref={searchInput}
               autoFocus
               aria-label="终端搜索"
               placeholder="查找"
@@ -432,7 +504,7 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
               onKeyDown={(event) => {
                 if (event.key === "Enter")
                   search(event.shiftKey ? "previous" : "next");
-                if (event.key === "Escape") setSearching(false);
+                if (event.key === "Escape") closeSearch();
               }}
             />
             <output aria-live="polite">
@@ -483,7 +555,7 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
             <button
               className="icon"
               aria-label="关闭查找"
-              onClick={() => setSearching(false)}
+              onClick={closeSearch}
             >
               <X />
             </button>
@@ -496,21 +568,27 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
             </button>
           </div>
         )}
-        {!interactive && Number(task.log_size || 0) > windowBytes && (
-          <div className="terminal-range" aria-label="日志分段">
+        {Number(task.log_size || 0) > windowBytes && (
+          <div
+            className="terminal-range"
+            aria-label={followingLatest ? "最新终端日志窗口" : "终端历史日志窗口"}
+          >
             <button
               disabled={rangeStart === 0}
-              onClick={() => setRangeStart(Math.max(0, rangeStart - windowBytes))}
+              onClick={() => browseRange(rangeStart - windowBytes)}
             >
               上一段
             </button>
             <span>{rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} 字节</span>
             <button
               disabled={rangeEnd >= Number(task.log_size || 0)}
-              onClick={() => setRangeStart(rangeEnd)}
+              onClick={() => browseRange(rangeEnd)}
             >
               下一段
             </button>
+            {!followingLatest && interactive && (
+              <button onClick={returnToLatest}>最新输出</button>
+            )}
           </div>
         )}
         <Hint label="跳到终端开头">
@@ -535,23 +613,28 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
           className="icon"
           aria-label="在终端中查找"
           aria-pressed={searching}
-          onClick={() => setSearching((old) => !old)}
+          onClick={() => (searching ? closeSearch() : setSearching(true))}
         >
           <Search />
         </button>
       </div>
-      {archiveResults.length > 0 && (
-        <div className="terminal-search-results" role="listbox" aria-label="全部日志匹配">
-          {archiveResults.map((item) => (
-            <button
-              key={`${item.offset}-${item.line}`}
-              onClick={() => setRangeStart(Math.max(0, item.offset - 65536))}
-            >
-              <b>第 {item.line} 行</b><span>{item.preview}</span>
-            </button>
-          ))}
-          {archiveTruncated && <small>仅显示前 200 个匹配</small>}
-        </div>
+      {archiveResults.length > 0 && searching && (
+        <section className="terminal-search-results" aria-label="全部日志检索结果">
+          <header>
+            <span><b>全部日志</b><small>{archiveResults.length} 个匹配{archiveTruncated ? "，仅显示前 200 个" : ""}</small></span>
+            <button className="icon" aria-label="关闭全部日志结果" onClick={closeSearch}><X /></button>
+          </header>
+          <ol>
+            {archiveResults.map((item) => (
+              <li key={`${item.offset}-${item.line}`}>
+                <button onClick={() => openArchiveHit(item)}>
+                  <span className="terminal-search-result-meta">第 {item.line} 行 · {item.offset.toLocaleString()} 字节</span>
+                  <code>{item.preview}</code>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </section>
       )}
       {archiveSearchError && (
         <div className="terminal-search-error" role="alert">{archiveSearchError}</div>

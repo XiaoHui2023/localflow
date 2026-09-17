@@ -1175,6 +1175,12 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(page.locator(".terminal-find output")).toContainText(/\d+\/\d+/);
   await page.getByRole("button", { name: "检索全部日志" }).click();
   await expect(page.locator(".terminal-search-results")).toContainText("qa-terminal-ready");
+  const archiveResultPanel = page.locator(".terminal-search-results");
+  expect(await archiveResultPanel.evaluate((node) => node.getBoundingClientRect().height)).toBeGreaterThanOrEqual(98);
+  await page.getByRole("button", { name: "关闭查找" }).click();
+  await expect(archiveResultPanel).toHaveCount(0);
+  await page.keyboard.press("Control+f");
+  await expect(page.getByLabel("终端搜索")).toBeFocused();
   await page.getByRole("button", { name: "区分大小写" }).click();
   await expect(page.getByRole("button", { name: "区分大小写" })).toHaveAttribute(
     "aria-pressed",
@@ -1912,6 +1918,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
           "command-run-info-content-density",
           "common-config-path-identity",
           "terminal-bounded-archive-search",
+          "terminal-archive-search-navigation",
           "terminal-tail-first-opening",
           "terminal-output-freshness",
           "terminal-context-selection-copy",
@@ -2166,6 +2173,7 @@ test("terminal first opens a large archive at its newest bounded window", async 
         "-c",
         [
           "import sys,time",
+          "sys.stdout.write('qa-terminal-search-archive-marker\\n')",
           "line='qa-terminal-archive-' + 'x' * 1000 + '\\n'",
           "sys.stdout.write(line * 4300)",
           "sys.stdout.write('qa-terminal-tail-first-marker\\n')",
@@ -2202,6 +2210,24 @@ test("terminal first opens a large archive at its newest bounded window", async 
   await expect(page.locator(".terminal-page .xterm-rows")).toContainText(
     "qa-terminal-tail-first-marker",
   );
+  await page.locator(".terminal-page .xterm").click();
+  await page.keyboard.press("Control+f");
+  await page.getByLabel("终端搜索").fill("qa-terminal-search-archive-marker");
+  await page.getByRole("button", { name: "检索全部日志" }).click();
+  const archivePanel = page.locator(".terminal-search-results");
+  await expect(archivePanel).toContainText("qa-terminal-search-archive-marker");
+  await archivePanel.locator("ol button").first().click();
+  await expect(archivePanel).toHaveCount(0);
+  await expect(page.locator(".terminal-range span")).toContainText(/^0–/);
+  await expect(page.locator(".terminal-page .xterm-rows")).toContainText(
+    "qa-terminal-search-archive-marker",
+  );
+  await expect
+    .poll(() =>
+      page.locator(".terminal-page .xterm-viewport").evaluate((node) => node.scrollTop),
+    )
+    .toBeLessThanOrEqual(1);
+  await expect(page.getByRole("button", { name: "最新输出" })).toBeVisible();
   await browserApi(page, `/tasks/${task.task_id}/interrupt`, { method: "POST" });
   await waitForState(page, task.task_id, ["cancelled"]);
 });

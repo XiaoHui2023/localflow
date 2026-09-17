@@ -2,6 +2,17 @@
   "date": "2026-09-16",
   "issues": [
     {
+      "id": "terminal-archive-search-loses-reading-position",
+      "entry": "administrator terminal archive search",
+      "setup": "search a marker outside the currently displayed tail window of a running multi-megabyte terminal log",
+      "action": "open full-log results, close search, then select the archived marker",
+      "expected": "a readable, closable result panel locates the marker in historical context and remains there until the operator explicitly returns to latest output",
+      "observed": "the result list was a shallow pseudo-listbox that stayed visible after closing Find; selecting a hit reopened a live unbounded WebSocket and the catch-up lifecycle returned the viewport to newest output",
+      "owner": "terminal archive search navigation and presentation",
+      "status": "fixed_verified",
+      "verification": "Results are now a bounded semantic region with native buttons, count, line/byte metadata and two-line preview. All close paths clear results/errors. A history-navigation mode freezes the WebSocket end; the selected hit is revealed through xterm Search addon and an explicit latest-output action exits that mode. Edge regression closes the panel, selects an early result in a >4 MiB live log, verifies range zero/context, target visibility, scroll top and latest-output action."
+    },
+    {
       "id": "terminal-open-replays-from-top",
       "entry": "administrator terminal page with an archived task log larger than one display window",
       "setup": "select a task whose retained output exceeds 4 MiB",
