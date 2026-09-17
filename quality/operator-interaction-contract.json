@@ -143,8 +143,12 @@
     },
     {
       "path": "../frontend/src/extra.css",
-      "required": ["fresh-dot[^}]+background:var\\(--accent\\)", "copy-value code\\{[^}]+padding:5px 8px", "task-code-list[^}]+grid-template-columns:minmax\\(0,1fr\\)", "task-code-list \\.copy-field[^}]+display:block", "configuration-debug\\{[^}]+grid-template-rows:auto minmax\\(0,1fr\\)", "configuration-debug-body\\{[^}]+overflow:hidden", "configuration-debug-body>section\\{[^}]+overflow:auto"],
+      "required": ["fresh-dot[^}]+background:var\\(--accent\\)", "copy-value code\\{[^}]+padding:5px 8px", "task-code-list[^}]+grid-template-columns:minmax\\(0,1fr\\)", "task-code-list \\.copy-field[^}]+display:block", "configuration-debug\\{[^}]+grid-template-rows:auto minmax\\(0,1fr\\)", "configuration-debug-body\\{[^}]+overflow:hidden", "configuration-debug-body>section\\{[^}]+overflow:auto", "terminal-search-results\\{[^}]+z-index:var\\(--layer-overlay\\)"],
       "forbidden": ["fresh-dot[^}]+background:var\\(--danger\\)", "copy-affordance", "copy-confirm"]
+    },
+    {
+      "path": "../frontend/src/index.css",
+      "required": ["--layer-overlay: 40"]
     },
     {
       "path": "../frontend/src/run-inspection.css",

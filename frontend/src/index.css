@@ -24,6 +24,7 @@ html[data-theme="light"] {
   --control-height: 36px;
   --control-height-compact: 32px;
   --layer-navigation: 10;
+  --layer-overlay: 40;
   --layer-tooltip: 50;
   --layer-notification: 60;
   --layer-dialog: 80;

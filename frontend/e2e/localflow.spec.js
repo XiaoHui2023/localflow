@@ -2189,7 +2189,12 @@ test("terminal first opens a large archive at its newest bounded window", async 
           "sys.stdout.write(line * 4300)",
           "sys.stdout.write('qa-terminal-tail-first-marker\\n')",
           "sys.stdout.flush()",
-          "time.sleep(30)",
+          // Keep the task interactive for the complete archive-navigation
+          // assertion.  A 30-second fixture can reach its natural terminal
+          // state on a busy browser host before the explicit return-to-latest
+          // control is checked, turning a valid lifecycle rule into a flaky
+          // UI failure.  The test always interrupts it below.
+          "time.sleep(120)",
         ].join("; "),
       ],
       labels: ["browser", "tail-first"],
