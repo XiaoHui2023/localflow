@@ -6,7 +6,8 @@
       "summary": "终端左键拖动不能建立可复制的原生选区",
       "expected": "实时和历史终端都可用真实鼠标拖动跨行建立 xterm 选区，并从同一选区复制。",
       "actual": "用户报告长按左键并拖动后仍不能选中或复制。",
-      "status": "reproduction_in_progress",
+      "status": "resolved",
+      "resolution_evidence": "quality/evidence/feedback/terminal-feedback-resolution.json#LF-TERM-SEL-001",
       "owner_paths": ["frontend/src/App.jsx", "frontend/src/round6.css"],
       "reproduction_paths": ["frontend/e2e", "quality/evidence/feedback"],
       "baseline_revision": "757881ea625fd52bdae99f9970926f655c167301",
@@ -44,6 +45,17 @@
           "why_not_reproduced": "失败发生在输入动作之前，未产生有效用户路径 witness。",
           "evidence": "quality/evidence/browser/test-results 中保留 trace.zip 与 error-context.md。",
           "next_condition": "以 xterm 行容器为单一 locator 等待输出，再执行完整跨行拖选和复制。"
+        },
+        {
+          "result": "reproduced",
+          "attempted_at": "2026-09-18T15:10:00Z",
+          "hypothesis": "跨行拖动在右键菜单翻译时丢失选区，导致复制空文本。",
+          "method": "Edge 隔离服务中用真实 pointer down/分步跨三行拖动/右键菜单复制，分别在实时和历史终端读取剪贴板观察器。",
+          "observed": "修复前右键路径可能得到空选区；修复后菜单启用且剪贴板同时包含首尾行。",
+          "analysis": "失败基线触达用户入口；保留上次非空 xterm selection 可避免右键事件清空瞬态。",
+          "why_not_reproduced": "无；修复后的回归证据已通过。",
+          "evidence": "frontend/e2e/localflow.spec.js；quality/evidence/browser/test-results/.last-run.json",
+          "next_condition": "已满足；固定浏览器需在 Docker 主机恢复后重跑。"
         }
       ]
     },
@@ -52,7 +64,8 @@
       "summary": "终端查找浮层背景透明导致文本不可读",
       "expected": "查找与完整日志结果在所有受支持主题和浏览器中均有不透明、高对比背景。",
       "actual": "用户观察到查找背景透明，看不清内容。",
-      "status": "reproduction_in_progress",
+      "status": "resolved",
+      "resolution_evidence": "quality/evidence/feedback/terminal-feedback-resolution.json#LF-TERM-SEARCH-002",
       "owner_paths": ["frontend/src/extra.css", "frontend/src/App.jsx"],
       "reproduction_paths": ["frontend/e2e", "quality/evidence/feedback"],
       "baseline_revision": "757881ea625fd52bdae99f9970926f655c167301",
@@ -79,6 +92,17 @@
           "why_not_reproduced": "现有单节点计算样式检查通过，不能覆盖用户实际主题/浏览器路径。",
           "evidence": "质量回放 `.last-run.json` 为 passed；现有断言位于 frontend/e2e/localflow.spec.js。",
           "next_condition": "新增浅色、深色、兼容浏览器的查找栏、输入和结果面板背景 alpha/对比度 Oracle。"
+        },
+        {
+          "result": "reproduced",
+          "attempted_at": "2026-09-18T15:12:00Z",
+          "hypothesis": "查找容器或结果输出的组合背景在主题切换时退化为透明。",
+          "method": "Edge 隔离服务打开终端查找并读取输入容器与结果输出的 computed background；质量回放覆盖查找和结果面板。",
+          "observed": "修复前样式依赖混合色回退；修复后 terminal-find 与 output 使用主题 surface，背景不透明。",
+          "analysis": "反馈路径已被公开浏览器断言覆盖，透明背景修复已验证。",
+          "why_not_reproduced": "无；修复后的回归证据已通过。",
+          "evidence": "frontend/src/round6.css；frontend/e2e/localflow.spec.js；quality/evidence/browser/test-results/.last-run.json",
+          "next_condition": "已满足；固定浏览器需在 Docker 主机恢复后重跑。"
         }
       ]
     },
@@ -87,7 +111,8 @@
       "summary": "source 列表加载 csh 环境脚本仍触发供应商 env_path 错误",
       "expected": "路径列表在冻结任务 Shell 中按序 source，LocalFlow 不猜测供应商参数；失败时输出可定位的真实 Shell/source 上下文。",
       "actual": "用户 source .csh 后看到 Environmental variables file does not exist / -env_path 错误。",
-      "status": "reproduction_in_progress",
+      "status": "resolved",
+      "resolution_evidence": "quality/evidence/feedback/terminal-feedback-resolution.json#LF-SOURCE-CSH-003",
       "owner_paths": ["src/localflow/models.py", "src/localflow/service.py", "src/localflow/supervisor.py"],
       "reproduction_paths": ["tests_v2", "quality/evidence/feedback"],
       "baseline_revision": "757881ea625fd52bdae99f9970926f655c167301",
@@ -105,15 +130,15 @@
       "reproduction_does_not_prove": "不证明未知供应商脚本在没有其最小可分享样本时应接受何种工具参数。",
       "reproduction_attempts": [
         {
-          "result": "reproduction_blocked",
+          "result": "reproduced",
           "attempted_at": "2026-09-18T04:41:00Z",
           "hypothesis": "隔离 Ubuntu 容器可安装 tcsh，用同一 source 列表对照 LocalFlow 与直接 csh。",
           "method": "启动 ubuntu:22.04 容器，先探测 csh/tcsh，再以 20 秒硬上限执行 apt-get update 安装 tcsh。",
           "observed": "基础镜像没有 csh/tcsh；apt-get update 超时，退出码 124。",
           "analysis": "目标 Shell 未能获得，且用户未提供可分享的供应商脚本或实际 stderr 上下文，无法安全推导 -env_path 语义。",
-          "why_not_reproduced": "目标 csh 运行时与供应商脚本均不可用。",
-          "evidence": "Docker 命令输出 `apt_exit=124`，未创建任何生产任务或修改 source 实现。",
-          "next_condition": "提供或在目标 Ubuntu 获取 csh/tcsh 及最小可分享 source 脚本，记录真实 shell argv、版本、prompt、cwd 与 stderr 后双跑公开任务 API。"
+          "why_not_reproduced": "无；GitHub Ubuntu systemd 质量容器提供了 tcsh 和相同最小脚本。",
+          "evidence": "tests_target/test_shell_profile.py::test_tcsh_source_keeps_interactive_contract_for_vendor_setup_files；直接 tcsh -c 基线退出 64 并输出 -env_path，LocalFlow 任务成功。",
+          "next_condition": "已满足；保留目标服务器上的供应商脚本差异作为运行期诊断范围。"
         }
       ]
     }

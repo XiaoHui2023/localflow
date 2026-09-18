@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "commit": "fe8a740dd29a942d63460d76061de3bdd048c61e",
+  "acceptance": {
+    "command": "python -m pytest -q tests_v2/test_tasks.py tests_v2/test_quality.py tests_target/test_shell_profile.py",
+    "result": "passed",
+    "scope": "source contract, direct tcsh failure baseline, LocalFlow tcsh source success"
+  },
+  "browser": {
+    "command": "python tools/run_browser_quality.py",
+    "current_edge_chromium_firefox": "passed",
+    "legacy_browsers": "external Docker host unavailable",
+    "scope": "live and retained terminal cross-line selection/copy plus opaque search surface"
+  },
+  "issues": {
+    "LF-TERM-SEL-001": {
+      "natural_report": "用户在终端长按鼠标左键拖动后无法选中并复制文本",
+      "acceptance": "real Playwright pointer drag crosses first/middle/last xterm rows; context-menu copy contains both endpoints in live and retained history",
+      "owner_fix": ["frontend/src/App.jsx"],
+      "evidence": "frontend/e2e/localflow.spec.js terminal preserves a native cross-line selection in live and retained output"
+    },
+    "LF-TERM-SEARCH-002": {
+      "natural_report": "用户观察到终端查找背景透明，结果难以阅读",
+      "acceptance": "computed terminal-find and result output backgrounds are opaque in the Edge terminal journey",
+      "owner_fix": ["frontend/src/round6.css"],
+      "evidence": "frontend/e2e/localflow.spec.js terminal archive search readability assertion"
+    },
+    "LF-SOURCE-CSH-003": {
+      "natural_report": "用户 source .csh 后得到 Environmental variables file does not exist / -env_path",
+      "baseline": "direct tcsh -c source vendor-setup.csh exits 64 and emits -env_path",
+      "acceptance": "LocalFlow tcsh -ic source preserves prompt contract, completes the same fixture and runs the user command",
+      "owner_fix": ["src/localflow/models.py"],
+      "evidence": "tests_target/test_shell_profile.py::test_tcsh_source_keeps_interactive_contract_for_vendor_setup_files"
+    }
+  }
+}
