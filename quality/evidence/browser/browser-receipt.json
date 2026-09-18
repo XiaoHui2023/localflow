@@ -1,8 +1,8 @@
 {
-  "completed_at": "2026-09-17T15:53:01.693Z",
+  "completed_at": "2026-09-18T04:13:04.566Z",
   "browser": "Microsoft Edge",
   "browser_version": "153.0.4234.32",
-  "base_url": "http://192.168.1.118:34790",
+  "base_url": "http://192.168.1.118:45218",
   "result": "passed",
   "source_files": {
     "frontend/index.html": "a6a84d305fed5896d32ad37d64a7b0260ddf6176c01aa9461cb13217f99e1e64",
@@ -38,18 +38,18 @@
     "tests_target/test_browser_shutdown.py": "5bb0199b9d3065fbe1c828d6592bdef0a5904ab6c20719285bba92ee10289a9a"
   },
   "screenshots": {
-    "admin-common-configurations-light.png": "3457fda620ea1b9f73b3f96b972572b0250f3e62514b1cf2543640a5fe0dd465",
-    "admin-config-explorer-dark.png": "89fce0eea12b630549c77b1a011de6b37e75889d4444c6be4217a56723629774",
+    "admin-common-configurations-light.png": "3d3488b50ca6113956ee2dbff475c0c14052d02f709276106c441508cee5656d",
+    "admin-config-explorer-dark.png": "442b004083e0039053e6e51e878e3f8fe4dfdf84738445ee78995799542faaef",
     "admin-empty-light.png": "5ffe7583b9cfcd4c9f999b3ca59cde670114e763263428182fc2546b3790da06",
-    "admin-mobile-390.png": "8a0de33e9dd1996aacfcd2c4c6eb52a13e6d3f50fa49f3908a6be9f2d1f59f8e",
+    "admin-mobile-390.png": "57fe80a9fd5f05a54bdcaec747e077b7ff12e679d2f3845928fda4cc1cb68421",
     "admin-run-command-compact-light.png": "8160811b2ed5cbc688929c8b388e247ee4a4cf2666e744370dbf1b2f392eceed",
-    "admin-run-verification-dark.png": "ff157ea12b82e6f86129385f337abed3023f63631229f527a51bfb4dd0d0aeeb",
-    "admin-run-verification-empty-dark.png": "1e12e6578d5a47d6a9eebc3d095d11f676015919bb539120479f78d1b2b50788",
-    "admin-run-verification-scope-dark.png": "c215ca8e96f2d5f775e9c0f9c725506c17f931e9c4805a30979a1423090949bd",
-    "admin-settings-compact-light.png": "8c793951375a9315023b01381fdaf345e0f1af73955638c99c86fdf4e983eda0",
-    "admin-shutdown-confirmation.png": "4342dd99f0d9c9a8ed700b707bf3853cd711596aef43a752053e09be3e288bec",
-    "admin-task-inline-dark.png": "e10ffa6c9c4ec1de88155e455531e4a7eb418457410dfb48e4672c1dcb8cd8a7",
-    "admin-terminal-dark.png": "9cbd49771fb121e2da414c25632668a69aa6a652cd3d12a06a677c6d6e1798a5",
+    "admin-run-verification-dark.png": "03e599ff3764ef6d2d401b1e06138f689cab2422292517564415ec18233c26dd",
+    "admin-run-verification-empty-dark.png": "a1e955ce8071617b014befde31a8f600fa9082aafa90ac0eab25561464292dff",
+    "admin-run-verification-scope-dark.png": "5d9685d5f23476be5a10f6ab293869e1e9ecc2e933b3fde90f692b09976803a4",
+    "admin-settings-compact-light.png": "86941a5414d0f52d0c50e9c9d0fef16c11ef3d1138ad75d2301efa48f60da8c4",
+    "admin-shutdown-confirmation.png": "e38b1a01e69035357576018c05a7e214b818fee29d0fa244c134dce02443758b",
+    "admin-task-inline-dark.png": "83ae82f13bdb56d67081c062c9b9426eafc62fcdc4a5a36243cdea0403e0b30b",
+    "admin-terminal-dark.png": "600a8f74509f81daf93b4e2f767f49f27e67956f54582f078bdbe74cd9a2c054",
     "anonymous-settings-login-light.png": "2590243d938aaaca9780df1edf2e7be8bb394ce38957fee016193d8bb9eb2e56",
     "anonymous-settings-login-mobile.png": "5579b9bbc1acadbdd172e0ea531ded7d8d1832c9cb690fce6791b0efb1a49e6b"
   },
@@ -81,11 +81,11 @@
   "resource_metrics": {
     "task_process_count": 0,
     "service_process_count": 2,
-    "idle_window_seconds": 6.008,
-    "server_rss_mib": 61.527,
-    "server_cpu_one_core_percent": 0.511,
-    "renderer_js_heap_mib": 8.572,
-    "renderer_idle_cpu_one_core_percent": 0.791,
+    "idle_window_seconds": 6.009,
+    "server_rss_mib": 59.691,
+    "server_cpu_one_core_percent": 1.022,
+    "renderer_js_heap_mib": 8.508,
+    "renderer_idle_cpu_one_core_percent": 0.747,
     "dom_nodes": 1876,
     "dom_documents": 4,
     "dom_event_listeners": 459,
@@ -193,6 +193,6 @@
     "task-source-path-list"
   ],
   "interaction_metrics": {
-    "terminal_to_tasks_next_paint_ms": 29.2
+    "terminal_to_tasks_next_paint_ms": 19.1
   }
 }
