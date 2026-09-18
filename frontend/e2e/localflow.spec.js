@@ -2258,3 +2258,124 @@ test("terminal opens a large archive at its newest continuous window", async ({
   await browserApi(page, `/tasks/${task.task_id}/interrupt`, { method: "POST" });
   await waitForState(page, task.task_id, ["cancelled"]);
 });
+
+test("terminal preserves a native cross-line selection in live and retained output", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (text) => {
+          window.__localflowCopiedText = text;
+        },
+      },
+    });
+  });
+  await openAdminTaskWorkspace(page);
+  const task = await browserApi(page, "/tasks", {
+    method: "POST",
+    body: {
+      name: "qa-terminal-cross-line-selection",
+      working_directory: qaRoot,
+      command: [
+        qaPython,
+        "-u",
+        "-c",
+        [
+          "import time",
+          "print('qa-selection-first', flush=True)",
+          "print('qa-selection-middle', flush=True)",
+          "print('qa-selection-last', flush=True)",
+          "time.sleep(120)",
+        ].join("; "),
+      ],
+    },
+  });
+  await waitForState(page, task.task_id, ["running"]);
+  await page.getByRole("tab", { name: "终端" }).click();
+  const terminalRows = page.locator(".terminal-page .xterm-rows");
+  await expect(terminalRows).toContainText("qa-selection-last");
+  const rows = terminalRows.locator(":scope > div");
+  const first = rows.filter({ hasText: "qa-selection-first" }).last();
+  const last = rows.filter({ hasText: "qa-selection-last" }).last();
+  const [firstBox, lastBox] = await Promise.all([
+    first.boundingBox(),
+    last.boundingBox(),
+  ]);
+  expect(firstBox).not.toBeNull();
+  expect(lastBox).not.toBeNull();
+  await page.mouse.move(firstBox.x + 3, firstBox.y + firstBox.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(250);
+  await page.mouse.move(lastBox.x + 150, lastBox.y + lastBox.height / 2, {
+    steps: 12,
+  });
+  await page.waitForTimeout(120);
+  await page.mouse.up();
+  await page.mouse.click(lastBox.x + 100, lastBox.y + lastBox.height / 2, {
+    button: "right",
+  });
+  const copy = page.getByRole("menuitem", { name: /复制/ });
+  await expect(copy).toBeEnabled();
+  await copy.click();
+  await expect
+    .poll(() => page.evaluate(() => window.__localflowCopiedText || ""))
+    .toContain("qa-selection-first");
+  await expect
+    .poll(() => page.evaluate(() => window.__localflowCopiedText || ""))
+    .toContain("qa-selection-last");
+  await browserApi(page, `/tasks/${task.task_id}/interrupt`, { method: "POST" });
+  await waitForState(page, task.task_id, ["cancelled"]);
+  await page.reload();
+  await page.getByRole("tab", { name: "终端" }).click();
+  await page
+    .locator(".terminal-entry")
+    .filter({ hasText: "qa-terminal-cross-line-selection" })
+    .click();
+  await expect(page.locator(".terminal-page .xterm-rows")).toContainText(
+    "qa-selection-last",
+  );
+  const retainedFirst = page
+    .locator(".terminal-page .xterm-rows > div")
+    .filter({ hasText: "qa-selection-first" })
+    .last();
+  const retainedLast = page
+    .locator(".terminal-page .xterm-rows > div")
+    .filter({ hasText: "qa-selection-last" })
+    .last();
+  const [retainedFirstBox, retainedLastBox] = await Promise.all([
+    retainedFirst.boundingBox(),
+    retainedLast.boundingBox(),
+  ]);
+  await page.mouse.move(
+    retainedFirstBox.x + 3,
+    retainedFirstBox.y + retainedFirstBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.waitForTimeout(250);
+  await page.mouse.move(
+    retainedLastBox.x + 150,
+    retainedLastBox.y + retainedLastBox.height / 2,
+    { steps: 12 },
+  );
+  await page.mouse.up();
+  await page.mouse.click(
+    retainedLastBox.x + 100,
+    retainedLastBox.y + retainedLastBox.height / 2,
+    { button: "right" },
+  );
+  const retainedCopy = page.getByRole("menuitem", { name: /复制/ });
+  await expect(retainedCopy).toBeEnabled();
+  await page.evaluate(() => {
+    window.__localflowCopiedText = "";
+  });
+  await retainedCopy.click();
+  await expect
+    .poll(() => page.evaluate(() => window.__localflowCopiedText || ""))
+    .toContain("qa-selection-first");
+  await expect
+    .poll(() => page.evaluate(() => window.__localflowCopiedText || ""))
+    .toContain("qa-selection-last");
+});

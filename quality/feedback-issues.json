@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "issues": [
+    {
+      "id": "LF-TERM-SEL-001",
+      "summary": "终端左键拖动不能建立可复制的原生选区",
+      "expected": "实时和历史终端都可用真实鼠标拖动跨行建立 xterm 选区，并从同一选区复制。",
+      "actual": "用户报告长按左键并拖动后仍不能选中或复制。",
+      "status": "reproduction_in_progress",
+      "owner_paths": ["frontend/src/App.jsx", "frontend/src/round6.css"],
+      "reproduction_paths": ["frontend/e2e", "quality/evidence/feedback"],
+      "baseline_revision": "757881ea625fd52bdae99f9970926f655c167301",
+      "entrypoint": {
+        "kind": "ui",
+        "command": ["node", "tools/feedback-reproduction.mjs", "terminal-selection"],
+        "artifacts": ["quality/evidence/feedback/terminal-selection.json"]
+      },
+      "oracle": {
+        "command": ["node", "tools/feedback-reproduction.mjs", "terminal-selection", "--oracle"],
+        "read_only": true,
+        "reported_symptom_direct": true
+      },
+      "reproduction_proves": "该用户可访问页面在真实拖动后没有建立可复制的 xterm 选区。",
+      "reproduction_does_not_prove": "不证明操作系统、浏览器扩展或远程桌面输入层的独立鼠标问题。",
+      "reproduction_attempts": [
+        {
+          "result": "not_reproduced",
+          "attempted_at": "2026-09-18T04:39:00Z",
+          "hypothesis": "现有同一行鼠标拖动路径会自然暴露 ContextMenu/xterm 对选区的截获。",
+          "method": "在隔离 LocalFlow 服务运行 Edge 真实任务页质量回放，空选区起步执行 pointer down、停留、分步横向拖动、释放、右键复制。",
+          "observed": "现有单行路径建立选区，右键复制项启用且复制文本包含任务输出。",
+          "analysis": "该回放未覆盖用户所述跨行拖动、实际部署浏览器或输入层，不能推翻用户反馈。",
+          "why_not_reproduced": "仅同一行拖选通过，缺少跨行和保留历史的直接失败 witness。",
+          "evidence": "质量回放 `.last-run.json` 为 passed；现有用例位于 frontend/e2e/localflow.spec.js。",
+          "next_condition": "新增从空选区跨多个 xterm 行、实时与历史各两次的独立公开 UI 回放，并记录实际 xterm selection。"
+        },
+        {
+          "result": "not_reproduced",
+          "attempted_at": "2026-09-18T09:50:00Z",
+          "hypothesis": "新增跨行回放可直接触达原生拖选。",
+          "method": "隔离服务运行新增公开 UI Playwright 回放。",
+          "observed": "复现器在 xterm 多节点严格模式等待中失败，未发生鼠标按下。",
+          "analysis": "这是 Oracle 到达性缺陷，不是用户所述选择行为；修复等待对象后必须重新双跑。",
+          "why_not_reproduced": "失败发生在输入动作之前，未产生有效用户路径 witness。",
+          "evidence": "quality/evidence/browser/test-results 中保留 trace.zip 与 error-context.md。",
+          "next_condition": "以 xterm 行容器为单一 locator 等待输出，再执行完整跨行拖选和复制。"
+        }
+      ]
+    },
+    {
+      "id": "LF-TERM-SEARCH-002",
+      "summary": "终端查找浮层背景透明导致文本不可读",
+      "expected": "查找与完整日志结果在所有受支持主题和浏览器中均有不透明、高对比背景。",
+      "actual": "用户观察到查找背景透明，看不清内容。",
+      "status": "reproduction_in_progress",
+      "owner_paths": ["frontend/src/extra.css", "frontend/src/App.jsx"],
+      "reproduction_paths": ["frontend/e2e", "quality/evidence/feedback"],
+      "baseline_revision": "757881ea625fd52bdae99f9970926f655c167301",
+      "entrypoint": {
+        "kind": "ui",
+        "command": ["node", "tools/feedback-reproduction.mjs", "terminal-search-background"],
+        "artifacts": ["quality/evidence/feedback/terminal-search-background.json"]
+      },
+      "oracle": {
+        "command": ["node", "tools/feedback-reproduction.mjs", "terminal-search-background", "--oracle"],
+        "read_only": true,
+        "reported_symptom_direct": true
+      },
+      "reproduction_proves": "公开终端页面的查找元素透明或不满足文本可读性。",
+      "reproduction_does_not_prove": "不证明浏览器外部高对比度注入或截图工具的覆盖层问题。",
+      "reproduction_attempts": [
+        {
+          "result": "not_reproduced",
+          "attempted_at": "2026-09-18T04:39:00Z",
+          "hypothesis": "当前查找栏在质量服务的主题路径下会暴露透明计算背景。",
+          "method": "在隔离 LocalFlow 服务运行 Edge 终端查找并读取 terminal-find 的计算 backgroundColor。",
+          "observed": "当前 Edge 路径返回非透明背景，现有浏览器质量回放通过。",
+          "analysis": "该检查没有覆盖深色和旧浏览器下输入、结果面板及像素对比度。",
+          "why_not_reproduced": "现有单节点计算样式检查通过，不能覆盖用户实际主题/浏览器路径。",
+          "evidence": "质量回放 `.last-run.json` 为 passed；现有断言位于 frontend/e2e/localflow.spec.js。",
+          "next_condition": "新增浅色、深色、兼容浏览器的查找栏、输入和结果面板背景 alpha/对比度 Oracle。"
+        }
+      ]
+    },
+    {
+      "id": "LF-SOURCE-CSH-003",
+      "summary": "source 列表加载 csh 环境脚本仍触发供应商 env_path 错误",
+      "expected": "路径列表在冻结任务 Shell 中按序 source，LocalFlow 不猜测供应商参数；失败时输出可定位的真实 Shell/source 上下文。",
+      "actual": "用户 source .csh 后看到 Environmental variables file does not exist / -env_path 错误。",
+      "status": "reproduction_in_progress",
+      "owner_paths": ["src/localflow/models.py", "src/localflow/service.py", "src/localflow/supervisor.py"],
+      "reproduction_paths": ["tests_v2", "quality/evidence/feedback"],
+      "baseline_revision": "757881ea625fd52bdae99f9970926f655c167301",
+      "entrypoint": {
+        "kind": "public_api",
+        "command": ["python", "tools/feedback-source-reproduction.py"],
+        "artifacts": ["quality/evidence/feedback/source-csh.json"]
+      },
+      "oracle": {
+        "command": ["python", "tools/feedback-source-reproduction.py", "--oracle"],
+        "read_only": true,
+        "reported_symptom_direct": true
+      },
+      "reproduction_proves": "在同一 csh/source 输入下，LocalFlow 的公共任务路径相对直接 Shell 基线改变了 source 结果或缺失诊断。",
+      "reproduction_does_not_prove": "不证明未知供应商脚本在没有其最小可分享样本时应接受何种工具参数。",
+      "reproduction_attempts": [
+        {
+          "result": "reproduction_blocked",
+          "attempted_at": "2026-09-18T04:41:00Z",
+          "hypothesis": "隔离 Ubuntu 容器可安装 tcsh，用同一 source 列表对照 LocalFlow 与直接 csh。",
+          "method": "启动 ubuntu:22.04 容器，先探测 csh/tcsh，再以 20 秒硬上限执行 apt-get update 安装 tcsh。",
+          "observed": "基础镜像没有 csh/tcsh；apt-get update 超时，退出码 124。",
+          "analysis": "目标 Shell 未能获得，且用户未提供可分享的供应商脚本或实际 stderr 上下文，无法安全推导 -env_path 语义。",
+          "why_not_reproduced": "目标 csh 运行时与供应商脚本均不可用。",
+          "evidence": "Docker 命令输出 `apt_exit=124`，未创建任何生产任务或修改 source 实现。",
+          "next_condition": "提供或在目标 Ubuntu 获取 csh/tcsh 及最小可分享 source 脚本，记录真实 shell argv、版本、prompt、cwd 与 stderr 后双跑公开任务 API。"
+        }
+      ]
+    }
+  ]
+}

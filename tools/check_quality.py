@@ -4,6 +4,7 @@ import gzip
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -124,12 +125,26 @@ def _source_sha256(path: Path) -> str:
 
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
+    arguments = [argument for argument in sys.argv[1:] if argument != "--release"]
+    if "--release" in sys.argv[1:]:
+        feedback_gate = subprocess.run(
+            [sys.executable, str(root / "tools" / "check_feedback_gate.py")],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+        if feedback_gate.returncode:
+            print(feedback_gate.stdout, end="")
+            print(feedback_gate.stderr, end="", file=sys.stderr)
+            return feedback_gate.returncode
     trace_path = (
-        Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root / "quality" / "traceability.json"
+        Path(arguments[0]).resolve() if arguments else root / "quality" / "traceability.json"
     )
     receipt_path = (
-        Path(sys.argv[2]).resolve()
-        if len(sys.argv) > 2
+        Path(arguments[1]).resolve()
+        if len(arguments) > 1
         else root / "quality" / "evidence" / "browser" / "browser-receipt.json"
     )
     trace = json.loads(trace_path.read_text(encoding="utf-8"))

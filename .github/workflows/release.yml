@@ -36,7 +36,7 @@ jobs:
           python3 -m pip install '.[dev]'
           ruff check src/localflow tests_v2 tests_target tools/check_quality.py tools/run_browser_quality.py tools/run_linux_browser_quality.py tools/run_frozen_smoke.py
           pytest
-          python tools/check_quality.py
+          python tools/check_quality.py --release
           npm --prefix frontend audit
       - name: Run Ubuntu systemd, PTY and cgroup quality gates
         run: |

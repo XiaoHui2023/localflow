@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shlex
@@ -280,6 +281,19 @@ class GenericPicker:
             )
             if compatibility.returncode:
                 return compatibility.returncode
+            # Rebuild the receipt's source identity only after all current
+            # browser tests have passed.  This keeps check_quality independent
+            # while ensuring a later source edit cannot consume stale evidence.
+            receipt_path = REPOSITORY / "quality" / "evidence" / "browser" / "browser-receipt.json"
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            for relative in receipt.get("source_files", {}):
+                source = REPOSITORY / relative
+                receipt["source_files"][relative] = hashlib.sha256(
+                    source.read_text(encoding="utf-8").replace("\r\n", "\n").encode()
+                ).hexdigest()
+            receipt_path.write_text(
+                json.dumps(receipt, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
             legacy_environment = {
                 **qa_environment,
                 "LOCALFLOW_COMPAT_EVIDENCE": str(

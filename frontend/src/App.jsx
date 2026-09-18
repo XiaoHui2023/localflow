@@ -617,8 +617,13 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
             ref={host}
             onContextMenuCapture={() => {
               const selection = terminal.current?.getSelection() || "";
-              contextSelection.current = selection;
-              setSelectedText(selection);
+              // xterm may clear a multi-line selection while it translates the
+              // right-click event.  Keep the last selection captured by
+              // onSelectionChange instead of replacing it with that transient
+              // empty value; otherwise the menu appears enabled but copies an
+              // empty string.
+              if (selection) contextSelection.current = selection;
+              setSelectedText(selection || contextSelection.current);
             }}
           />
         </ContextMenu.Trigger>
