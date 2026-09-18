@@ -225,6 +225,17 @@ async def test_tcsh_source_keeps_interactive_contract_for_vendor_setup_files(
         "setenv LOCALFLOW_VENDOR_READY yes\n",
         encoding="utf-8",
     )
+    direct = await asyncio.create_subprocess_exec(
+        "/bin/tcsh",
+        "-c",
+        "source vendor-setup.csh",
+        cwd=project,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+    )
+    direct_output, _ = await direct.communicate()
+    assert direct.returncode == 64
+    assert b"-env_path" in direct_output
     store = Store(root / "runtime" / "localflow.db")
     service = TaskService(root, store, SubprocessExecutor(), max_concurrency=1)
     task = service.submit(
