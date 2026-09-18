@@ -31,7 +31,7 @@ export const api = {
   terminalInput: (id, data, encoding = "utf-8") => request(`/tasks/${id}/terminal/input`, { method: "POST", body: JSON.stringify({ data, encoding }) }),
   terminalControl: (id, key) => request(`/tasks/${id}/terminal/controls`, { method: "POST", body: JSON.stringify({ key }) }),
   terminalResize: (id, rows, cols) => request(`/tasks/${id}/terminal/resize`, { method: "POST", body: JSON.stringify({ rows, cols }) }),
-  searchLog: (id, query, options) => request(`/tasks/${id}/logs/search?${new URLSearchParams({ query, case_sensitive: String(options.caseSensitive), whole_word: String(options.wholeWord), regex: String(options.regex) })}`),
+  searchLog: (id, query) => request(`/tasks/${id}/logs/search?${new URLSearchParams({ query })}`),
   adjustTime: (reference_time) => request("/system/time-adjustments", { method: "POST", body: JSON.stringify({ reference_time }) }),
   shutdown: () => request("/system/shutdown", { method: "POST" }),
   openapi: () => request("/openapi"),

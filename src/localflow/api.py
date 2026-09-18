@@ -649,9 +649,6 @@ def create_app(
         task_id: str,
         request: Request,
         query: str = Query(min_length=1, max_length=512),
-        case_sensitive: bool = False,
-        whole_word: bool = False,
-        regex: bool = False,
     ):
         role = await can_read(request)
         if role == "summary":
@@ -662,14 +659,9 @@ def create_app(
                     tasks.search_log,
                     task_id,
                     query,
-                    case_sensitive=case_sensitive,
-                    whole_word=whole_word,
-                    regex=regex,
                 ),
                 timeout=15,
             )
-        except re.error as error:
-            raise HTTPException(422, f"invalid regular expression: {error}") from None
         except TimeoutError:
             raise HTTPException(504, "log search timed out") from None
         except KeyError:

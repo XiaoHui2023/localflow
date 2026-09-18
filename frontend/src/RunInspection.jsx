@@ -54,14 +54,13 @@ export function InspectionItems({ items, error }) {
             <span className="inspection-status-slot">
               {unavailable && (
                 <Hint label={item.message || "不可用"}>
-                  <span
+                  <button
+                    type="button"
                     className="inspection-state"
-                    role="img"
-                    tabIndex={0}
                     aria-label="路径不存在"
                   >
                     <CircleX />
-                  </span>
+                  </button>
                 </Hint>
               )}
             </span>

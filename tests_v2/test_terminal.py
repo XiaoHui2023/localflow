@@ -207,10 +207,16 @@ def test_terminal_http_api_controls_and_fresh_offset_log(root: Path) -> None:
         assert b"ready" in base64.b64decode(history["data"])
         searched = client.get(
             f"/api/v1/tasks/{task_id}/logs/search",
-            params={"query": "CONTROL-3", "case_sensitive": "false"},
+            params={"query": "CONTROL-3"},
         )
         assert searched.status_code == 200
         assert any("control-3" in item["preview"] for item in searched.json()["items"])
+        literal = client.get(
+            f"/api/v1/tasks/{task_id}/logs/search",
+            params={"query": "CONTROL-[3]"},
+        )
+        assert literal.status_code == 200
+        assert literal.json()["items"] == []
         with client.websocket_connect(
             f"ws://127.0.0.1/api/v1/tasks/{task_id}/terminal?offset=0&end={history['next_offset']}",
             headers={"Origin": "http://127.0.0.1"},

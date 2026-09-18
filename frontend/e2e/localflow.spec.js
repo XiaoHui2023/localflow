@@ -1183,7 +1183,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   ).toBeTruthy();
   await page.getByLabel("终端搜索").fill("qa-terminal-ready");
   await expect(page.locator(".terminal-find output")).toContainText(/\d+\/\d+/);
-  await page.getByRole("button", { name: "检索全部日志" }).click();
+  await page.getByRole("button", { name: "完整查找" }).click();
   await expect(page.locator(".terminal-search-results")).toContainText("qa-terminal-ready");
   const archiveResultPanel = page.locator(".terminal-search-results");
   expect(await archiveResultPanel.evaluate((node) => node.getBoundingClientRect().height)).toBeGreaterThanOrEqual(98);
@@ -1191,11 +1191,9 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(archiveResultPanel).toHaveCount(0);
   await page.keyboard.press("Control+f");
   await expect(page.getByLabel("终端搜索")).toBeFocused();
-  await page.getByRole("button", { name: "区分大小写" }).click();
-  await expect(page.getByRole("button", { name: "区分大小写" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(page.getByRole("button", { name: "区分大小写" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "全词匹配" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "使用正则表达式" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "上一个匹配" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "下一个匹配" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "跳到终端开头" })).toBeVisible();
@@ -2168,7 +2166,7 @@ test("a sourced task shows every frozen source path in task details", async ({ p
   fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
 });
 
-test("terminal first opens a large archive at its newest bounded window", async ({
+test("terminal opens a large archive at its newest continuous window", async ({
   page,
 }) => {
   test.setTimeout(120_000);
@@ -2191,9 +2189,9 @@ test("terminal first opens a large archive at its newest bounded window", async 
           "sys.stdout.flush()",
           // Keep the task interactive for the complete archive-navigation
           // assertion.  A 30-second fixture can reach its natural terminal
-          // state on a busy browser host before the explicit return-to-latest
-          // control is checked, turning a valid lifecycle rule into a flaky
-          // UI failure.  The test always interrupts it below.
+          // state on a busy browser host before continuous edge hydration is
+          // checked, turning a valid lifecycle rule into a flaky UI failure.
+          // The test always interrupts it below.
           "time.sleep(120)",
         ].join("; "),
       ],
@@ -2226,15 +2224,28 @@ test("terminal first opens a large archive at its newest bounded window", async 
   await expect(page.locator(".terminal-page .xterm-rows")).toContainText(
     "qa-terminal-tail-first-marker",
   );
+  await page.locator(".terminal-page .xterm-viewport").evaluate((node) => {
+    node.scrollTop = 0;
+    node.dispatchEvent(new Event("scroll", { bubbles: true }));
+  });
+  await expect.poll(() => tailStreamOffsets.length).toBeGreaterThan(1);
+  expect(tailStreamOffsets[1]).toBeLessThan(tailStreamOffsets[0]);
+  await expect(page.locator(".terminal.hydrated")).toBeVisible();
+  await page.locator(".terminal-page .xterm-viewport").evaluate((node) => {
+    node.scrollTop = node.scrollHeight;
+    node.dispatchEvent(new Event("scroll", { bubbles: true }));
+  });
+  await expect.poll(() => tailStreamOffsets.length).toBeGreaterThan(2);
+  expect(tailStreamOffsets[2]).toBeGreaterThan(tailStreamOffsets[1]);
+  await expect(page.locator(".terminal-range")).toHaveCount(0);
   await page.locator(".terminal-page .xterm").click();
   await page.keyboard.press("Control+f");
   await page.getByLabel("终端搜索").fill("qa-terminal-search-archive-marker");
-  await page.getByRole("button", { name: "检索全部日志" }).click();
+  await page.getByRole("button", { name: "完整查找" }).click();
   const archivePanel = page.locator(".terminal-search-results");
   await expect(archivePanel).toContainText("qa-terminal-search-archive-marker");
   await archivePanel.locator("ol button").first().click();
   await expect(archivePanel).toHaveCount(0);
-  await expect(page.locator(".terminal-range span")).toContainText(/^0–/);
   await expect(page.locator(".terminal-page .xterm-rows")).toContainText(
     "qa-terminal-search-archive-marker",
   );
@@ -2243,7 +2254,7 @@ test("terminal first opens a large archive at its newest bounded window", async 
       page.locator(".terminal-page .xterm-viewport").evaluate((node) => node.scrollTop),
     )
     .toBeLessThanOrEqual(1);
-  await expect(page.getByRole("button", { name: "最新输出" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "最新输出" })).toHaveCount(0);
   await browserApi(page, `/tasks/${task.task_id}/interrupt`, { method: "POST" });
   await waitForState(page, task.task_id, ["cancelled"]);
 });

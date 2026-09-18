@@ -69,16 +69,19 @@ export async function assertTooltipInteraction(page, trigger, expectedText) {
 
   await page.keyboard.press("Escape");
   await expect(surface).toHaveCount(0);
+  // Move the virtual pointer off the trigger before checking keyboard focus.
+  // Keeping Playwright's pointer parked on a Radix trigger after Escape leaves
+  // the hover and focus state coupled, which makes this accessibility oracle
+  // nondeterministic under a busy renderer.
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(350);
   surface = page.getByRole("tooltip").filter({ hasText: expectedText });
   let describedBy;
   await expect(async () => {
     await page.keyboard.press("Escape");
     await expect(surface).toHaveCount(0);
     await expect(trigger).toBeVisible();
-    await trigger.evaluate((node) => {
-      if (document.activeElement === node) node.blur();
-      node.focus({ preventScroll: true });
-    });
+    await trigger.focus();
     await expect(surface).toBeVisible();
     describedBy = await trigger.getAttribute("aria-describedby");
     expect(describedBy).toBeTruthy();

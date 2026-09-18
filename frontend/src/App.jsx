@@ -11,7 +11,6 @@ import {
   Activity,
   ArrowDownToLine,
   ArrowUpToLine,
-  CaseSensitive,
   Check,
   ChevronDown,
   ChevronRight,
@@ -38,7 +37,6 @@ import {
   Play,
   Power,
   Plus,
-  Regex,
   Scissors,
   Search,
   Send,
@@ -48,7 +46,6 @@ import {
   TerminalSquare,
   Trash2,
   TriangleAlert,
-  WholeWord,
   X,
 } from "lucide-react";
 import { api } from "./api";
@@ -94,31 +91,20 @@ const taskTone = (task) =>
     : ["failed", "lost"].includes(task.state)
       ? "danger"
       : "neutral");
-const escapeRegularExpression = (value) =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-function countTerminalMatches(term, query, options) {
-  if (!term || !query) return { count: 0, invalid: false };
-  try {
-    const source = options.regex ? query : escapeRegularExpression(query);
-    const expression = new RegExp(source, `g${options.caseSensitive ? "" : "i"}`);
-    let count = 0;
-    for (let index = 0; index < term.buffer.active.length; index += 1) {
-      const line = term.buffer.active.getLine(index)?.translateToString() || "";
-      for (const match of line.matchAll(expression)) {
-        if (
-          !options.wholeWord ||
-          ((!match.index || /\W/.test(line[match.index - 1])) &&
-            (match.index + match[0].length === line.length ||
-              /\W/.test(line[match.index + match[0].length])))
-        )
-          count += 1;
-        if (!match[0]) expression.lastIndex += 1;
-      }
+function countTerminalMatches(term, query) {
+  if (!term || !query) return 0;
+  const needle = query.toLocaleLowerCase();
+  let count = 0;
+  for (let index = 0; index < term.buffer.active.length; index += 1) {
+    const line = (term.buffer.active.getLine(index)?.translateToString() || "")
+      .toLocaleLowerCase();
+    let position = 0;
+    while ((position = line.indexOf(needle, position)) !== -1) {
+      count += 1;
+      position += needle.length;
     }
-    return { count, invalid: false };
-  } catch {
-    return { count: 0, invalid: true };
   }
+  return count;
 }
 const QUEUE_FOLD_THRESHOLD = 20;
 const tagKey = (task) => [...(task.labels || [])].sort().join("\u001f");
@@ -172,6 +158,7 @@ function useUiRevision(paused = false) {
 
 function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
   const windowBytes = 4 * 1024 * 1024;
+  const overlapBytes = 128 * 1024;
   // A raw-byte window can contain far more than xterm's bounded number of
   // visual rows when lines wrap.  Keep a search hit in a deliberately smaller
   // neighbourhood so the matching line survives terminal scrollback.
@@ -186,15 +173,9 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
   const [selectedText, setSelectedText] = useState("");
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
-  const [searchOptions, setSearchOptions] = useState({
-    caseSensitive: false,
-    wholeWord: false,
-    regex: false,
-  });
   const [searchResult, setSearchResult] = useState({
     resultIndex: -1,
     resultCount: 0,
-    invalid: false,
   });
   // A terminal is keyed by task id below.  Derive its first window synchronously:
   // an effect that corrects an initial zero offset would already have opened a
@@ -209,6 +190,7 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
   const [archiveSearching, setArchiveSearching] = useState(false);
   const [archiveSearchError, setArchiveSearchError] = useState("");
   const [followingLatest, setFollowingLatest] = useState(true);
+  const [historyDirection, setHistoryDirection] = useState("tail");
   const pendingArchiveHit = useRef();
   const archiveRequest = useRef(0);
   useEffect(() => {
@@ -228,7 +210,7 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
     setArchiveTruncated(false);
     setArchiveSearchError("");
     finder.current?.clearDecorations();
-    setSearchResult({ resultIndex: -1, resultCount: 0, invalid: false });
+    setSearchResult({ resultIndex: -1, resultCount: 0 });
     // A find dialog must return keyboard ownership to its terminal.  Without
     // this, Ctrl+F immediately after Escape/close is handled by the browser
     // instead of reopening the terminal finder.
@@ -240,7 +222,7 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
     setArchiveSearching(true);
     setArchiveSearchError("");
     try {
-      const result = await api.searchLog(task.id, query, searchOptions);
+      const result = await api.searchLog(task.id, query);
       if (request !== archiveRequest.current) return;
       setArchiveResults(result.items);
       setArchiveTruncated(result.truncated);
@@ -253,60 +235,40 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
       if (request === archiveRequest.current) setArchiveSearching(false);
     }
   };
-  const browseRange = (nextStart) => {
-    pendingArchiveHit.current = undefined;
-    setFollowingLatest(false);
-    setRangeBytes(windowBytes);
-    setRangeStart(Math.max(0, nextStart));
-  };
   const openArchiveHit = (item) => {
     pendingArchiveHit.current = {
       query,
-      options: searchOptions,
       offset: item.offset,
     };
     setFollowingLatest(false);
+    setHistoryDirection("hit");
     setRangeBytes(archiveHitWindowBytes);
     setRangeStart(Math.max(0, item.offset - 8192));
     closeSearch();
   };
-  const returnToLatest = () => {
-    pendingArchiveHit.current = undefined;
-    setFollowingLatest(true);
-    setRangeBytes(windowBytes);
-    setRangeStart(tailWindowStart(task.log_size));
-  };
-  const search = (direction = "next", incremental = false, options = searchOptions) => {
+  const search = (direction = "next", incremental = false) => {
     if (!query || !finder.current) return;
-    const summary = countTerminalMatches(terminal.current, query, options);
-    if (summary.invalid) {
-      setSearchResult({ resultIndex: -1, resultCount: 0, invalid: true });
-      return;
-    }
+    const count = countTerminalMatches(terminal.current, query);
     const method = direction === "previous" ? "findPrevious" : "findNext";
     finder.current[method](query, {
-      ...options,
+      caseSensitive: false,
+      wholeWord: false,
+      regex: false,
       incremental,
     });
     setSearchResult((current) => ({
-      resultCount: summary.count,
-      invalid: false,
+      resultCount: count,
       resultIndex:
-        summary.count === 0
+        count === 0
           ? -1
           : incremental
             ? direction === "previous"
-              ? summary.count - 1
+              ? count - 1
               : 0
             : direction === "previous"
-              ? (current.resultIndex - 1 + summary.count) % summary.count
-              : (current.resultIndex + 1) % summary.count,
+              ? (current.resultIndex - 1 + count) % count
+              : (current.resultIndex + 1) % count,
     }));
-  };
-  const toggleSearchOption = (name) => {
-    const next = { ...searchOptions, [name]: !searchOptions[name] };
-    setSearchOptions(next);
-    search("next", false, next);
   };
   useEffect(() => {
     archiveRequest.current += 1;
@@ -316,9 +278,9 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
     if (searching && query) search("next", true);
     else if (!query) {
       finder.current?.clearDecorations();
-      setSearchResult({ resultIndex: -1, resultCount: 0, invalid: false });
+      setSearchResult({ resultIndex: -1, resultCount: 0 });
     }
-  }, [query, searching, searchOptions.caseSensitive, searchOptions.wholeWord, searchOptions.regex]);
+  }, [query, searching]);
   useEffect(() => {
     if (!searching) return undefined;
     const frame = requestAnimationFrame(() => searchInput.current?.focus());
@@ -403,6 +365,42 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
     );
     let caughtUp = false;
     let revealFrame;
+    let edgeReady = false;
+    let edgeLoading = false;
+    const viewport = element.querySelector(".xterm-viewport");
+    const loadAtEdge = () => {
+      if (!edgeReady || edgeLoading) return;
+      const size = Number(task.log_size || 0);
+      const rangeEnd = Math.min(size, rangeStart + rangeBytes);
+      const atTop = (viewport?.scrollTop || 0) <= 1;
+      const atBottom = viewport
+        ? viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 1
+        : false;
+      if (atTop && rangeStart > 0) {
+        edgeLoading = true;
+        setFollowingLatest(false);
+        setHistoryDirection("earlier");
+        setRangeBytes(windowBytes);
+        setRangeStart(Math.max(0, rangeStart - windowBytes + overlapBytes));
+      } else if (atBottom && rangeEnd < size) {
+        edgeLoading = true;
+        const nextStart = Math.min(
+          Math.max(0, size - windowBytes),
+          rangeStart + windowBytes - overlapBytes,
+        );
+        setRangeBytes(windowBytes);
+        if (interactive && nextStart >= tailWindowStart(size)) {
+          setFollowingLatest(true);
+          setHistoryDirection("tail");
+          setRangeStart(tailWindowStart(size));
+        } else {
+          setFollowingLatest(false);
+          setHistoryDirection("later");
+          setRangeStart(nextStart);
+        }
+      }
+    };
+    viewport?.addEventListener("scroll", loadAtEdge, { passive: true });
     onStreamStatus?.({ taskId: task.id, caughtUp: false, updatedAt: null });
     socket.onopen = () => {
       element.dataset.connection = "open";
@@ -436,8 +434,13 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
           term.scrollToTop();
           // The target begins within an 8 KiB context before the server offset;
           // use xterm's mature Search addon to put the matching row in view.
-          search.findNext(archiveHit.query, archiveHit.options);
+          search.findNext(archiveHit.query, {
+            caseSensitive: false,
+            wholeWord: false,
+            regex: false,
+          });
         } else if (followingLatest) term.scrollToBottom();
+        else if (historyDirection === "earlier") term.scrollToBottom();
         else term.scrollToTop();
         cancelAnimationFrame(revealFrame);
         revealFrame = requestAnimationFrame(() => {
@@ -446,6 +449,7 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
           // show an old-output age in the single frame where the terminal is
           // still intentionally hidden during replay.
           setHydrated(true);
+          edgeReady = true;
           onStreamStatus?.({
             taskId: task.id,
             caughtUp: true,
@@ -483,12 +487,12 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
       socket.onclose = null;
       socket.close();
       selectionListener.dispose();
+      viewport?.removeEventListener("scroll", loadAtEdge);
       finder.current = undefined;
       terminal.current = undefined;
       term.dispose();
     };
-  }, [task.id, interactive, theme, rangeStart, rangeBytes, followingLatest, onStreamStatus]);
-  const rangeEnd = Math.min(Number(task.log_size || 0), rangeStart + rangeBytes);
+  }, [task.id, interactive, theme, rangeStart, rangeBytes, followingLatest, historyDirection, onStreamStatus]);
   return (
     <div className="terminal-shell">
       <div className="terminal-tools">
@@ -509,29 +513,11 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
             />
             <output aria-live="polite">
               {query
-                ? searchResult.invalid
-                  ? "表达式有误"
-                  : searchResult.resultCount
+                ? searchResult.resultCount
                   ? `${searchResult.resultIndex + 1}/${searchResult.resultCount}`
                   : "无结果"
                 : ""}
             </output>
-            {[
-              ["caseSensitive", CaseSensitive, "区分大小写"],
-              ["wholeWord", WholeWord, "全词匹配"],
-              ["regex", Regex, "使用正则表达式"],
-            ].map(([name, Icon, label]) => (
-              <Hint label={label} key={name}>
-                <button
-                  className="icon"
-                  aria-label={label}
-                  aria-pressed={searchOptions[name]}
-                  onClick={() => toggleSearchOption(name)}
-                >
-                  <Icon />
-                </button>
-              </Hint>
-            ))}
             <Hint label="上一个匹配">
               <button
                 className="icon"
@@ -564,31 +550,8 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
               disabled={!query || archiveSearching}
               onClick={searchArchive}
             >
-              {archiveSearching ? "检索中" : "检索全部日志"}
+              {archiveSearching ? "查找中" : "完整查找"}
             </button>
-          </div>
-        )}
-        {Number(task.log_size || 0) > windowBytes && (
-          <div
-            className="terminal-range"
-            aria-label={followingLatest ? "最新终端日志窗口" : "终端历史日志窗口"}
-          >
-            <button
-              disabled={rangeStart === 0}
-              onClick={() => browseRange(rangeStart - windowBytes)}
-            >
-              上一段
-            </button>
-            <span>{rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} 字节</span>
-            <button
-              disabled={rangeEnd >= Number(task.log_size || 0)}
-              onClick={() => browseRange(rangeEnd)}
-            >
-              下一段
-            </button>
-            {!followingLatest && interactive && (
-              <button onClick={returnToLatest}>最新输出</button>
-            )}
           </div>
         )}
         <Hint label="跳到终端开头">

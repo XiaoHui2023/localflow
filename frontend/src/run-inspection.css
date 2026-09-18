@@ -47,7 +47,7 @@
 .inspection-empty { color: var(--muted); font-size: 12px; }
 
 .inspection-status-slot { width: 24px; height: 24px; display: grid; place-items: center; }
-.inspection-state { position: relative; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; color: var(--danger); outline: 0; }
+.inspection-state { position: relative; width: 24px; height: 24px; display: grid; place-items: center; border: 0; padding: 0; background: transparent; border-radius: 50%; color: var(--danger); outline: 0; cursor: help; }
 .inspection-state > svg { width: 15px; height: 15px; }
 .inspection-state:focus-visible { box-shadow: 0 0 0 2px var(--accent-soft); }
 .severity-warning .inspection-state { color: var(--danger); }

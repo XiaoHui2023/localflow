@@ -823,19 +823,15 @@ class TaskService:
         task_id: str,
         query: str,
         *,
-        case_sensitive: bool = False,
-        whole_word: bool = False,
-        regex: bool = False,
         max_results: int = 200,
         timeout_seconds: float = 14.0,
     ) -> dict[str, object]:
         self.store.get_task(task_id)
         if not query:
             return {"items": [], "truncated": False}
-        expression = query if regex else re.escape(query)
-        if whole_word:
-            expression = rf"\b(?:{expression})\b"
-        pattern = re.compile(expression, 0 if case_sensitive else re.IGNORECASE)
+        # Search is deliberately literal and case-insensitive.  Terminal users
+        # need a compact find field, not a second regular-expression language.
+        pattern = re.compile(re.escape(query), re.IGNORECASE)
         path = self.root / "logs" / task_id / "output.log"
         if not path.exists():
             return {"items": [], "truncated": False}
