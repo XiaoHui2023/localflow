@@ -351,6 +351,7 @@ class PluginRegistry:
         configured_stop = getattr(loaded.instance, "stop", None)
         stop = StopStrategy.model_validate(configured_stop) if configured_stop else None
         snapshot = {
+            "result_evaluator": callable(getattr(loaded.instance, "evaluate_result", None)),
             "name": name,
             "version": loaded.version,
             "digest": loaded.digest,
@@ -610,8 +611,14 @@ class PluginRegistry:
         snapshot = task.plugin_snapshot
         name = snapshot.get("name") if isinstance(snapshot, dict) else None
         loaded = self.plugins.get(name) if isinstance(name, str) else None
+        if snapshot.get("result_evaluator") is False:
+            return None
+        if isinstance(name, str) and loaded is None:
+            raise RuntimeError(f"plugin {name} is unavailable for result evaluation")
         method = getattr(loaded.instance, "evaluate_result", None) if loaded else None
         if not callable(method):
+            if snapshot.get("result_evaluator") is True:
+                raise RuntimeError(f"plugin {name} result evaluator is unavailable")
             return None
         if snapshot.get("digest") != loaded.digest:
             raise RuntimeError(f"plugin {name} changed after task submission")

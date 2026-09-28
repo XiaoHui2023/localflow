@@ -24,7 +24,7 @@ instance-data/
 │   ├── port         # 当前监听地址和端口，权限 0600
 │   └── instances/   # 任务监督程序的运行描述
 ├── logs/service/    # 可轮转的服务摘要与 debug 日志
-├── logs/<task-id>/  # 有硬上限的任务输出与终端记录
+├── logs/<task-id>/  # 原始输出与独立保存完整性记录，可配置单文件限额
 ├── cache/           # 可丢弃中间结果
 └── exports/         # 用户明确导出的实例文件
 ```

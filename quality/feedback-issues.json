@@ -8,16 +8,42 @@
       "actual": "用户报告长按左键并拖动后仍不能选中或复制。",
       "status": "resolved",
       "resolution_evidence": "quality/evidence/feedback/terminal-feedback-resolution.json#LF-TERM-SEL-001",
-      "owner_paths": ["frontend/src/App.jsx", "frontend/src/round6.css"],
-      "reproduction_paths": ["frontend/e2e", "quality/evidence/feedback"],
+      "owner_paths": [
+        "frontend/src/App.jsx",
+        "frontend/src/round6.css"
+      ],
+      "reproduction_paths": [
+        "frontend/e2e",
+        "quality/evidence/feedback"
+      ],
       "baseline_revision": "757881ea625fd52bdae99f9970926f655c167301",
       "entrypoint": {
         "kind": "ui",
-        "command": ["node", "tools/feedback-reproduction.mjs", "terminal-selection"],
-        "artifacts": ["quality/evidence/feedback/terminal-selection.json"]
+        "command": [
+          "npm",
+          "--prefix",
+          "frontend",
+          "run",
+          "test:e2e",
+          "--",
+          "--grep",
+          "preserves a native cross-line selection"
+        ],
+        "artifacts": [
+          "quality/evidence/feedback/terminal-feedback-resolution.json"
+        ]
       },
       "oracle": {
-        "command": ["node", "tools/feedback-reproduction.mjs", "terminal-selection", "--oracle"],
+        "command": [
+          "npm",
+          "--prefix",
+          "frontend",
+          "run",
+          "test:e2e",
+          "--",
+          "--grep",
+          "preserves a native cross-line selection"
+        ],
         "read_only": true,
         "reported_symptom_direct": true
       },
@@ -57,6 +83,9 @@
           "evidence": "frontend/e2e/localflow.spec.js；quality/evidence/browser/test-results/.last-run.json",
           "next_condition": "已满足；固定浏览器需在 Docker 主机恢复后重跑。"
         }
+      ],
+      "runner_paths": [
+        "frontend/e2e/localflow.spec.js"
       ]
     },
     {
@@ -66,16 +95,42 @@
       "actual": "用户观察到查找背景透明，看不清内容。",
       "status": "resolved",
       "resolution_evidence": "quality/evidence/feedback/terminal-feedback-resolution.json#LF-TERM-SEARCH-002",
-      "owner_paths": ["frontend/src/extra.css", "frontend/src/App.jsx"],
-      "reproduction_paths": ["frontend/e2e", "quality/evidence/feedback"],
+      "owner_paths": [
+        "frontend/src/extra.css",
+        "frontend/src/App.jsx"
+      ],
+      "reproduction_paths": [
+        "frontend/e2e",
+        "quality/evidence/feedback"
+      ],
       "baseline_revision": "757881ea625fd52bdae99f9970926f655c167301",
       "entrypoint": {
         "kind": "ui",
-        "command": ["node", "tools/feedback-reproduction.mjs", "terminal-search-background"],
-        "artifacts": ["quality/evidence/feedback/terminal-search-background.json"]
+        "command": [
+          "npm",
+          "--prefix",
+          "frontend",
+          "run",
+          "test:e2e",
+          "--",
+          "--grep",
+          "plugin configuration console remains concise and operable in Edge"
+        ],
+        "artifacts": [
+          "quality/evidence/feedback/terminal-feedback-resolution.json"
+        ]
       },
       "oracle": {
-        "command": ["node", "tools/feedback-reproduction.mjs", "terminal-search-background", "--oracle"],
+        "command": [
+          "npm",
+          "--prefix",
+          "frontend",
+          "run",
+          "test:e2e",
+          "--",
+          "--grep",
+          "plugin configuration console remains concise and operable in Edge"
+        ],
         "read_only": true,
         "reported_symptom_direct": true
       },
@@ -104,6 +159,9 @@
           "evidence": "frontend/src/round6.css；frontend/e2e/localflow.spec.js；quality/evidence/browser/test-results/.last-run.json",
           "next_condition": "已满足；固定浏览器需在 Docker 主机恢复后重跑。"
         }
+      ],
+      "runner_paths": [
+        "frontend/e2e/localflow.spec.js"
       ]
     },
     {
@@ -113,16 +171,35 @@
       "actual": "用户 source .csh 后看到 Environmental variables file does not exist / -env_path 错误。",
       "status": "resolved",
       "resolution_evidence": "quality/evidence/feedback/terminal-feedback-resolution.json#LF-SOURCE-CSH-003",
-      "owner_paths": ["src/localflow/models.py", "src/localflow/service.py", "src/localflow/supervisor.py"],
-      "reproduction_paths": ["tests_v2", "quality/evidence/feedback"],
+      "owner_paths": [
+        "src/localflow/models.py",
+        "src/localflow/service.py",
+        "src/localflow/supervisor.py"
+      ],
+      "reproduction_paths": [
+        "tests_v2",
+        "quality/evidence/feedback"
+      ],
       "baseline_revision": "757881ea625fd52bdae99f9970926f655c167301",
       "entrypoint": {
         "kind": "public_api",
-        "command": ["python", "tools/feedback-source-reproduction.py"],
-        "artifacts": ["quality/evidence/feedback/source-csh.json"]
+        "command": [
+          "python",
+          "-m",
+          "pytest",
+          "tests_target/test_shell_profile.py"
+        ],
+        "artifacts": [
+          "quality/evidence/feedback/terminal-feedback-resolution.json"
+        ]
       },
       "oracle": {
-        "command": ["python", "tools/feedback-source-reproduction.py", "--oracle"],
+        "command": [
+          "python",
+          "-m",
+          "pytest",
+          "tests_target/test_shell_profile.py"
+        ],
         "read_only": true,
         "reported_symptom_direct": true
       },
@@ -140,7 +217,159 @@
           "evidence": "tests_target/test_shell_profile.py::test_tcsh_source_keeps_interactive_contract_for_vendor_setup_files；直接 tcsh -c 基线退出 64 并输出 -env_path，LocalFlow 任务成功。",
           "next_condition": "已满足；保留目标服务器上的供应商脚本差异作为运行期诊断范围。"
         }
+      ],
+      "runner_paths": [
+        "tests_target/test_shell_profile.py"
       ]
+    },
+    {
+      "id": "LF-LOG-001",
+      "summary": "输出保存限额不公开完整性，预算只删日志",
+      "expected": "完整保存、完整证据判定和连续浏览各有独立 Oracle",
+      "actual": "输出保存限额不公开完整性，预算只删日志",
+      "status": "resolved",
+      "baseline_revision": "bb39b2700db513e3722e6435ab11a703670c5c27",
+      "owner_paths": [
+        "src/localflow/log_files.py",
+        "src/localflow/service.py",
+        "src/localflow/results.py",
+        "frontend/src/App.jsx"
+      ],
+      "entrypoint": {
+        "kind": "public_api",
+        "command": [
+          "python",
+          "-m",
+          "pytest",
+          "tests_v2/test_log_integrity.py"
+        ]
+      },
+      "oracle": {
+        "command": [
+          "python",
+          "-m",
+          "pytest",
+          "tests_v2/test_log_integrity.py"
+        ],
+        "read_only": true,
+        "reported_symptom_direct": true
+      },
+      "reproduction_attempts": [
+        {
+          "result": "reproduced",
+          "attempted_at": "2026-09-28T08:20:00Z",
+          "method": "两次隔离公开任务路径，独立读取状态、字节或原生浏览器视口",
+          "evidence": "quality/evidence/log-integrity/storage-baseline.txt"
+        }
+      ],
+      "runner_paths": [
+        "tests_v2/test_log_integrity.py",
+        "tests_v2/test_results.py",
+        "tests_v2/test_logging.py"
+      ],
+      "resolution_evidence": "quality/evidence/log-integrity/verification.json#LF-LOG-001",
+      "resolution_scope": "source tests and current Windows browsers; target and publication require producer/consumer CI"
+    },
+    {
+      "id": "LF-RESULT-002",
+      "summary": "解析失败或多文件结果被错误显示为成功",
+      "expected": "完整保存、完整证据判定和连续浏览各有独立 Oracle",
+      "actual": "解析失败或多文件结果被错误显示为成功",
+      "status": "resolved",
+      "baseline_revision": "bb39b2700db513e3722e6435ab11a703670c5c27",
+      "owner_paths": [
+        "src/localflow/log_files.py",
+        "src/localflow/service.py",
+        "src/localflow/results.py",
+        "frontend/src/App.jsx"
+      ],
+      "entrypoint": {
+        "kind": "public_api",
+        "command": [
+          "python",
+          "-m",
+          "pytest",
+          "tests_v2/test_log_integrity.py"
+        ]
+      },
+      "oracle": {
+        "command": [
+          "python",
+          "-m",
+          "pytest",
+          "tests_v2/test_log_integrity.py"
+        ],
+        "read_only": true,
+        "reported_symptom_direct": true
+      },
+      "reproduction_attempts": [
+        {
+          "result": "reproduced",
+          "attempted_at": "2026-09-28T08:20:00Z",
+          "method": "两次隔离公开任务路径，独立读取状态、字节或原生浏览器视口",
+          "evidence": "quality/evidence/log-integrity/multifile-baseline.txt"
+        }
+      ],
+      "runner_paths": [
+        "tests_v2/test_log_integrity.py",
+        "tests_v2/test_results.py",
+        "tests_v2/test_logging.py"
+      ],
+      "resolution_evidence": "quality/evidence/log-integrity/verification.json#LF-RESULT-002",
+      "resolution_scope": "source tests and current Windows browsers; target and publication require producer/consumer CI"
+    },
+    {
+      "id": "LF-TERM-003",
+      "summary": "字节窗与回滚行数不一致，坏 UTF-8 搜索偏移失真",
+      "expected": "完整保存、完整证据判定和连续浏览各有独立 Oracle",
+      "actual": "字节窗与回滚行数不一致，坏 UTF-8 搜索偏移失真",
+      "status": "resolved",
+      "baseline_revision": "bb39b2700db513e3722e6435ab11a703670c5c27",
+      "owner_paths": [
+        "src/localflow/log_files.py",
+        "src/localflow/service.py",
+        "src/localflow/results.py",
+        "frontend/src/App.jsx"
+      ],
+      "entrypoint": {
+        "kind": "ui",
+        "command": [
+          "npm",
+          "--prefix",
+          "frontend",
+          "run",
+          "test:e2e",
+          "--",
+          "log-integrity.spec.js"
+        ]
+      },
+      "oracle": {
+        "command": [
+          "npm",
+          "--prefix",
+          "frontend",
+          "run",
+          "test:e2e",
+          "--",
+          "log-integrity.spec.js"
+        ],
+        "read_only": true,
+        "reported_symptom_direct": true
+      },
+      "reproduction_attempts": [
+        {
+          "result": "reproduced",
+          "attempted_at": "2026-09-28T08:20:00Z",
+          "method": "两次隔离公开任务路径，独立读取状态、字节或原生浏览器视口",
+          "evidence": "quality/evidence/log-integrity/dense-browser-baseline.txt"
+        }
+      ],
+      "runner_paths": [
+        "frontend/e2e/log-integrity.spec.js",
+        "tests_v2/test_terminal_windows.py"
+      ],
+      "resolution_evidence": "quality/evidence/log-integrity/verification.json#LF-TERM-003",
+      "resolution_scope": "source tests and current Windows browsers; target and publication require producer/consumer CI"
     }
   ]
 }

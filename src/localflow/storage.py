@@ -639,18 +639,7 @@ class Store:
             self._db.execute("BEGIN IMMEDIATE")
             try:
                 if task_ids:
-                    marks = ",".join("?" for _ in task_ids)
-                    self._db.execute(
-                        f"DELETE FROM acknowledgements WHERE task_id IN ({marks})", task_ids
-                    )
-                    self._db.execute(
-                        f"DELETE FROM batch_tasks WHERE task_id IN ({marks})", task_ids
-                    )
-                    self._db.execute(f"DELETE FROM events WHERE task_id IN ({marks})", task_ids)
-                    self._db.execute(f"DELETE FROM tasks WHERE id IN ({marks})", task_ids)
-                    self._db.execute(
-                        "DELETE FROM batches WHERE id NOT IN (SELECT DISTINCT batch_id FROM batch_tasks)"
-                    )
+                    self._delete_tasks(task_ids)
                 self._db.execute("DELETE FROM events WHERE at < ?", (events_before,))
                 self._db.execute(
                     "DELETE FROM idempotency WHERE created_at < ?", (idempotency_before,)
@@ -660,6 +649,29 @@ class Store:
                 self._db.execute("ROLLBACK")
                 raise
         return task_ids
+
+    def _delete_tasks(self, task_ids: list[str]) -> None:
+        marks = ",".join("?" for _ in task_ids)
+        for table in ("acknowledgements", "batch_tasks", "events"):
+            self._db.execute(f"DELETE FROM {table} WHERE task_id IN ({marks})", task_ids)
+        self._db.execute(f"DELETE FROM tasks WHERE id IN ({marks})", task_ids)
+        self._db.execute("DELETE FROM batches WHERE id NOT IN (SELECT DISTINCT batch_id FROM batch_tasks)")
+
+    def purge_terminal_task(self, task_id: str) -> bool:
+        """Evict task metadata and output as one retention decision."""
+        with self._lock:
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                task = self.get_task(task_id)
+                if task.state not in TERMINAL_STATES:
+                    self._db.execute("ROLLBACK")
+                    return False
+                self._delete_tasks([task_id])
+                self._db.execute("COMMIT")
+                return True
+            except BaseException:
+                self._db.execute("ROLLBACK")
+                raise
 
     @staticmethod
     def _display_status(

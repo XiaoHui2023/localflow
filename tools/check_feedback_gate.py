@@ -15,18 +15,10 @@ from pathlib import Path
 READY = "resolved"
 
 
-def main() -> int:
-    root = Path(__file__).resolve().parents[1]
-    register_path = root / "quality" / "feedback-issues.json"
-    try:
-        register = json.loads(register_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        print(f"feedback gate: cannot read register: {exc}", file=sys.stderr)
-        return 2
+def validate_register(root: Path, register: dict) -> list[str]:
     issues = register.get("issues")
     if not isinstance(issues, list) or not issues:
-        print("feedback gate: register must contain a non-empty issues list", file=sys.stderr)
-        return 2
+        return ["feedback gate: register must contain a non-empty issues list"]
     errors: list[str] = []
     seen: set[str] = set()
     for index, issue in enumerate(issues):
@@ -58,10 +50,41 @@ def main() -> int:
             errors.append(f"{issue_id}: no direct reproduced witness")
         if status == READY and not issue.get("resolution_evidence"):
             errors.append(f"{issue_id}: resolved without resolution_evidence")
+        for field in ("owner_paths", "runner_paths"):
+            paths = issue.get(field)
+            if not isinstance(paths, list) or not paths:
+                errors.append(f"{issue_id}: no {field}")
+                continue
+            for relative in paths:
+                path = (root / relative).resolve()
+                if not path.is_relative_to(root.resolve()) or not path.is_file():
+                    errors.append(f"{issue_id}: unavailable {field} file: {relative}")
+        if status == READY and issue.get("resolution_evidence"):
+            relative, _, fragment = issue["resolution_evidence"].partition("#")
+            path = (root / relative).resolve()
+            try:
+                if not path.is_relative_to(root.resolve()):
+                    raise ValueError("evidence is outside repository")
+                evidence = json.loads(path.read_text(encoding="utf-8"))
+                if fragment and fragment not in evidence.get("issues", {}):
+                    raise ValueError(f"missing issue fragment {fragment}")
+            except (OSError, ValueError, TypeError) as exc:
+                errors.append(f"{issue_id}: resolution evidence unavailable: {exc}")
+    return errors
+
+
+def main() -> int:
+    root = Path(__file__).resolve().parents[1]
+    try:
+        register = json.loads((root / "quality" / "feedback-issues.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"feedback gate: cannot read register: {exc}", file=sys.stderr)
+        return 2
+    errors = validate_register(root, register)
     if errors:
         print("\n".join(errors), file=sys.stderr)
         return 1
-    print(f"feedback gate passed: {len(issues)} issues have reproduced and resolved receipts")
+    print(f"feedback gate passed: {len(register['issues'])} issues have reproduced and resolved receipts")
     return 0
 
 

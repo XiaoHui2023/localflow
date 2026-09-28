@@ -1,0 +1,86 @@
+
+> localflow-frontend@0.0.0 test:e2e
+> playwright test --project=edge-full log-integrity.spec.js
+
+
+Running 2 tests using 1 worker
+
+
+(node:44816) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/2] [edge-full] › e2e\log-integrity.spec.js:9:3 › dense archive reaches its first output without a scrollback gap 0
+  1) [edge-full] › e2e\log-integrity.spec.js:9:3 › dense archive reaches its first output without a scrollback gap 0
+
+    Error: first output must be reachable by continuous upward browsing
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      45 |       }
+      46 |     }
+    > 47 |     expect(found, "first output must be reachable by continuous upward browsing").toBe(true);
+         |                                                                                   ^
+      48 |   });
+      49 | }
+      50 |
+        at F:\Project\python\localflow\frontend\e2e\log-integrity.spec.js:47:83
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\quality\evidence\browser\test-results\log-integrity-dense-archiv-df4ea--without-a-scrollback-gap-0-edge-full\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\quality\evidence\browser\test-results\log-integrity-dense-archiv-df4ea--without-a-scrollback-gap-0-edge-full\error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    ..\quality\evidence\browser\test-results\log-integrity-dense-archiv-df4ea--without-a-scrollback-gap-0-edge-full\trace.zip
+    Usage:
+
+        npx playwright show-trace ..\quality\evidence\browser\test-results\log-integrity-dense-archiv-df4ea--without-a-scrollback-gap-0-edge-full\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+(node:49988) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[2/2] [edge-full] › e2e\log-integrity.spec.js:9:3 › dense archive reaches its first output without a scrollback gap 1
+  2) [edge-full] › e2e\log-integrity.spec.js:9:3 › dense archive reaches its first output without a scrollback gap 1
+
+    Error: first output must be reachable by continuous upward browsing
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      45 |       }
+      46 |     }
+    > 47 |     expect(found, "first output must be reachable by continuous upward browsing").toBe(true);
+         |                                                                                   ^
+      48 |   });
+      49 | }
+      50 |
+        at F:\Project\python\localflow\frontend\e2e\log-integrity.spec.js:47:83
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\quality\evidence\browser\test-results\log-integrity-dense-archiv-6ca3b--without-a-scrollback-gap-1-edge-full\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\quality\evidence\browser\test-results\log-integrity-dense-archiv-6ca3b--without-a-scrollback-gap-1-edge-full\error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    ..\quality\evidence\browser\test-results\log-integrity-dense-archiv-6ca3b--without-a-scrollback-gap-1-edge-full\trace.zip
+    Usage:
+
+        npx playwright show-trace ..\quality\evidence\browser\test-results\log-integrity-dense-archiv-6ca3b--without-a-scrollback-gap-1-edge-full\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  2 failed
+    [edge-full] › e2e\log-integrity.spec.js:9:3 › dense archive reaches its first output without a scrollback gap 0
+    [edge-full] › e2e\log-integrity.spec.js:9:3 › dense archive reaches its first output without a scrollback gap 1

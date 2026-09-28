@@ -38,6 +38,7 @@ from .auth import AuthManager
 from .config_diagnostics import ConfigDiagnosis, diagnose_config, syntax_error_diagnosis
 from .config_repository import ConfigConflict, ConfigRepository
 from .executor import SubprocessExecutor, SystemdExecutor, systemd_user_manager_available
+from .log_files import output_integrity
 from .models import BatchCreate, RunCreate, TaskCreate, TaskDraft, TaskRecord, command_for_log
 from .paths import initialize_state_root, state_instance_id
 from .plugins import PluginRegistry
@@ -142,6 +143,7 @@ def _detail(task: TaskRecord, root: Path) -> dict[str, Any]:
     ]
     log_path = root / "logs" / task.id / "output.log"
     value["log_path"] = str(log_path)
+    value["output_integrity"] = output_integrity(log_path)
     try:
         log_stat = log_path.stat()
         value["log_size"] = log_stat.st_size
@@ -643,6 +645,34 @@ def create_app(
             "next_offset": next_offset,
             "data": base64.b64encode(data).decode(),
         }
+
+    @app.get("/api/v1/tasks/{task_id}/logs/download")
+    async def download_log(task_id: str, request: Request):
+        if await can_read(request) == "summary":
+            raise HTTPException(403, "logs require full read access")
+        try:
+            tasks.store.get_task(task_id)
+        except KeyError:
+            raise HTTPException(404, "task not found") from None
+        path = state_root / "logs" / task_id / "output.log"
+        if not path.is_file():
+            raise HTTPException(404, "stored output is unavailable")
+        health = output_integrity(path)
+        return FileResponse(path, filename=f"{task_id}.log", media_type="application/octet-stream",
+                            headers={"X-LocalFlow-Output-Complete": str(health.get("complete")).lower(),
+                                     "X-LocalFlow-Output-Reason": str(health.get("reason") or "")})
+
+    @app.get("/api/v1/tasks/{task_id}/logs/window")
+    async def log_window(task_id: str, request: Request, start: int = Query(ge=0),
+                         end: int = Query(ge=0), columns: int = Query(default=80, ge=2, le=1000),
+                         direction: Literal["tail", "earlier", "later", "hit"] = "tail",
+                         hit: int | None = Query(default=None, ge=0)):
+        if await can_read(request) == "summary":
+            raise HTTPException(403, "logs require full read access")
+        try:
+            return await asyncio.to_thread(tasks.terminal_window, task_id, start, end, columns, direction, hit)
+        except KeyError:
+            raise HTTPException(404, "task not found") from None
 
     @app.get("/api/v1/tasks/{task_id}/logs/search")
     async def search_logs(
@@ -1289,6 +1319,19 @@ def create_app(
             offset = max(0, int(websocket.query_params.get("offset", "0")))
             end_value = websocket.query_params.get("end")
             end_offset = max(offset, int(end_value)) if end_value is not None else None
+            if websocket.query_params.get("window") == "rows":
+                path = state_root / "logs" / task_id / "output.log"
+                size = path.stat().st_size if path.exists() else 0
+                bounds = await asyncio.to_thread(
+                    tasks.terminal_window, task_id, offset, end_offset if end_offset is not None else size,
+                    int(websocket.query_params.get("columns", "80")),
+                    websocket.query_params.get("direction", "tail"),
+                    int(websocket.query_params["hit"]) if "hit" in websocket.query_params else None,
+                )
+                offset = bounds["start"]
+                if end_offset is not None:
+                    end_offset = bounds["end"]
+                await websocket.send_json({"type": "window", **bounds})
         except ValueError:
             await websocket.close(code=4400)
             return
@@ -1297,7 +1340,7 @@ def create_app(
 
         def log_updated_at() -> str | None:
             try:
-                modified = (root / "logs" / task_id / "output.log").stat().st_mtime
+                modified = (state_root / "logs" / task_id / "output.log").stat().st_mtime
             except FileNotFoundError:
                 return None
             return datetime.fromtimestamp(modified, UTC).isoformat()

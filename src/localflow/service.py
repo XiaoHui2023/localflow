@@ -22,11 +22,13 @@ from .models import (
     TaskCreate,
     TaskRecord,
     TaskState,
+    TaskStatus,
     freeze_command_working_directory,
     resolve_source_files,
 )
 from .settings import LoggingSettings, RetentionSettings
 from .storage import Store
+from .terminal_windows import terminal_window
 
 logger = logging.getLogger(__name__)
 TASK_PAGE_SIZE = 10_000
@@ -278,7 +280,9 @@ class TaskService:
                 state = TaskState.SUCCEEDED if completed_code == 0 else TaskState.FAILED
                 if task.interrupt_stage:
                     state = TaskState.CANCELLED
-                status_override, custom = self._evaluate_result(task, completed_code)
+                status_override, custom = await asyncio.to_thread(
+                    self._evaluate_result, task, completed_code
+                )
                 log = self.root / "logs" / task.id / "output.log"
                 self.store.transition(
                     task.id,
@@ -359,10 +363,12 @@ class TaskService:
             if task_log.parent != logs_root or not task_log.is_dir():
                 continue
             size = sum(file.stat().st_size for file in task_log.rglob("*") if file.is_file())
+            if not self.store.purge_terminal_task(task_id):
+                continue
             shutil.rmtree(task_log)
             total_size -= size
             removed += 1
-            self.store.set_log_size(task_id, 0)
+            deleted_ids.append(task_id)
         instances = (self.root / "runtime" / "instances").resolve()
         for task_id in set(deleted_ids):
             for suffix in (".json", ".exit", ".sock"):
@@ -540,7 +546,7 @@ class TaskService:
             state = TaskState.SUCCEEDED if code == 0 else TaskState.FAILED
             if task.interrupt_stage:
                 state = TaskState.CANCELLED
-            status_override, custom = self._evaluate_result(task, code)
+            status_override, custom = await asyncio.to_thread(self._evaluate_result, task, code)
             log = self.root / "logs" / task_id / "output.log"
             self.store.transition(
                 task_id,
@@ -567,11 +573,20 @@ class TaskService:
                 task.model_copy(update={"exit_code": code}),
                 {"root": str(self.working_root)},
             )
+            if evaluated and code != 0 and evaluated[0].tone == "success":
+                status, custom = evaluated
+                return (
+                    TaskStatus(key="execution_failed", label="进程失败", tone="danger", finished=True),
+                    {**custom, "reported_result_status": status.model_dump()},
+                )
             return evaluated if evaluated else (None, task.custom)
         except Exception as exc:
             logger.error("plugin result evaluation failed task_id=%s error=%s", task.id, exc)
             self.store.append_event(task.id, "task.result_evaluation_error", {"error": str(exc)})
-            return None, task.custom
+            return (
+                TaskStatus(key="evaluation_error", label="结果解析失败", tone="danger", finished=True),
+                {**task.custom, "result_evaluation_error": str(exc)},
+            )
 
     async def interrupt(
         self, task_id: str, sigint_grace: float = 20, sigterm_grace: float = 10
@@ -818,6 +833,12 @@ class TaskService:
             data = stream.read(min(max(limit, 1), 1048576))
             return data, stream.tell()
 
+    def terminal_window(self, task_id: str, start: int, end: int, columns: int = 80,
+                        direction: str = "tail", hit: int | None = None) -> dict[str, int]:
+        self.store.get_task(task_id)
+        return terminal_window(self.root / "logs" / task_id / "output.log",
+                               start, end, columns, direction, hit)
+
     def search_log(
         self,
         task_id: str,
@@ -841,17 +862,26 @@ class TaskService:
         lines_seen = 0
         deadline = time.monotonic() + timeout_seconds
         with path.open("rb") as stream:
-            while raw := stream.read(1024 * 1024):
+            # A live producer must not extend this scan indefinitely. Search
+            # the size observed on open; a later search sees later output.
+            remaining = os.fstat(stream.fileno()).st_size
+            while remaining and (raw := stream.read(min(1024 * 1024, remaining))):
+                remaining -= len(raw)
                 if time.monotonic() >= deadline:
                     raise TimeoutError("log search timed out")
                 combined = overlap + raw
-                text = combined.decode("utf-8", errors="replace")
+                # Surrogate escape preserves each undecodable input byte. A
+                # replacement character re-encodes to three bytes and corrupts
+                # every later archive offset on that block.
+                text = combined.decode("utf-8", errors="surrogateescape")
                 overlap_lines = overlap.count(b"\n")
                 for match in pattern.finditer(text):
+                    if time.monotonic() >= deadline:
+                        raise TimeoutError("log search timed out")
                     before = text[: match.start()]
                     through = text[: match.end()]
-                    relative = len(before.encode("utf-8", errors="replace")) - len(overlap)
-                    relative_end = len(through.encode("utf-8", errors="replace")) - len(overlap)
+                    relative = len(before.encode("utf-8", errors="surrogateescape")) - len(overlap)
+                    relative_end = len(through.encode("utf-8", errors="surrogateescape")) - len(overlap)
                     # A hit wholly inside the overlap was already reported. A hit
                     # crossing the block boundary belongs to this block and must
                     # not be discarded.
@@ -869,7 +899,9 @@ class TaskService:
                         {
                             "offset": max(0, absolute + relative),
                             "line": lines_seen - overlap_lines + before.count("\n") + 1,
-                            "preview": text[left:right].rstrip("\r")[:400],
+                            "preview": text[left:right].encode(
+                                "utf-8", errors="surrogateescape"
+                            ).decode("utf-8", errors="replace").rstrip("\r")[:400],
                         }
                     )
                 lines_seen += raw.count(b"\n")

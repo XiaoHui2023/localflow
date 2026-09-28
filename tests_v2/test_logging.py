@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from localflow.executor import SubprocessExecutor
-from localflow.log_files import OUTPUT_LIMIT_MARKER, BoundedLogWriter
+from localflow.log_files import OUTPUT_LIMIT_MARKER, BoundedLogWriter, output_integrity
 from localflow.logging_setup import configure_logging
 from localflow.models import TaskCreate
 from localflow.service import TaskService
@@ -146,6 +146,32 @@ def test_task_output_pauses_at_free_space_reserve(
     with BoundedLogWriter(path, 1024, keep_free_bytes=100) as writer:
         assert writer.write(b"still-consumed") == len(b"still-consumed")
     assert path.read_bytes() == b""
+    assert output_integrity(path) == {"complete": False, "reason": "disk_reserve"}
+
+
+def test_uncapped_output_keeps_tail_and_capture_receipt(tmp_path: Path) -> None:
+    path = tmp_path / "output.log"
+    with BoundedLogWriter(path, 0) as writer:
+        for _ in range(102):
+            writer.write(b"x" * 1024 * 1024)
+        writer.write(b"FINAL-FAILURE\n")
+    assert path.stat().st_size > 100 * 1024 * 1024
+    with path.open("rb") as stream:
+        stream.seek(-14, 2)
+        assert stream.read() == b"FINAL-FAILURE\n"
+    assert output_integrity(path) == {"complete": True, "reason": None}
+
+
+def test_writer_io_failure_is_durable_and_keeps_consuming(tmp_path: Path) -> None:
+    path = tmp_path / "output.log"
+    with BoundedLogWriter(path, 0) as writer:
+        writer._stream.close()
+        # Use a real failed file descriptor, independently of disk-reserve simulation.
+        with path.open("rb", buffering=0) as readonly:
+            writer._stream = readonly
+            assert writer.write(b"not stored") == 10
+            assert writer.write(b"still drained") == 13
+    assert output_integrity(path) == {"complete": False, "reason": "write_error"}
 
 
 @pytest.mark.asyncio

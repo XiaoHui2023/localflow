@@ -148,6 +148,21 @@ def main() -> int:
         task_path.write_text(
             yaml.safe_dump(task, allow_unicode=True, sort_keys=False), encoding="utf-8"
         )
+        # This fixture declares two logs per phase; actually produce both.
+        # A parser that checks every configured file must not be penalized for
+        # the old UI fixture's nonexistent second path.
+        simulator = root / "scripts" / "simulate.py"
+        simulator.write_text(simulator.read_text(encoding="utf-8").replace(
+            "args = parser.parse_args()",
+            """args = parser.parse_args()
+import atexit
+import shutil
+def mirror_fixture_logs():
+    for source, suffix in ((args.compile_log, '.lint.log'), (args.run_log, '.trace.log')):
+        if source and Path(source).is_file():
+            shutil.copyfile(source, Path(source).with_name(args.case + suffix))
+atexit.register(mirror_fixture_logs)""",
+        ), encoding="utf-8")
         hello_path = root / "config" / "command" / "hello-world.yaml"
         hello = load_config_raw(hello_path)
         hello["command"] = [

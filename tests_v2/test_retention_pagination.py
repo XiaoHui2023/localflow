@@ -113,7 +113,8 @@ def test_total_task_log_quota_removes_oldest_terminal_log(root: Path) -> None:
     service.maintain(now)
     assert not (root / "logs" / "older").exists()
     assert (root / "logs" / "newer" / "output.log").exists()
-    assert store.get_task("older").log_size == 0
+    with pytest.raises(KeyError):
+        store.get_task("older")
     store.close()
 
 

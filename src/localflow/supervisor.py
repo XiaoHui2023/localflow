@@ -47,7 +47,7 @@ def supervise(root: Path, task_id: str) -> int:
     selector.register(control, selectors.EVENT_READ)
     with BoundedLogWriter(
         log_path,
-        int(limits.get("task_log_max_bytes", 100 * 1024 * 1024)),
+        int(limits.get("task_log_max_bytes", 0)),
         int(limits.get("keep_free_bytes", 0)),
     ) as log:
         shown_command = command_for_log(task["command"], task["working_directory"])

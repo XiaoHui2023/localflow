@@ -185,11 +185,16 @@ def main() -> None:
                     raise RuntimeError(f"frozen smoke task ended as {task['state']}")
                 return task if task["state"] == "succeeded" else None
 
-            wait_for(completed, 30, "frozen smoke task did not succeed")
+            completed_task = wait_for(completed, 30, "frozen smoke task did not succeed")
+            if completed_task.get("output_integrity", {}).get("complete") is not True:
+                raise RuntimeError("frozen task does not expose complete capture health")
             _, log_body = request(opener, endpoint + f"/api/v1/tasks/{task_id}/logs")
             output = base64.b64decode(json.loads(log_body)["data"])
             if b"LOCALFLOW_FROZEN_OK" not in output:
                 raise RuntimeError("task output marker is missing")
+            _, downloaded = request(opener, endpoint + f"/api/v1/tasks/{task_id}/logs/download")
+            if downloaded != (state_root / "logs" / task_id / "output.log").read_bytes():
+                raise RuntimeError("frozen raw-log download differs from saved bytes")
             if not (isolated / "frozen-cwd" / "marker.txt").is_file():
                 raise RuntimeError("relative task output did not use the configured working directory")
             if (root / "frozen-cwd").exists():
@@ -249,6 +254,44 @@ def main() -> None:
                 raise RuntimeError("GNU Make side effect escaped into the LocalFlow root")
             if (root / "runtime").exists() or (root / "logs").exists():
                 raise RuntimeError("instance state polluted the shared configuration root")
+
+            # Exercise the dynamically imported scanner in the final binary.
+            # A successful process must retain the first file's business error.
+            result_payload = {
+                "configuration": {
+                    "plugin": "verification", "case_names": ["case-a"],
+                    "working_directory": str(make_project),
+                    "command": ["/bin/sh", "-c",
+                                "printf 'UVM Report Summary\\nUVM_ERROR : 3\\nUVM_FATAL : 0\\n' > first.log; "
+                                "printf 'UVM Report Summary\\nUVM_ERROR : 0\\nUVM_FATAL : 0\\n' > second.log"],
+                    "run_logs": ["first.log", "second.log"],
+                },
+                "inputs": {"cases": ["case-a"], "seed": 7},
+            }
+            _, result_body = request(opener, endpoint + "/api/v1/runs", "POST", result_payload, headers)
+            result_id = json.loads(result_body)["task_ids"][0]
+
+            def finished_task(identity):
+                _, body = request(opener, endpoint + f"/api/v1/tasks/{identity}")
+                value = json.loads(body)
+                return value if value.get("ended_at") else None
+
+            result_task = wait_for(lambda: finished_task(result_id), 30, "frozen result task did not finish")
+            if result_task["exit_code"] != 0 or result_task["status"]["key"] != "error":
+                raise RuntimeError(f"frozen multi-file result was misclassified: {result_task['status']}")
+
+            _, capture_body = request(opener, endpoint + "/api/v1/tasks", "POST", {
+                "name": "frozen-complete-capture", "working_directory": str(isolated),
+                "command": ["/bin/sh", "-c", "dd if=/dev/zero bs=1048576 count=101 2>/dev/null; printf '\\nFROZEN_CAPTURE_LAST\\n'"],
+            }, headers)
+            capture_id = json.loads(capture_body)["task_id"]
+            capture = wait_for(lambda: finished_task(capture_id), 60, "frozen large capture did not finish")
+            if (capture["exit_code"] != 0 or capture["log_size"] <= 100 * 1024 * 1024
+                    or capture.get("output_integrity", {}).get("complete") is not True):
+                raise RuntimeError("frozen default capture is capped or incomplete")
+            _, tail_body = request(opener, endpoint + f"/api/v1/tasks/{capture_id}/logs?offset={capture['log_size'] - 65536}&limit=65536")
+            if b"FROZEN_CAPTURE_LAST" not in base64.b64decode(json.loads(tail_body)["data"]):
+                raise RuntimeError("frozen capture lost the decisive tail after 100 MiB")
             pid_file = state_root / "runtime" / "localflow.pid"
             controller_pid = int(pid_file.read_text(encoding="ascii").strip())
             for protected_signal in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):

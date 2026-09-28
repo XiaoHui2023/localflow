@@ -2209,10 +2209,15 @@ test("terminal opens a large archive at its newest continuous window", async ({
   // testing a stale task projection.
   await page.waitForTimeout(2_250);
   const tailStreamOffsets = [];
+  const replayWindows = [];
   page.on("websocket", (socket) => {
     const url = socket.url();
     if (url.includes(`/api/v1/tasks/${task.task_id}/terminal`)) {
       tailStreamOffsets.push(Number(new URL(url).searchParams.get("offset")));
+      socket.on("framereceived", ({ payload }) => {
+        const message = JSON.parse(payload);
+        if (message.type === "window") replayWindows.push(message);
+      });
     }
   });
   await page.locator("#nav-terminal").click();
@@ -2230,13 +2235,18 @@ test("terminal opens a large archive at its newest continuous window", async ({
   });
   await expect.poll(() => tailStreamOffsets.length).toBeGreaterThan(1);
   expect(tailStreamOffsets[1]).toBeLessThan(tailStreamOffsets[0]);
+  await expect.poll(() => replayWindows.length).toBeGreaterThan(1);
+  const previousWindow = replayWindows[1];
   await expect(page.locator(".terminal.hydrated")).toBeVisible();
   await page.locator(".terminal-page .xterm-viewport").evaluate((node) => {
     node.scrollTop = node.scrollHeight;
-    node.dispatchEvent(new Event("scroll", { bubbles: true }));
   });
+  await page.locator(".terminal-page .xterm").hover();
+  await page.mouse.wheel(0, 5000);
   await expect.poll(() => tailStreamOffsets.length).toBeGreaterThan(2);
-  expect(tailStreamOffsets[2]).toBeGreaterThan(tailStreamOffsets[1]);
+  await expect.poll(() => replayWindows.length).toBeGreaterThan(2);
+  expect(replayWindows[2].start).toBeGreaterThan(previousWindow.start);
+  expect(replayWindows[2].start).toBeLessThanOrEqual(previousWindow.end);
   await expect(page.locator(".terminal-range")).toHaveCount(0);
   await page.locator(".terminal-page .xterm").click();
   await page.keyboard.press("Control+f");

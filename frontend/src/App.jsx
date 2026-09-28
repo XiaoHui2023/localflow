@@ -18,6 +18,7 @@ import {
   ClipboardPaste,
   Clock3,
   Copy,
+  Download,
   CircleX,
   File,
   FileCheck2,
@@ -166,6 +167,8 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
   const tailWindowStart = (size) =>
     Math.max(0, Number(size || 0) - windowBytes);
   const host = useRef();
+  const latestTask = useRef(task);
+  latestTask.current = task;
   const finder = useRef();
   const searchInput = useRef();
   const terminal = useRef();
@@ -185,6 +188,9 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
   );
   const [rangeBytes, setRangeBytes] = useState(windowBytes);
   const [hydrated, setHydrated] = useState(false);
+  const [connectionRevision, setConnectionRevision] = useState(0);
+  const [streamError, setStreamError] = useState("");
+  const reconnectAttempts = useRef(0);
   const [archiveResults, setArchiveResults] = useState([]);
   const [archiveTruncated, setArchiveTruncated] = useState(false);
   const [archiveSearching, setArchiveSearching] = useState(false);
@@ -360,54 +366,84 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
     // freeze an end offset; otherwise a live WebSocket silently catches up to
     // newest output and defeats the chosen reading position.
     const end = interactive && followingLatest ? "" : `&end=${endOffset}`;
+    const hit = pendingArchiveHit.current ? `&hit=${pendingArchiveHit.current.offset}` : "";
     const socket = new WebSocket(
-      `${protocol}://${location.host}/api/v1/tasks/${task.id}/terminal?offset=${rangeStart}${end}`,
+      `${protocol}://${location.host}/api/v1/tasks/${task.id}/terminal?offset=${rangeStart}${end}&window=rows&columns=${term.cols}&direction=${historyDirection}${hit}`,
     );
     let caughtUp = false;
     let revealFrame;
     let edgeReady = false;
     let edgeLoading = false;
+    let reconnectTimer;
+    let renderedStart = rangeStart;
+    let renderedEnd = endOffset;
+    let streamOffset = endOffset;
     const viewport = element.querySelector(".xterm-viewport");
-    const loadAtEdge = () => {
+    let previousScrollTop = 0;
+    const loadAtEdge = async (event) => {
       if (!edgeReady || edgeLoading) return;
-      const size = Number(task.log_size || 0);
-      const rangeEnd = Math.min(size, rangeStart + rangeBytes);
+      const scrollTop = viewport?.scrollTop || 0;
+      const movedUp = scrollTop < previousScrollTop || event?.deltaY < 0;
+      const movedDown = scrollTop > previousScrollTop || event?.deltaY > 0;
+      previousScrollTop = scrollTop;
+      const size = Math.max(Number(latestTask.current.log_size || 0), streamOffset);
       const atTop = (viewport?.scrollTop || 0) <= 1;
       const atBottom = viewport
         ? viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 1
         : false;
-      if (atTop && rangeStart > 0) {
+      if (atTop && movedUp && (renderedStart > 0 || (followingLatest && streamOffset > renderedEnd))) {
         edgeLoading = true;
+        if (followingLatest && streamOffset > renderedEnd) {
+          try {
+            const bounds = await api.logWindow(task.id, {
+              start: Math.max(0, streamOffset - windowBytes), end: streamOffset,
+              columns: term.cols, direction: "tail",
+            });
+            renderedStart = bounds.start;
+            renderedEnd = bounds.end;
+          } catch (error) {
+            edgeLoading = false;
+            setStreamError(error.message || "历史读取失败");
+            return;
+          }
+        }
+        const overlap = Math.min(overlapBytes, Math.floor((renderedEnd - renderedStart) / 4));
+        const previousEnd = renderedStart + overlap;
+        const previousStart = Math.max(0, previousEnd - windowBytes);
         setFollowingLatest(false);
         setHistoryDirection("earlier");
-        setRangeBytes(windowBytes);
-        setRangeStart(Math.max(0, rangeStart - windowBytes + overlapBytes));
-      } else if (atBottom && rangeEnd < size) {
+        setRangeBytes(previousEnd - previousStart);
+        setRangeStart(previousStart);
+      } else if (atBottom && movedDown && !followingLatest && renderedEnd < size) {
         edgeLoading = true;
-        const nextStart = Math.min(
-          Math.max(0, size - windowBytes),
-          rangeStart + windowBytes - overlapBytes,
-        );
-        setRangeBytes(windowBytes);
-        if (interactive && nextStart >= tailWindowStart(size)) {
-          setFollowingLatest(true);
-          setHistoryDirection("tail");
-          setRangeStart(tailWindowStart(size));
-        } else {
-          setFollowingLatest(false);
-          setHistoryDirection("later");
-          setRangeStart(nextStart);
-        }
+        const overlap = Math.min(overlapBytes, Math.floor((renderedEnd - renderedStart) / 4));
+        const nextStart = Math.max(0, renderedEnd - overlap);
+        const nextEnd = Math.min(size, nextStart + windowBytes);
+        setRangeBytes(nextEnd - nextStart);
+        // The server may fit a smaller row window than the byte range requested.
+        // Keep moving forward from its actual end before resuming live output.
+        setFollowingLatest(false);
+        setHistoryDirection("later");
+        setRangeStart(nextStart);
       }
     };
     viewport?.addEventListener("scroll", loadAtEdge, { passive: true });
+    element.addEventListener("wheel", loadAtEdge, { passive: true });
     onStreamStatus?.({ taskId: task.id, caughtUp: false, updatedAt: null });
     socket.onopen = () => {
       element.dataset.connection = "open";
+      setStreamError("");
     };
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data);
-      if (message.type === "output") {
+      if (message.type === "window") {
+        renderedStart = message.start;
+        renderedEnd = message.end;
+        streamOffset = message.end;
+        element.dataset.windowStart = String(message.start);
+        element.dataset.windowEnd = String(message.end);
+      } else if (message.type === "output") {
+        streamOffset = message.offset;
         const bytes = Uint8Array.from(atob(message.data), (value) =>
           value.charCodeAt(0),
         );
@@ -423,44 +459,67 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
             );
         });
       } else if (message.type === "caught_up") {
-        caughtUp = true;
-        // xterm can retain the viewport at the first replayed row even while it
-        // is hidden.  Anchor before revealing it so an opened terminal always
-        // starts at the newest available output instead of visibly scrolling
-        // through its archive.
-        const archiveHit = pendingArchiveHit.current;
-        if (archiveHit) {
-          pendingArchiveHit.current = undefined;
-          term.scrollToTop();
-          // The target begins within an 8 KiB context before the server offset;
-          // use xterm's mature Search addon to put the matching row in view.
-          search.findNext(archiveHit.query, {
-            caseSensitive: false,
-            wholeWord: false,
-            regex: false,
-          });
-        } else if (followingLatest) term.scrollToBottom();
-        else if (historyDirection === "earlier") term.scrollToBottom();
-        else term.scrollToTop();
-        cancelAnimationFrame(revealFrame);
-        revealFrame = requestAnimationFrame(() => {
-          if (!element.isConnected) return;
-          // Commit the caught-up metadata with visibility.  Otherwise React can
-          // show an old-output age in the single frame where the terminal is
-          // still intentionally hidden during replay.
-          setHydrated(true);
-          edgeReady = true;
-          onStreamStatus?.({
-            taskId: task.id,
-            caughtUp: true,
-            updatedAt: message.log_updated_at || null,
+        // WebSocket delivery can finish before xterm parses queued writes.
+        // Its write callback is the barrier for anchoring and revealing rows.
+        term.write("", () => {
+          caughtUp = true;
+          if (interactive && !followingLatest && historyDirection === "later" &&
+              renderedEnd >= Number(latestTask.current.log_size || 0)) {
+            setFollowingLatest(true);
+            setHistoryDirection("tail");
+          }
+          // xterm can retain the viewport at the first replayed row even while it
+          // is hidden.  Anchor before revealing it so an opened terminal always
+          // starts at the newest available output instead of visibly scrolling
+          // through its archive.
+          const archiveHit = pendingArchiveHit.current;
+          if (archiveHit) {
+            pendingArchiveHit.current = undefined;
+            term.scrollToTop();
+            // The target begins within a small byte context before the server offset;
+            // use xterm's mature Search addon to put the matching row in view.
+            search.findNext(archiveHit.query, {
+              caseSensitive: false,
+              wholeWord: false,
+              regex: false,
+            });
+          } else if (followingLatest) term.scrollToBottom();
+          else if (historyDirection === "earlier") term.scrollToBottom();
+          else term.scrollToTop();
+          cancelAnimationFrame(revealFrame);
+          revealFrame = requestAnimationFrame(() => {
+            if (!element.isConnected) return;
+            // Commit the caught-up metadata with visibility.  Otherwise React can
+            // show an old-output age in the single frame where the terminal is
+            // still intentionally hidden during replay.
+            setHydrated(true);
+            revealFrame = requestAnimationFrame(() => {
+              previousScrollTop = viewport?.scrollTop || 0;
+              edgeReady = true;
+            });
+            onStreamStatus?.({
+              taskId: task.id,
+              caughtUp: true,
+              updatedAt: message.log_updated_at || null,
+            });
           });
         });
+      } else if (message.type === "error") {
+        setStreamError(message.message || "终端请求失败");
       }
     };
-    socket.onclose = () => {
+    socket.onclose = (event) => {
       if (element.isConnected) {
         element.dataset.connection = "closed";
+        if (![1000, 1001, 4400, 4403].includes(event.code) && reconnectAttempts.current < 3) {
+          setStreamError("终端连接中断，正在重新连接。任务日志继续在服务端保存。");
+          reconnectTimer = setTimeout(() => {
+            reconnectAttempts.current += 1;
+            setConnectionRevision((value) => value + 1);
+          }, 250 * 2 ** reconnectAttempts.current);
+        } else {
+          setStreamError("终端连接已关闭，显示的是已接收的内容。");
+        }
       }
     };
     term.onData((data) => {
@@ -477,25 +536,35 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
       element.dataset.columns = String(cols);
       if (interactive && socket.readyState === WebSocket.OPEN)
         socket.send(JSON.stringify({ type: "resize", rows, cols }));
+      // A narrower viewport wraps existing lines into more scrollback rows.
+      // Re-fit the byte window before xterm silently drops its first rows.
+      if (caughtUp) setConnectionRevision((value) => value + 1);
     });
     return () => {
       observer.disconnect();
       cancelAnimationFrame(frame);
       cancelAnimationFrame(revealFrame);
+      clearTimeout(reconnectTimer);
       socket.onopen = null;
       socket.onmessage = null;
       socket.onclose = null;
       socket.close();
       selectionListener.dispose();
       viewport?.removeEventListener("scroll", loadAtEdge);
+      element.removeEventListener("wheel", loadAtEdge);
       finder.current = undefined;
       terminal.current = undefined;
       term.dispose();
     };
-  }, [task.id, interactive, theme, rangeStart, rangeBytes, followingLatest, historyDirection, onStreamStatus]);
+  }, [task.id, interactive, theme, rangeStart, rangeBytes, followingLatest, historyDirection, connectionRevision, onStreamStatus]);
   return (
     <div className="terminal-shell">
       <div className="terminal-tools">
+        <Hint label="下载保存的原始日志">
+          <a className="icon" aria-label="下载保存的原始日志" href={`/api/v1/tasks/${task.id}/logs/download`} download>
+            <Download />
+          </a>
+        </Hint>
         {searching && (
           <div className="terminal-find" role="search">
             <input
@@ -581,6 +650,10 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
           <Search />
         </button>
       </div>
+      {streamError && <p className="terminal-output-warning" role="status">
+        {streamError}
+        <button onClick={() => { reconnectAttempts.current = 0; setConnectionRevision((value) => value + 1); }}>重新连接</button>
+      </p>}
       {archiveResults.length > 0 && searching && (
         <section className="terminal-search-results" aria-label="全部日志检索结果">
           <header>
@@ -883,6 +956,13 @@ function TerminalPage({ tasks, role, theme }) {
       if (!present.has(id)) observedLogSizes.current.delete(id);
   }, [tasks, selectedId]);
   const selected = available.find((task) => task.id === selectedId);
+  useEffect(() => {
+    setStreamStatus((current) =>
+      current.taskId === selected?.id && current.caughtUp
+        ? { ...current, updatedAt: selected?.log_updated_at || null }
+        : current,
+    );
+  }, [selected?.id, selected?.log_updated_at]);
   const selectedIsActive = Boolean(
     selected && ["starting", "running", "stopping"].includes(selected.state),
   );
@@ -1033,6 +1113,18 @@ function TerminalPage({ tasks, role, theme }) {
             <span className="terminal-status" role="status">
               {notice}
             </span>
+            {selected.output_integrity?.complete === false && (
+              <p className="terminal-output-warning" role="alert">
+                终端日志不完整：{selected.output_integrity.reason === "file_limit"
+                  ? "达到配置的保存上限，后续输出未保存。"
+                  : selected.output_integrity.reason === "disk_reserve"
+                    ? "磁盘可用空间不足，后续输出未保存。"
+                    : "保存的输出不可用，请查看任务事件与服务日志。"}
+              </p>
+            )}
+            {selected.output_integrity?.complete == null && selected.output_integrity && (
+              <p className="terminal-output-warning" role="status">该历史日志的保存完整性未经验证。</p>
+            )}
             <TaskTerminal
               key={selected.id}
               task={selected}

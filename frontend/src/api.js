@@ -32,6 +32,7 @@ export const api = {
   terminalControl: (id, key) => request(`/tasks/${id}/terminal/controls`, { method: "POST", body: JSON.stringify({ key }) }),
   terminalResize: (id, rows, cols) => request(`/tasks/${id}/terminal/resize`, { method: "POST", body: JSON.stringify({ rows, cols }) }),
   searchLog: (id, query) => request(`/tasks/${id}/logs/search?${new URLSearchParams({ query })}`),
+  logWindow: (id, values) => request(`/tasks/${id}/logs/window?${new URLSearchParams(values)}`),
   adjustTime: (reference_time) => request("/system/time-adjustments", { method: "POST", body: JSON.stringify({ reference_time }) }),
   shutdown: () => request("/system/shutdown", { method: "POST" }),
   openapi: () => request("/openapi"),

@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "status": "source_passed_release_pending",
+  "verified_at": "2026-09-28T17:01:05+08:00",
+  "baseline_revision": "bb39b2700db513e3722e6435ab11a703670c5c27",
+  "source_hash_normalization": "UTF-8 with LF",
+  "source_files": {
+    "app.spec": "54ebe58d1adebae205f81d0989d7261ffd0ec96a47552dce52a2b43f1b232b77",
+    "src/localflow/log_files.py": "e0d99f13137747fbec74283c0c6a1ae121c4431953e4739c7bca0387ff6c5395",
+    "src/localflow/results.py": "7da7c238ea138fca9f8abf4500279f6c16a044b53e343ae056c7e563af6bdd38",
+    "src/localflow/terminal_windows.py": "997770aef434141c1342778a1826bf5b352279e52f76ddfb1a9aee2c0d3fe02b",
+    "src/localflow/service.py": "7ff99120af554175f0294f21bfec7077d350aaafcfbad29f11822cf3a815fec9",
+    "src/localflow/plugins.py": "4ade18142d75686f9d38ba7ed40f52f6671c340ec0209319b7ea9b40c35e06b5",
+    "src/localflow/storage.py": "98762729c8c814008a9d3ef2f258d34139ff2a13962b358cf619a9045ce4b5ca",
+    "src/localflow/api.py": "a63562b1522beb57bc6b762721ca005c821dec25ebbb9a6d354a51749f69169d",
+    "src/localflow/settings.py": "aeb18be85d8236d672287c246acebda0b8c13263a361b9ff3ae92f8088a3d4af",
+    "src/localflow/executor.py": "1f72d8b4d7822ca6c3ea0c3833de7c2fd6e5f4a59b789b822a51d9b0f18987c2",
+    "src/localflow/supervisor.py": "2d6deaef0bd64e5088a3abc04b6e41dca70a2b4cfc8c148d7d80abf0e5827e17",
+    "plugins/verification.py": "0f0078aa8d9447195fe89518cf05f627db06aedcea7deed80917a90e6a72283d",
+    "src/localflow/builtin_plugins/verification.py.example": "0f0078aa8d9447195fe89518cf05f627db06aedcea7deed80917a90e6a72283d",
+    "plugins/sim_run/log_result.py": "7761ee81bdfb1f5a93d9c7f9c7c9155db2c2e4d07aea2b830c7c6f79b39dc88a",
+    "frontend/src/App.jsx": "25446a193e2724e14391db054d86fd07f629617d60cda337ee7335f7f255690c",
+    "frontend/src/api.js": "ff9aea4422674a37659ff442d144f014ddc3c9fe8993d81738e0c44cae3bade0",
+    "frontend/src/round6.css": "fdc80f7acc5999c50e7e1338afdaa68c32b4b05c440b079f8c77c450e2ea96f1",
+    "frontend/e2e/log-integrity.spec.js": "ecaa0bc9f860bcc96acb4ced8504c7755c8c7a12d3ada137fa96e17b10d0128f",
+    "frontend/e2e/localflow.spec.js": "c4d8bc7b24f266195e2433df5002dbb75b7adbe310f02a3189678ddd4fd17636",
+    "tests_v2/test_log_integrity.py": "4f940f70a52edebdc9fe2886d2fa9a61486afa0c9602346eb094571797b122cf",
+    "tests_v2/test_results.py": "62f47b305f91ee1e73919098f40a1e80dfa679e741e104b46e0e9e1740c112a9",
+    "tests_v2/test_terminal_windows.py": "c2d1072327d08bb8e417a0232158f3eeac2091f69adf0e326cc6290d0e2e493d",
+    "tests_v2/test_terminal.py": "bd375543053ed09422cb613c21df0936331426efe16195ef2a5fb81e88f1cd66",
+    "tests_v2/test_feedback_gate.py": "3b4f50da8c3ad5bf779473b3297370660afa60f321149fd6f696e0dd02a493fe",
+    "tools/check_feedback_gate.py": "f16c4620ad20684ad992765e54999c02fb5e623159e95c57825ac2f86b1fbdf0",
+    "tools/run_browser_quality.py": "855a43b1bdbab02211ec470ad10abcf998952689ea0e57703b2befc70a19e3c0",
+    "tools/run_frozen_smoke.py": "ecc01e50b9badd68c465a5e882f09cc602d9c724c93129dea4144b8de954cb28"
+  },
+  "issues": {
+    "LF-LOG-001": {
+      "result": "source_passed",
+      "tests": [
+        "tests_v2/test_logging.py",
+        "tests_v2/test_log_integrity.py",
+        "tests_v2/test_retention_pagination.py",
+        "tests_v2/test_terminal_windows.py"
+      ],
+      "oracle": "saved bytes, durable health and record/log eviction"
+    },
+    "LF-RESULT-002": {
+      "result": "source_passed",
+      "tests": [
+        "tests_v2/test_results.py",
+        "tests_v2/test_log_integrity.py",
+        "tests_v2/test_plugins.py"
+      ],
+      "oracle": "business status and actual per-file evidence independent of process exit"
+    },
+    "LF-TERM-003": {
+      "result": "source_passed",
+      "tests": [
+        "tests_v2/test_terminal.py",
+        "tests_v2/test_terminal_windows.py",
+        "frontend/e2e/log-integrity.spec.js",
+        "frontend/e2e/localflow.spec.js"
+      ],
+      "oracle": "native browser rows, effective window bounds, raw bytes and close counts"
+    }
+  },
+  "required": [
+    "durable capture health",
+    "uncapped tail over 100 MiB",
+    "raw download equality",
+    "per-file worst result",
+    "evaluation-error projection",
+    "nonzero-exit contradiction",
+    "missing/empty/changing evidence rejection",
+    "chunk-boundary invariance",
+    "invalid UTF-8 byte offsets",
+    "bounded row and byte coverage",
+    "malformed continuation navigation",
+    "first-to-last browser traversal",
+    "early search hit",
+    "narrow viewport refit",
+    "live history stability",
+    "bounded disconnect retries",
+    "native selection/copy",
+    "feedback gate mutants",
+    "root skill contract mutants"
+  ],
+  "covered": [
+    "durable capture health",
+    "uncapped tail over 100 MiB",
+    "raw download equality",
+    "per-file worst result",
+    "evaluation-error projection",
+    "nonzero-exit contradiction",
+    "missing/empty/changing evidence rejection",
+    "chunk-boundary invariance",
+    "invalid UTF-8 byte offsets",
+    "bounded row and byte coverage",
+    "malformed continuation navigation",
+    "first-to-last browser traversal",
+    "early search hit",
+    "narrow viewport refit",
+    "live history stability",
+    "bounded disconnect retries",
+    "native selection/copy",
+    "feedback gate mutants",
+    "root skill contract mutants"
+  ],
+  "missing_in_source_scope": [],
+  "python": {
+    "passed": 287,
+    "skipped": [
+      {
+        "test": "tests_v2.test_config.test_config_preserves_file_and_directory_symlinks",
+        "reason": "Linux release symlink semantics"
+      },
+      {
+        "test": "tests_v2.test_initialize.test_initialize_preserves_builtin_plugin_symlink",
+        "reason": "Windows symlink creation unavailable: WinError 1314 (required privilege unavailable); Linux CI must execute this case."
+      },
+      {
+        "test": "tests_v2.test_watcher.test_reconciliation_detects_external_symlink_target_edits",
+        "reason": "Linux release symlink semantics"
+      },
+      {
+        "test": "tests_v2.test_workspace.test_workspace_preserves_symlink_copy_edit_move_and_delete",
+        "reason": "Linux release symlink semantics"
+      },
+      {
+        "test": "tests_v2.test_workspace.test_workspace_supports_entire_linked_roots_without_flattening",
+        "reason": "Linux release symlink semantics"
+      }
+    ],
+    "seconds": 32.526,
+    "evidence": "quality/evidence/log-integrity/full-python-final.txt"
+  },
+  "browser": {
+    "edge": "17 passed",
+    "chromium_firefox": "2 passed",
+    "current_receipt": "quality/evidence/browser/browser-receipt.json",
+    "fixed_browser_local": "blocked: Docker Linux engine pipe missing; bounded three attempts"
+  },
+  "root_learning": {
+    "skills": [
+      "python-react-fastapi-web",
+      "modern-web-interface-design"
+    ],
+    "contract_controls": 2,
+    "fault_cases_rejected": 13,
+    "static_loading": "passed",
+    "native_host_probe": "not part of this content-only change"
+  },
+  "native_policy": {
+    "project_version": 1,
+    "installed_validator_version": 2,
+    "status": "incompatible",
+    "error": "ValueError: quality-gate policy version must be 2",
+    "impact": "old project policy is not accepted as native enforcement proof",
+    "fallback": "explicit source checks plus existing mandatory producer/consumer CI",
+    "recovery": "separate approved migration to current native policy contract; no hooks or policy weakened"
+  },
+  "release": {
+    "status": "pending",
+    "required": [
+      "exact commit producer",
+      "Ubuntu systemd/PTY/cgroup",
+      "final StaticX frozen capture and per-file scanner smoke",
+      "current and fixed Linux browsers",
+      "public asset download, provenance and extracted-bundle smoke"
+    ]
+  },
+  "limitations": [
+    "Existing explicit positive task_file_mb is preserved and must be set to 0 for uncapped capture.",
+    "Past discarded bytes cannot be reconstructed.",
+    "ANSI screen controls can clear visible rows; raw download remains the byte archive.",
+    "Complete filesystem failure can also prevent persistence of health metadata; service errors remain independently observable."
+  ]
+}

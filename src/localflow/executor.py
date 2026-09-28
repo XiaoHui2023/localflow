@@ -61,7 +61,7 @@ class SubprocessExecutor:
     """Development executor with process-group signal semantics."""
 
     def __init__(
-        self, task_log_max_bytes: int = 100 * 1024 * 1024, keep_free_bytes: int = 0
+        self, task_log_max_bytes: int = 0, keep_free_bytes: int = 0
     ) -> None:
         self._processes: dict[str, asyncio.subprocess.Process] = {}
         self._pumps: dict[str, asyncio.Task[None]] = {}
@@ -204,7 +204,7 @@ class SystemdExecutor:
     def __init__(
         self,
         root: Path,
-        task_log_max_bytes: int = 100 * 1024 * 1024,
+        task_log_max_bytes: int = 0,
         keep_free_bytes: int = 0,
     ) -> None:
         self.root = root

@@ -19,6 +19,22 @@ from localflow.settings import ExecutionSettings, ServerSettings, Settings
 from localflow.storage import Store
 
 
+def test_search_limit_and_timeout_are_explicit(root: Path) -> None:
+    root.mkdir()
+    store = Store(root / "runtime/localflow.db")
+    service = TaskService(root, store, SubprocessExecutor(), max_concurrency=1)
+    task = service.submit(TaskCreate(name="search-limits", working_directory=str(root), command=["true"]))
+    log = root / "logs" / task.id / "output.log"
+    log.write_bytes(b"hit\n" * 500)
+    result = service.search_log(task.id, "hit")
+    assert result["truncated"] is True
+    assert len(result["items"]) == 200
+    assert [item["offset"] for item in result["items"]] == list(range(0, 800, 4))
+    with pytest.raises(TimeoutError, match="timed out"):
+        service.search_log(task.id, "hit", timeout_seconds=0)
+    store.close()
+
+
 def test_log_search_crosses_blocks_with_bounded_memory(root: Path) -> None:
     root.mkdir()
     store = Store(root / "runtime" / "localflow.db")

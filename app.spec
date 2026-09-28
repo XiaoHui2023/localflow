@@ -24,7 +24,7 @@ datas.append((str(starter_scripts), "localflow/starter_root/scripts"))
 
 a = Analysis(
     [str(entry)], pathex=[str(repo_root / "src")], binaries=[], datas=datas,
-    hiddenimports=collect_submodules("uvicorn") + collect_submodules("watchfiles"),
+    hiddenimports=collect_submodules("uvicorn") + collect_submodules("watchfiles") + ["localflow.results"],
     hookspath=[], hooksconfig={}, runtime_hooks=[], excludes=[], noarchive=False,
 )
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)

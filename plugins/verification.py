@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import shlex
 from pathlib import Path
 
@@ -11,30 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from localflow.models import DeferredValue, TaskDraft
 from localflow.plugins import plugin, run_field
 from localflow.variables import VariableResolver
-
-UVM_SUMMARY = re.compile(r"UVM_(INFO|WARNING|ERROR|FATAL)\s*:\s*(\d+)", re.IGNORECASE)
-VCS_FATAL = re.compile(r"(?im)^\s*(?:Fatal(?:-|\s*:\s*)|Error-\[NOA\]|\*F,)")
-VCS_ERROR = re.compile(r"(?im)^\s*(?:Error(?:-|\s*:\s*)|\*E,)")
-
-
-def evaluate_vcs_text(text: str) -> tuple[str, int]:
-    """Classify the final UVM summary, then fall back to anchored VCS diagnostics."""
-    summary = text.rsplit("UVM Report Summary", 1)[-1]
-    counts = {name.upper(): int(value) for name, value in UVM_SUMMARY.findall(summary)}
-    if counts:
-        if counts.get("FATAL", 0):
-            return "fatal", counts["FATAL"]
-        if counts.get("ERROR", 0):
-            return "error", counts["ERROR"]
-        return "passed", 0
-    fatal = len(VCS_FATAL.findall(text))
-    if fatal:
-        return "fatal", fatal
-    error = len(VCS_ERROR.findall(text))
-    if error:
-        return "error", error
-    return "passed", 0
-
+from localflow.results import evaluate_vcs_logs, evaluate_vcs_text as evaluate_vcs_text
 
 class VerificationConfig(BaseModel):
     # Verification configurations often carry simulator-specific values that
@@ -91,7 +67,7 @@ class VerificationInputs(BaseModel):
         return self
 
 
-@plugin("verification", version="5")
+@plugin("verification", version="6")
 class Verification:
     config_model = VerificationConfig
     input_model = VerificationInputs
@@ -297,10 +273,11 @@ class Verification:
                 "status": "compile_error",
                 "custom": {**runtime, "编译日志": [str(path) for path in existing_compile]},
             }
-        text = "\n".join(
-            path.read_text(encoding="utf-8", errors="replace") for path in existing_run
-        )
-        status, _count = evaluate_vcs_text(text)
+        if len(existing_run) != len(run_logs):
+            raise ValueError("one or more configured result logs are missing")
+        status, _count = evaluate_vcs_logs(existing_run)
+        if status == "passed" and task.exit_code not in (None, 0):
+            status = "crashed"
         return {
             "status": status,
             "custom": {**runtime, "运行日志": [str(path) for path in existing_run]},

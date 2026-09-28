@@ -96,7 +96,7 @@ class LoggingSettings(BaseModel):
     level: Literal["debug", "info", "warning", "error"] = "info"
     service_file_mb: int = Field(default=10, ge=1, le=1024)
     service_files: int = Field(default=5, ge=1, le=100)
-    task_file_mb: int = Field(default=100, ge=1, le=102400)
+    task_file_mb: int = Field(default=0, ge=0, le=102400)
     task_total_mb: int = Field(default=4096, ge=1, le=1048576)
     keep_free_mb: int = Field(default=512, ge=0, le=1048576)
     database_mb: int = Field(default=512, ge=16, le=1048576)
@@ -112,6 +112,8 @@ class Settings(BaseModel):
 
 _KNOWN_BUNDLED_PLUGIN_DIGESTS = {
     "verification.py": {
+        # Unmodified v5: upgrade to the shared complete-log scanner.
+        "d2218dbb4f6dab678629cc9941000f0960c3c5f41b99c9b22074f91929986111",
         # The two v2 copies shipped by cef4941: the tracked starter root and
         # the package resource. They differed slightly but had the same contract.
         "feefbb2dc3de11ab4eb9779b363a0d273d0ccad50ded0ee327d87dd3a90010aa",

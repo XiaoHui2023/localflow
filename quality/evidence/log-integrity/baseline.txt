@@ -1,0 +1,45 @@
+FFFF                                                                     [100%]
+================================== FAILURES ===================================
+________ test_generated_invalid_utf8_search_has_exact_byte_offsets[0] _________
+tests_v2\test_log_integrity.py:46: in test_generated_invalid_utf8_search_has_exact_byte_offsets
+    assert [item["offset"] for item in found] == expected
+E   assert [1348, 1049931] == [1344, 1049931]
+E
+E     At index 0 diff: 1348 != 1344
+E     Use -v to get more diff
+________ test_generated_invalid_utf8_search_has_exact_byte_offsets[1] _________
+tests_v2\test_log_integrity.py:46: in test_generated_invalid_utf8_search_has_exact_byte_offsets
+    assert [item["offset"] for item in found] == expected
+E   assert [1348, 1049931] == [1344, 1049931]
+E
+E     At index 0 diff: 1348 != 1344
+E     Use -v to get more diff
+____________ test_changed_result_plugin_cannot_display_success[0] _____________
+tests_v2\test_log_integrity.py:85: in test_changed_result_plugin_cannot_display_success
+    assert result.status.key == "evaluation_error"
+E   AssertionError: assert 'succeeded' == 'evaluation_error'
+E
+E     - evaluation_error
+E     + succeeded
+------------------------------ Captured log call ------------------------------
+ERROR    localflow.service:service.py:572 plugin result evaluation failed task_id=001a0e6f8dcee6b44bb81bd164f029b9e error=plugin evidence changed after task submission
+____________ test_changed_result_plugin_cannot_display_success[1] _____________
+tests_v2\test_log_integrity.py:85: in test_changed_result_plugin_cannot_display_success
+    assert result.status.key == "evaluation_error"
+E   AssertionError: assert 'succeeded' == 'evaluation_error'
+E
+E     - evaluation_error
+E     + succeeded
+------------------------------ Captured log call ------------------------------
+ERROR    localflow.service:service.py:572 plugin result evaluation failed task_id=001a0e6f8dd6cd15d52f53052c7fad212 error=plugin evidence changed after task submission
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  F:\Project\python\localflow\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests_v2/test_log_integrity.py::test_generated_invalid_utf8_search_has_exact_byte_offsets[0]
+FAILED tests_v2/test_log_integrity.py::test_generated_invalid_utf8_search_has_exact_byte_offsets[1]
+FAILED tests_v2/test_log_integrity.py::test_changed_result_plugin_cannot_display_success[0]
+FAILED tests_v2/test_log_integrity.py::test_changed_result_plugin_cannot_display_success[1]
