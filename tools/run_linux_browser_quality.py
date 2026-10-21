@@ -176,6 +176,18 @@ def main() -> int:
                 )
                 if result:
                     return result
+            shutdown = subprocess.run(
+                [npm, "exec", "--", "playwright", "test", "--project=chrome-live-shutdown"],
+                cwd=REPOSITORY / "frontend",
+                env=environment,
+                check=False,
+            )
+            if shutdown.returncode:
+                return shutdown.returncode
+            if process.wait(timeout=15) != 0:
+                raise RuntimeError("frozen controller failed after browser shutdown acceptance")
+            if (state_root / "runtime" / "localflow.pid").exists():
+                raise RuntimeError("frozen controller identity remained after browser shutdown")
             return 0
         finally:
             if process.poll() is None:

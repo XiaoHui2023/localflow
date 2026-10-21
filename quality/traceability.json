@@ -1172,6 +1172,20 @@
       "evidence": "quality/evidence/shutdown-recovery/receipt.json",
       "status": "passed",
       "claim_scope": "source isolated Ubuntu24.04 user-manager/systemd and subprocess families, real Chrome84 seven-tab admin exit; Windows source/browser; final frozen/publication is a separate required CI stage and actual offline host is unverified"
+    },
+    {
+      "metric": "QM-075",
+      "requirement": [
+        "RQ-201",
+        "RQ-200"
+      ],
+      "owner": "shutdown-current-cookie-session",
+      "test": "frontend/e2e/connection-lifecycle.test.mjs;frontend/e2e/shutdown-live.spec.js;tools/run_browser_quality.py;tools/run_linux_browser_quality.py",
+      "oracle": "two natural production UI failures after second-tab login return 403 while server remains alive; fixed UI twice returns 202 and controller exits 0 without cleanup; full source and final frozen browser runners verify real shutdown last",
+      "mutant": "send cached CSRF after shared cookie replacement, replay shutdown after transport failure, or leave live shutdown test disconnected from runners",
+      "evidence": "quality/evidence/exit-auth/receipt.json",
+      "status": "passed",
+      "claim_scope": "real isolated Windows/Edge production UI; actual offline Ubuntu host unvisited; final frozen Linux browser is required in CI"
     }
   ]
 }

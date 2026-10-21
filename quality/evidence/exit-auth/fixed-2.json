@@ -1,0 +1,16 @@
+{
+  "mode": "fixed",
+  "entry": "real settings confirmation",
+  "socket_fault_injection": false,
+  "shutdown_status": 202,
+  "page_stays_open": true,
+  "status": "passed",
+  "controller_exit_code": 0,
+  "port_closed": true,
+  "fixture_cleanup_exit_code": 0,
+  "source_commit": "5a523e70a63bd5a9fc39296b3fb0155dc604d0d4",
+  "working_api_lf_sha256": "0389e8ae7af018517b93d9d2fcd4f838078800f2c3db93414511b3c465a12777",
+  "built_assets_sha256": {
+    "index-legacy-Dtubvy4Y.js": "8bce03fcf9136f1c6dffafd7e7b5df974e990f82e3c2670e069f5d82a6407e92"
+  }
+}

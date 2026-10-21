@@ -49,7 +49,11 @@ export const api = {
   searchLog: (id, query) => request(`/tasks/${id}/logs/search?${new URLSearchParams({ query })}`),
   logWindow: (id, values) => request(`/tasks/${id}/logs/window?${new URLSearchParams(values)}`),
   adjustTime: (reference_time) => request("/system/time-adjustments", { method: "POST", body: JSON.stringify({ reference_time }) }),
-  shutdown: () => request("/system/shutdown", { method: "POST" }),
+  shutdown: async () => {
+    // Another tab can replace the shared cookie after this page cached its token.
+    const session = await request("/auth/session");
+    return request("/system/shutdown", { method: "POST", headers: { "X-CSRF-Token": session.csrf_token } });
+  },
   openapi: () => request("/openapi"),
   uiRevision: (signal) => request("/system/ui-revision", {signal}),
 };

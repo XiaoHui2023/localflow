@@ -75,3 +75,5 @@ No mock-only result can satisfy a target-platform metric.
 - 网页退出必须穿过真实浏览器设置确认，至少覆盖同源7标签，保留页面直到独立确认控制器结束。成功API202或主PID结束不证明任务清空。
 - Linux subprocess与停止exec共享任务家族owner；父进程先退出、setsid、暂停、忽略信号、观察器取消、动作超时均须以/proc和进程代次后检。systemd任务cgroup清空不证明独立stop exec已回收。
 - 自然公开旧制品反例和修后结果在quality/evidence/shutdown-recovery；Linux源码专项在tests_v2/test_process_owner.py，最终staticx额外走tools/reproduce_shutdown.py五场景。不得以夹具善后清理冒充产品清理。
+
+- 多标签退出复核须覆盖另一标签真实重新登录后原页确认退出。生产页缓存CSRF不等于当前共享cookie；断言202和控制器正常结束，保留401失败不提交与传输异常不重放。测试存在还须检查两套runner实际调用，关闭服务的测试放在全部消费者之后。

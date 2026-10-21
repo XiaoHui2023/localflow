@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "status": "source-verified-frozen-pending",
+  "baseline_commit": "5a523e70a63bd5a9fc39296b3fb0155dc604d0d4",
+  "baseline": [
+    "baseline-1.json",
+    "baseline-2.json"
+  ],
+  "fixed": [
+    "fixed-1.json",
+    "fixed-2.json"
+  ],
+  "learning_sources": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html"
+  ],
+  "skills_search": "npx skills find websocket reconnect lifecycle: succeeded; no install",
+  "claim_scope": "real isolated Windows/Edge production UI; actual offline Ubuntu host unvisited; final frozen Linux browser is required in CI"
+}

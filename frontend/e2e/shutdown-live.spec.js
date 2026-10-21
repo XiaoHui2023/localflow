@@ -22,6 +22,18 @@ test("accepted shutdown exits while the real browser page remains open", async (
   await page.getByRole("button", { name: "登录", exact: true }).click();
   await expect(page.getByRole("button", { name: "退出", exact: true })).toBeVisible();
 
+  // An ordinary login in another tab replaces this browser's shared cookie.
+  const other = await page.context().newPage();
+  await other.goto("/");
+  const loginStatus = await other.evaluate(async (key) => {
+    const result = await fetch("/api/v1/auth/local-sessions", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key }),
+    });
+    return result.status;
+  }, adminKey);
+  expect(loginStatus).toBe(200);
+
   await page.getByRole("button", { name: "退出", exact: true }).click();
   const response = page.waitForResponse(
     (candidate) =>

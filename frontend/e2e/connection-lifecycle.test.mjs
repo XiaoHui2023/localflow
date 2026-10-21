@@ -1,8 +1,47 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { request } from '../src/api.js';
+import { api, request } from '../src/api.js';
 import { eventChannel, poll } from '../src/connections.js';
+
+test('shutdown reads the current cookie session and sends the protected action once',async()=>{
+ const originalFetch=globalThis.fetch;
+ const calls=[];
+ let token='first-session';
+ globalThis.fetch=async(url,options)=>{
+  calls.push({url,options});
+  if(url.endsWith('/auth/local-sessions'))return Response.json({csrf_token:token});
+  if(url.endsWith('/auth/session'))return Response.json({csrf_token:token});
+  assert.equal(options.headers['X-CSRF-Token'],token);
+  return Response.json({accepted:true},{status:202});
+ };
+ try {
+  await api.login('fixture-key');
+  token='other-tab-session';calls.length=0;
+  assert.deepEqual(await api.shutdown(),{accepted:true});
+  assert.deepEqual(calls.map(call=>call.url),['/api/v1/auth/session','/api/v1/system/shutdown']);
+  assert.equal(calls[1].options.method,'POST');
+  assert.equal(calls[1].options.headers['X-CSRF-Token'],'other-tab-session');
+ }finally{globalThis.fetch=originalFetch;}
+});
+
+test('shutdown never sends the action when session lookup fails and never retries an ambiguous action',async()=>{
+ const originalFetch=globalThis.fetch;
+ const calls=[];
+ try {
+  globalThis.fetch=async url=>{calls.push(url);return new Response('expired',{status:401});};
+  await assert.rejects(api.shutdown(),error=>error.status===401);
+  assert.deepEqual(calls,['/api/v1/auth/session']);
+  calls.length=0;
+  globalThis.fetch=async url=>{
+   calls.push(url);
+   if(url.endsWith('/auth/session'))return Response.json({csrf_token:'current'});
+   throw new TypeError('connection lost after sending');
+  };
+  await assert.rejects(api.shutdown(),/connection lost/);
+  assert.deepEqual(calls,['/api/v1/auth/session','/api/v1/system/shutdown']);
+ }finally{globalThis.fetch=originalFetch;}
+});
 
 test('request deadlines cover headers and response body, preserve caller cancellation and HTTP errors', async () => {
  const timers = new Set();

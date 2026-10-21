@@ -326,6 +326,17 @@ class GenericPicker:
                 )
                 if result:
                     return result
+            # This test closes the owned server, so it must run after consumers.
+            shutdown = subprocess.run(
+                [npm, "exec", "--", "playwright", "test", "--project=edge-live-shutdown"],
+                cwd=frontend,
+                env=qa_environment,
+                check=False,
+            )
+            if shutdown.returncode:
+                return shutdown.returncode
+            if process.wait(timeout=15) != 0:
+                raise RuntimeError("controller failed after browser shutdown acceptance")
             return 0
         finally:
             if os.name == "nt" and process.poll() is None:

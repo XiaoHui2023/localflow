@@ -1,0 +1,11 @@
+{
+  "mode": "baseline",
+  "entry": "real settings confirmation",
+  "socket_fault_injection": false,
+  "shutdown_status": 403,
+  "error": "{\"detail\":\"administrator session required\"}",
+  "controller_still_responds": true,
+  "status": "passed",
+  "fixture_cleanup_exit_code": 0,
+  "source_commit": "5a523e70a63bd5a9fc39296b3fb0155dc604d0d4"
+}

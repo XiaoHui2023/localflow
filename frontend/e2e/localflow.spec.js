@@ -1809,7 +1809,7 @@ test("plugin configuration console remains concise and operable in Edge", async 
   await expect(
     shutdownDialog.getByRole("button", { name: "正在退出", exact: true }),
   ).toBeDisabled();
-  expect(shutdownRequests).toBe(1);
+  await expect.poll(() => shutdownRequests).toBe(1);
   await page.screenshot({
     path: path.join(evidence, "admin-shutdown-confirmation.png"),
     fullPage: true,
