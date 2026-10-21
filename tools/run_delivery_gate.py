@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import subprocess
@@ -96,6 +97,37 @@ def verify_qualification(policy: dict) -> None:
             raise ValueError("qualification failed or log changed")
 
 
+def registered_core(runtime: Path) -> Path:
+    """Resolve both legacy direct registration and the verified bootstrap layer."""
+    manifest_path = runtime / "bootstrap-manifest.json"
+    if not manifest_path.is_file():
+        return runtime
+    raw = manifest_path.read_bytes()
+    if not 0 < len(raw) <= 1024 * 1024:
+        raise ValueError("bounded bootstrap manifest required")
+    manifest = json.loads(raw)
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("files"), dict):
+        raise ValueError("invalid registered bootstrap manifest")
+    canonical = json.dumps(manifest, sort_keys=True, separators=(",", ":"),
+                           ensure_ascii=True).encode()
+    if hashlib.sha256(canonical).hexdigest() != runtime.name:
+        raise ValueError("registered bootstrap identity drift")
+    entry = runtime / "codex_gate_hook.py"
+    if hashlib.sha256(entry.read_bytes()).hexdigest() != manifest["files"].get(entry.name):
+        raise ValueError("registered bootstrap entry drift")
+    sys.dont_write_bytecode = True
+    spec = importlib.util.spec_from_file_location("_localflow_registered_bootstrap", entry)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    # Use the registered verifier and selector; never guess a source checkout,
+    # latest release, or alternative core when the selected binding is invalid.
+    registry = module.support(runtime)
+    selection, _raw = registry["selection"](runtime.parents[1])
+    core = Path(selection["active_root"])
+    registry["verify"](core, selection["active_sha256"])
+    return core
+
+
 def deliver(policy: dict) -> int:
     command = policy["delivery_command_windows" if os.name == "nt" else "delivery_command"]
     challenge = os.environ.get("CODEX_GATE_CHALLENGE", "")
@@ -106,7 +138,9 @@ def deliver(policy: dict) -> int:
     # historical implementation. Its launcher verifies the complete release.
     requirements = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "OpenAI/Codex/requirements.toml"
     hooks = tomllib.loads(requirements.read_text(encoding="utf-8-sig"))["hooks"]
-    runtime = Path(hooks.get("windows_managed_dir") if os.name == "nt" else hooks.get("managed_dir"))
+    runtime = registered_core(Path(
+        hooks.get("windows_managed_dir") if os.name == "nt" else hooks.get("managed_dir")
+    ))
     sys.dont_write_bytecode = True
     sys.path.insert(0, str(runtime))
     from gate_runtime.artifacts import artifact_hashes, artifact_tree

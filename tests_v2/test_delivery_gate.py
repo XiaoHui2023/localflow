@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import sys
@@ -74,3 +75,50 @@ def test_missing_challenge_rejected_before_evidence(gate, monkeypatch):
     policy[key] = [sys.executable, "tools/run_delivery_gate.py"]
     with pytest.raises(ValueError, match="managed challenge"):
         module.deliver(policy)
+
+
+def bootstrap_fixture(tmp_path: Path, *, selected_hash: str = "selected-core") -> Path:
+    entry = """from pathlib import Path
+import json
+def support(root):
+    def selection(managed):
+        return json.loads((managed/'control/bootstrap-selection.json').read_text()), b''
+    def verify(core, expected):
+        if core.name != expected:
+            raise ValueError('selected core identity mismatch')
+    return {'selection': selection, 'verify': verify}
+"""
+    manifest = {"files": {"codex_gate_hook.py": hashlib.sha256(entry.encode()).hexdigest()}}
+    raw = json.dumps(manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
+    directory = tmp_path / "bootstrap-releases" / hashlib.sha256(raw).hexdigest()
+    directory.mkdir(parents=True)
+    (directory / "bootstrap-manifest.json").write_bytes(raw)
+    (directory / "codex_gate_hook.py").write_bytes(entry.encode())
+    control = tmp_path / "control"
+    control.mkdir()
+    (control / "bootstrap-selection.json").write_text(json.dumps({
+        "active_root": str(tmp_path / "selected-core"), "active_sha256": selected_hash,
+    }))
+    return directory
+
+
+def test_registered_core_preserves_legacy_binding(gate, tmp_path):
+    module, _, _, _ = gate
+    assert module.registered_core(tmp_path / "legacy-core") == tmp_path / "legacy-core"
+
+
+def test_registered_bootstrap_uses_its_selected_verified_core(gate, tmp_path):
+    module, _, _, _ = gate
+    assert module.registered_core(bootstrap_fixture(tmp_path)) == tmp_path / "selected-core"
+
+
+@pytest.mark.parametrize("fault", ["manifest", "entry", "selection"])
+def test_bootstrap_drift_never_falls_back_to_another_core(gate, tmp_path, fault):
+    module, _, _, _ = gate
+    directory = bootstrap_fixture(tmp_path, selected_hash="wrong" if fault == "selection" else "selected-core")
+    if fault == "manifest":
+        (directory / "bootstrap-manifest.json").write_text('{"files":{}}')
+    elif fault == "entry":
+        (directory / "codex_gate_hook.py").write_text("raise AssertionError('must never execute')")
+    with pytest.raises(ValueError, match="identity|entry drift"):
+        module.registered_core(directory)
