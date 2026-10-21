@@ -1,0 +1,67 @@
+{
+  "backend": "auto",
+  "scenario": "detached_child",
+  "controller": {
+    "pid": 5695,
+    "created": 1792569520.15,
+    "status": "running",
+    "argv": [
+      "/opt/exit-audit/venv/bin/python",
+      "-m",
+      "localflow.cli",
+      "--workspace",
+      "/tmp/localflow-exit-probe-245n7z4q/workspace",
+      "--data",
+      "/tmp/localflow-exit-probe-245n7z4q/state"
+    ]
+  },
+  "argv": [
+    "/opt/exit-audit/venv/bin/python",
+    "-m",
+    "localflow.cli",
+    "--workspace",
+    "/tmp/localflow-exit-probe-245n7z4q/workspace",
+    "--data",
+    "/tmp/localflow-exit-probe-245n7z4q/state"
+  ],
+  "budget_seconds": 18,
+  "natural_entry": true,
+  "endpoint": "http://127.0.0.1:37143",
+  "application": {
+    "pid": 5695,
+    "created": 1792569520.15,
+    "status": "sleeping",
+    "argv": [
+      "/opt/exit-audit/venv/bin/python",
+      "-m",
+      "localflow.cli",
+      "--workspace",
+      "/tmp/localflow-exit-probe-245n7z4q/workspace",
+      "--data",
+      "/tmp/localflow-exit-probe-245n7z4q/state"
+    ]
+  },
+  "input_sha256": "56699898cb8ea5bf2c04626c75366ff30bcdec60b56e616e9918fcd77d47c1ca",
+  "task_id": "001a15d7838d857bd62187b6b1e7b1a57",
+  "child": {
+    "pid": 5705,
+    "created": 1792569522.12,
+    "status": "sleeping",
+    "argv": [
+      "/opt/exit-audit/venv/bin/python",
+      "-c",
+      "import os,time,signal; from pathlib import Path; signal.signal(signal.SIGINT,signal.SIG_IGN); signal.signal(signal.SIGTERM,signal.SIG_IGN); Path('/tmp/localflow-exit-probe-245n7z4q/child.pid').write_text(str(os.getpid())); time.sleep(120)"
+    ]
+  },
+  "task_before_shutdown": "running",
+  "shutdown_http_status": 202,
+  "controller_exited": true,
+  "application_still_running": false,
+  "controller_exit_code": 0,
+  "elapsed_seconds": 1.209,
+  "child_still_running": false,
+  "port_file_present": false,
+  "pid_file_present": false,
+  "passed": true,
+  "controller_log_sha256": "f6765e12332f267078452c52e58c3626158fd9f507cd91bb6cda774340549503"
+}

@@ -781,6 +781,54 @@ def create_app(
 
         return StreamingResponse(stream(), media_type="text/event-stream")
 
+    @app.websocket("/api/v1/events")
+    async def event_socket(websocket: WebSocket):
+        scheme = "https" if websocket.url.scheme == "wss" else "http"
+        if websocket.headers.get("origin") != f"{scheme}://{websocket.headers.get('host', '')}":
+            await websocket.close(code=4403)
+            return
+        if not auth.is_websocket_admin(websocket) and settings.server.anonymous_access == "disabled":
+            await websocket.close(code=4403)
+            return
+        try:
+            value = websocket.query_params.get("after")
+            after = int(value) if value is not None else None
+            if after is not None and after < 0:
+                raise ValueError
+        except ValueError:
+            await websocket.close(code=4400)
+            return
+        await websocket.accept()
+        cursor = _initial_event_cursor(store, after, None)
+        try:
+            await websocket.send_json({"type": "ready", "id": cursor})
+            while not app.state.shutdown_event.is_set():
+                is_admin = auth.is_websocket_admin(websocket)
+                if not is_admin and settings.server.anonymous_access == "disabled":
+                    await websocket.close(code=4403)
+                    return
+                for event in store.events_after(cursor):
+                    is_admin = auth.is_websocket_admin(websocket)
+                    if not is_admin and settings.server.anonymous_access == "disabled":
+                        await websocket.close(code=4403)
+                        return
+                    safe_data = (
+                        event.data if is_admin or settings.server.anonymous_access == "readonly"
+                        else {"state": event.data.get("state")}
+                    )
+                    await websocket.send_json({
+                        "type": "event", "id": event.id, "event": event.kind,
+                        "data": {"task_id": event.task_id, **safe_data},
+                    })
+                    cursor = event.id
+                await websocket.send_json({"type": "heartbeat"})
+                # Receiving detects browser cleanup and gives the event loop a bounded wait.
+                with suppress(TimeoutError):
+                    await asyncio.wait_for(websocket.receive_text(), timeout=1)
+            await websocket.close(code=1001, reason="server shutdown")
+        except WebSocketDisconnect:
+            return
+
     @app.get("/api/v1/templates")
     async def templates(request: Request):
         role = await can_read(request)

@@ -4,12 +4,12 @@
     {
       "id": "project-skill-manifest-policy",
       "scope": "user",
-      "sha256": "5502d3d614381d392cc809d4a84d5cac8592e18a9fc5e02b9f5e0b3eb72a2602"
+      "sha256": "d2bbe9a4c754d5b51d83e6b4959b296032bf8797d154124b799d21d63d9459cd"
     },
     {
       "id": "project-evolution-engine",
       "scope": "user",
-      "sha256": "482d4589fcad32b8293e3b9ed58c5feead77f9660c4cfccb60db2c38e520ce20"
+      "sha256": "03d5674b1e8e4d105082e52c17d2fae427a40b9809dee79e55733989ae5c8da1"
     }
   ]
 }

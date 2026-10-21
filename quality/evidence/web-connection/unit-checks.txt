@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: request deadlines cover headers and response body, preserve caller cancellation and HTTP errors
+ok 1 - request deadlines cover headers and response body, preserve caller cancellation and HTTP errors
+  ---
+  duration_ms: 115.1974
+  type: 'test'
+  ...
+# Subtest: polling waits for completion and cancels its in-flight work on disposal
+ok 2 - polling waits for completion and cancels its in-flight work on disposal
+  ---
+  duration_ms: 192.071
+  type: 'test'
+  ...
+# Subtest: event consumers share one transport, replay from delivered cursor, and dispose independently
+ok 3 - event consumers share one transport, replay from delivered cursor, and dispose independently
+  ---
+  duration_ms: 2218.9912
+  type: 'test'
+  ...
+# Subtest: 24-hour rendering includes midnight and afternoon without meridiem markers
+ok 4 - 24-hour rendering includes midnight and afternoon without meridiem markers
+  ---
+  duration_ms: 16.031
+  type: 'test'
+  ...
+# Subtest: calibration preserves local time and rejects partial or normalized impossible dates
+ok 5 - calibration preserves local time and rejects partial or normalized impossible dates
+  ---
+  duration_ms: 0.2934
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2625.8519

@@ -1,0 +1,11 @@
+{
+  "result": "passed",
+  "project": "firefox-compat",
+  "browser_name": "firefox",
+  "browser_version": "153.0",
+  "operating_system": "win32",
+  "base_url": "http://192.168.1.118:42437",
+  "source_commit": null,
+  "console_errors": [],
+  "failed_requests": []
+}

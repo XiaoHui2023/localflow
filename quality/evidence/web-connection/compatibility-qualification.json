@@ -1,0 +1,12 @@
+{
+  "edge_witness": "full-browser.log: 17 passed",
+  "unchanged_owner_hashes_verified": true,
+  "build_rebuilt": false,
+  "source": "9c233aaec7c6d24e540658ced5a5de8add0871ec6cce87bf3f79a0560226987f",
+  "current_browsers": 0,
+  "legacy": {
+    "chrome-84": 0,
+    "firefox-78": 0
+  },
+  "fixture_removed": true
+}

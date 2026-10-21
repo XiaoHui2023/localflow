@@ -2,13 +2,28 @@ const API = "/api/v1";
 let csrfToken = "";
 const configPath = (path) => path.split("/").map(encodeURIComponent).join("/");
 export async function request(path, options = {}) {
+  const { signal, timeout = 15000, ...init } = options;
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (signal?.aborted) abort();
+  else signal?.addEventListener("abort", abort, { once: true });
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; abort(); }, timeout);
+  try {
   const method = (options.method || "GET").toUpperCase();
-  const response = await fetch(`${API}${path}`, { credentials: "same-origin", cache: "no-store", ...options, headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...(method !== "GET" && csrfToken ? { "X-CSRF-Token": csrfToken } : {}), ...options.headers } });
+  const response = await fetch(`${API}${path}`, { credentials: "same-origin", cache: "no-store", ...init, signal: controller.signal, headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...(method !== "GET" && csrfToken ? { "X-CSRF-Token": csrfToken } : {}), ...options.headers } });
   if (!response.ok) { const error = new Error(await response.text() || `${response.status}`); error.status = response.status; throw error; }
-  return response.status === 204 ? null : response.json();
+  return response.status === 204 ? null : await response.json();
+  } catch (error) {
+    if (timedOut) throw new Error("请求超时，请检查服务连接和操作结果");
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", abort);
+  }
 }
 export const api = {
-  status: async () => { const result = await request("/system/status"); if (result.role === "admin" && !csrfToken) { const session = await request("/auth/session"); csrfToken = session.csrf_token; } return result; }, tasks: (query = "") => request(`/tasks?limit=200${query ? `&${query}` : ""}`),
+  status: async (signal) => { const result = await request("/system/status", {signal}); if (result.role === "admin" && !csrfToken) { const session = await request("/auth/session", {signal}); csrfToken = session.csrf_token; } return result; }, tasks: (query = "", signal) => request(`/tasks?limit=200${query ? `&${query}` : ""}`, {signal}),
   interrupt: (id) => request(`/tasks/${id}/interrupt`, { method: "POST" }), acknowledge: (id) => request(`/tasks/${id}/acknowledgements`, { method: "POST" }),
   login: async (key) => { const result = await request("/auth/local-sessions", { method: "POST", body: JSON.stringify({ key }) }); csrfToken = result.csrf_token; return result; }, templates: () => request("/templates"), plugins: () => request("/plugins"),
   runTemplate: (name, values) => request("/batches", { method: "POST", body: JSON.stringify({ template: name, values }) }), files: () => request("/config/files"), file: (path) => request(`/config/files/${configPath(path)}`),
@@ -36,5 +51,5 @@ export const api = {
   adjustTime: (reference_time) => request("/system/time-adjustments", { method: "POST", body: JSON.stringify({ reference_time }) }),
   shutdown: () => request("/system/shutdown", { method: "POST" }),
   openapi: () => request("/openapi"),
-  uiRevision: () => request("/system/ui-revision"),
+  uiRevision: (signal) => request("/system/ui-revision", {signal}),
 };

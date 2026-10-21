@@ -1,0 +1,64 @@
+{
+  "backend": "subprocess",
+  "scenario": "detached_child",
+  "controller": {
+    "pid": 4539,
+    "created": 1792568053.68,
+    "argv": [
+      "/opt/exit-audit/venv/bin/python",
+      "-m",
+      "localflow.cli",
+      "--workspace",
+      "/tmp/localflow-exit-probe-cu9w92mf/workspace",
+      "--data",
+      "/tmp/localflow-exit-probe-cu9w92mf/state"
+    ]
+  },
+  "argv": [
+    "/opt/exit-audit/venv/bin/python",
+    "-m",
+    "localflow.cli",
+    "--workspace",
+    "/tmp/localflow-exit-probe-cu9w92mf/workspace",
+    "--data",
+    "/tmp/localflow-exit-probe-cu9w92mf/state"
+  ],
+  "budget_seconds": 75.0,
+  "natural_entry": true,
+  "endpoint": "http://127.0.0.1:43977",
+  "application": {
+    "pid": 4539,
+    "created": 1792568053.68,
+    "argv": [
+      "/opt/exit-audit/venv/bin/python",
+      "-m",
+      "localflow.cli",
+      "--workspace",
+      "/tmp/localflow-exit-probe-cu9w92mf/workspace",
+      "--data",
+      "/tmp/localflow-exit-probe-cu9w92mf/state"
+    ]
+  },
+  "input_sha256": "3976e198c4586aa43030513063d5849d3d76616db3b6370e2ebf3d22e685fea7",
+  "task_id": "001a15d61d5ca5ccc0b89583fcb141e02",
+  "child": {
+    "pid": 4548,
+    "created": 1792568054.86,
+    "argv": [
+      "/opt/exit-audit/venv/bin/python",
+      "-c",
+      "import os,time,signal; from pathlib import Path; signal.signal(signal.SIGINT,signal.SIG_IGN); signal.signal(signal.SIGTERM,signal.SIG_IGN); Path('/tmp/localflow-exit-probe-cu9w92mf/child.pid').write_text(str(os.getpid())); time.sleep(120)"
+    ]
+  },
+  "task_before_shutdown": "running",
+  "shutdown_http_status": 202,
+  "controller_exited": true,
+  "application_still_running": false,
+  "controller_exit_code": 0,
+  "elapsed_seconds": 1.258,
+  "child_still_running": false,
+  "port_file_present": false,
+  "pid_file_present": false,
+  "passed": true,
+  "controller_log_sha256": "cceee0bb769931140051ce100a38987f943a7826bd95a5440171d1014c993ee7"
+}

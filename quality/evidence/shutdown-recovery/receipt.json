@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "status": "source-verified-frozen-pending",
+  "scope": "isolated Ubuntu24.04 systemd + Linux subprocess + Windows source/browser; actual offline host not accessed",
+  "source_hash_normalization": "UTF8 with CRLF normalized to LF",
+  "source_inputs": {
+    "src/localflow/api.py": "2e5bd6369b91fa0d80fa0adedf217df49559daef7da25ae04305496eb5ea9252",
+    "src/localflow/cli.py": "f94e6dd4bb8e924022997bf7e1c6f741b0c2f4ea067894628448778b6bd374a1",
+    "src/localflow/executor.py": "c29d02c582db1fdff8839dac91eb4114452bf54e4139486100737f5c517dbc21",
+    "src/localflow/process_owner.py": "612956f8699cacf78369ea28321f44c3b5361c82c798915709b5308d761e3c3a",
+    "src/localflow/service.py": "702bdbbd45b346beb87dcd9f886452fddade05e665b7161cce86160dd27badbd",
+    "src/localflow/supervisor.py": "2d6deaef0bd64e5088a3abc04b6e41dca70a2b4cfc8c148d7d80abf0e5827e17",
+    "frontend/src/App.jsx": "9b6751d24913e12ba84522b96808be6d6d72b414fbb641b7ddd5f4372d902e46",
+    "frontend/src/api.js": "53f17d522cc15245b7bddd678d0ba1bee354f6c86680d888b5796f4a7b30d7fc",
+    "frontend/src/connections.js": "25b51dc8046b2733d647b2b903c27815c35bb1ca04604631efd25fca591605fd",
+    "frontend/src/time.js": "47e325eef7adcb0c2efbf529df4243752671b97876fea3756d51d9a3de9cb29a",
+    "frontend/package.json": "bc24ad88606512db4edbe570894aa80bdea0bc834a6554beb33989e42bc25076",
+    "frontend/package-lock.json": "385dfee5156aceb98b541ed5d3a3c4e0b3a6ad42f56b3fbafb23912811281d4c"
+  },
+  "baseline_asset_sha256": "6b735bd6aa8843a410e95d549437dfd2a05b3e744c40b4bf30ba4a532e488d73",
+  "issues": {
+    "LF-EXIT-001": {
+      "result": "passed",
+      "meaning": "isolated natural baseline rejected; source fix and independent cleanup checks passed; frozen release remains separate"
+    },
+    "LF-EXIT-002": {
+      "result": "passed",
+      "meaning": "isolated natural baseline rejected; source fix and independent cleanup checks passed; frozen release remains separate"
+    }
+  },
+  "baseline_runs": [
+    "published-browser-six-tabs-1.json",
+    "published-browser-six-tabs-2.json",
+    "published-subprocess-group-child-1.json",
+    "published-subprocess-group-child-2.json",
+    "published-stop-helper-1.json",
+    "published-stop-helper-2.json"
+  ],
+  "source_runs": [
+    "source-final-subprocess-group_child.json",
+    "source-final-subprocess-detached_child.json",
+    "source-final-subprocess-stop_helper.json",
+    "source-final-browser-systemd.json",
+    "candidate-browser-subprocess-seven-tabs-final.json",
+    "source-auto-without-user-manager.json"
+  ],
+  "source_suite": {
+    "linux": {
+      "tests": "328",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "69.941"
+    },
+    "windows": "full suite passed before final added Linux-only negative controls; formal current qualification pending",
+    "owner": "13 real Linux owner checks included in the full suite, including absent pidfd API and ENOSYS",
+    "browser": "Edge full + Chromium/Firefox + Chrome84/Firefox78 gate exit0 on bounded second run with Vite8.2.4; original teardown failure retained",
+    "auto_fallback": "real nobody account with no user manager, actual auto fallback and detached resistant child cleaned in1.209s"
+  },
+  "promotion": {
+    "tier": "project_only",
+    "owner": "localflow.executor.SubprocessExecutor + localflow.process_owner",
+    "reason": "single LocalFlow consumer with frozen CLI envelope, database lifecycle and task-family contract; no second compatible released consumer to justify a new public package",
+    "reusable_mechanism": "same owner consumed by ordinary task execution and stop-action execution",
+    "contrasting_cases": [
+      "systemd unchanged",
+      "independent sibling survives",
+      "stdin/output/exit statuses retained",
+      "old kernel ENOSYS and missing API"
+    ]
+  },
+  "remaining": [
+    "final staticx build and frozen family smoke",
+    "published asset download and hash verification",
+    "actual offline Ubuntu installation version and launch path unknown"
+  ]
+}

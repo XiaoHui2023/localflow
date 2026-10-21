@@ -1,0 +1,1454 @@
+
+> localflow-frontend@0.0.0 build
+> vite build
+
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 2430 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                   0.63 kB │ gzip:   0.35 kB
+dist/assets/ini-legacy-CWvJUQuI.js                1.03 kB │ gzip:   0.52 kB
+dist/assets/yaml-legacy-CsoxOTYF.js               4.00 kB │ gzip:   1.53 kB
+dist/assets/jsonMode-legacy-BwOVoO_t.js          40.88 kB │ gzip:  11.61 kB
+dist/assets/polyfills-legacy-D3aFWEOh.js         80.06 kB │ gzip:  28.09 kB
+dist/assets/index-legacy-CF8NL9X4.js            840.49 kB │ gzip: 230.72 kB
+dist/assets/MonacoEditors-legacy-VF-jf_OI.js  2,370.63 kB │ gzip: 609.61 kB
+
+✓ built in 13.66s
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+[33m[PLUGIN_TIMINGS] [0mYour build spent 97% of 13.7s inside plugin hooks (13.2s).
+Not measurable — 4 hooks whose calls overlap, so elapsed time covers work other calls were doing. Profile with `node --cpu-prof`:
+  - vite:css transform (58 calls)
+  - vite:legacy-post-process renderChunk (5 calls)
+  - vite:css-post renderChunk (5 calls)
+  … and 1 more
+See https://rolldown.rs/reference/InputOptions.checks#plugintimings for more details.
+
+2026-09-29 21:20:14,016 - INFO - LocalFlow starting config_root=C:\Users\Administrator\AppData\Local\Temp\localflow-browser-qa-93r4n1k5\root state_root=C:\Users\Administrator\AppData\Local\Temp\localflow-browser-qa-93r4n1k5\root\.localflow backend=subprocess
+2026-09-29 21:20:14,198 - INFO - Started server process [23468]
+2026-09-29 21:20:14,198 - INFO - Waiting for application startup.
+2026-09-29 21:20:14,224 - INFO - Application startup complete.
+2026-09-29 21:20:14,226 - INFO - Uvicorn running on http://0.0.0.0:59399 (Press CTRL+C to quit)
+http://192.168.1.118:59399
+2026-09-29 21:20:14,458 - INFO - 192.168.1.118:59401 - "GET / HTTP/1.1" 200
+
+> localflow-frontend@0.0.0 test:e2e
+> playwright test --project=edge-full
+
+
+Running 17 tests using 1 worker
+
+(node:6028) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/17] [edge-full] › e2e\localflow.spec.js:129:1 › an open testing page reloads when the frontend revision changes
+2026-09-29 21:20:26,168 - INFO - 192.168.1.118:57074 - "GET / HTTP/1.1" 200
+2026-09-29 21:20:26,193 - INFO - 192.168.1.118:57074 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:20:26,195 - INFO - 192.168.1.118:23808 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:20:26,200 - INFO - 192.168.1.118:31806 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:20:26,231 - INFO - 192.168.1.118:57074 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:20:26,344 - INFO - 192.168.1.118:57074 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:26,345 - INFO - 192.168.1.118:31806 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:28,366 - INFO - 192.168.1.118:31806 - "GET / HTTP/1.1" 200
+2026-09-29 21:20:28,387 - INFO - 192.168.1.118:31806 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:20:28,389 - INFO - 192.168.1.118:57074 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:20:28,391 - INFO - 192.168.1.118:23808 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:20:28,406 - INFO - 192.168.1.118:23808 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:20:28,468 - INFO - 192.168.1.118:23808 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:28,469 - INFO - 192.168.1.118:57074 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+[2/17] [edge-full] › e2e\localflow.spec.js:179:1 › configuration and tasks split only when every pane remains usable
+2026-09-29 21:20:29,454 - INFO - 192.168.1.118:5987 - "GET / HTTP/1.1" 200
+2026-09-29 21:20:29,465 - INFO - 192.168.1.118:5987 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:20:29,468 - INFO - 192.168.1.118:16938 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:20:29,469 - INFO - 192.168.1.118:21336 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:20:29,490 - INFO - 192.168.1.118:21336 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:20:29,568 - INFO - 192.168.1.118:21336 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:29,569 - INFO - 192.168.1.118:16938 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:29,570 - INFO - 192.168.1.118:5987 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:29,577 - INFO - 192.168.1.118:5987 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:20:29,633 - INFO - 192.168.1.118:5987 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:29,702 - INFO - 192.168.1.118:5987 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:20:29,709 - INFO - 192.168.1.118:5987 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:29,709 - INFO - 192.168.1.118:16938 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:29,745 - INFO - 192.168.1.118:16938 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:20:29,769 - INFO - 192.168.1.118:19498 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:20:29,770 - INFO - connection open
+2026-09-29 21:20:29,773 - INFO - 192.168.1.118:5987 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:20:29,774 - INFO - 192.168.1.118:21336 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:20:29,811 - INFO - 192.168.1.118:21336 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:29,824 - INFO - 192.168.1.118:21336 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:29,948 - INFO - 192.168.1.118:21336 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+[3/17] [edge-full] › e2e\localflow.spec.js:205:1 › resource tree rename is explicit and cancellable
+2026-09-29 21:20:30,173 - INFO - 192.168.1.118:36937 - "GET / HTTP/1.1" 200
+2026-09-29 21:20:30,184 - INFO - 192.168.1.118:36937 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:20:30,186 - INFO - 192.168.1.118:32252 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:20:30,187 - INFO - 192.168.1.118:52595 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:20:30,208 - INFO - 192.168.1.118:52595 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:20:30,290 - INFO - 192.168.1.118:52595 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:30,292 - INFO - 192.168.1.118:32252 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:30,293 - INFO - 192.168.1.118:36937 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:30,312 - INFO - 192.168.1.118:36937 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:20:30,370 - INFO - 192.168.1.118:36937 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:30,430 - INFO - 192.168.1.118:36937 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:20:30,440 - INFO - 192.168.1.118:36937 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:30,440 - INFO - 192.168.1.118:32252 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:30,490 - INFO - 192.168.1.118:32252 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:20:30,492 - INFO - 192.168.1.118:60709 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:20:30,493 - INFO - connection open
+2026-09-29 21:20:30,494 - INFO - 192.168.1.118:36937 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:20:30,495 - INFO - 192.168.1.118:52595 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:20:30,516 - INFO - 192.168.1.118:52595 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:30,538 - INFO - 192.168.1.118:52595 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:30,653 - INFO - 192.168.1.118:52595 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:20:30,764 - INFO - 192.168.1.118:52595 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+[4/17] [edge-full] › e2e\localflow.spec.js:225:1 › nested include changes refresh the open run projection
+2026-09-29 21:20:31,000 - INFO - 192.168.1.118:64697 - "GET / HTTP/1.1" 200
+2026-09-29 21:20:31,014 - INFO - 192.168.1.118:64697 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:20:31,017 - INFO - 192.168.1.118:10073 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:20:31,018 - INFO - 192.168.1.118:13708 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:20:31,039 - INFO - 192.168.1.118:13708 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:20:31,181 - INFO - 192.168.1.118:13708 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:31,182 - INFO - 192.168.1.118:10073 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:31,182 - INFO - 192.168.1.118:64697 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:31,183 - INFO - 192.168.1.118:18947 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:20:31,188 - INFO - 192.168.1.118:18947 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:31,247 - INFO - 192.168.1.118:18947 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:20:31,256 - INFO - 192.168.1.118:18947 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:31,256 - INFO - 192.168.1.118:64697 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:31,351 - INFO - 192.168.1.118:64697 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:20:31,364 - INFO - 192.168.1.118:42570 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:20:31,364 - INFO - connection open
+2026-09-29 21:20:31,367 - INFO - 192.168.1.118:18947 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:20:31,368 - INFO - 192.168.1.118:10073 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:20:31,400 - INFO - 192.168.1.118:10073 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:31,411 - INFO - 192.168.1.118:10073 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:31,476 - INFO - 192.168.1.118:10073 - "GET /api/v1/workspace/files/config/command/live-consumer.yaml HTTP/1.1" 200
+2026-09-29 21:20:31,486 - INFO - 192.168.1.118:18947 - "GET /api/v1/workspace/files/config/command/live-consumer.yaml HTTP/1.1" 200
+2026-09-29 21:20:31,487 - INFO - 192.168.1.118:64697 - "GET /api/v1/workspace/files/config/command/live-consumer.yaml HTTP/1.1" 200
+2026-09-29 21:20:31,627 - INFO - 192.168.1.118:64697 - "POST /api/v1/config/files/command/live-consumer.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:20:31,735 - INFO - 192.168.1.118:64697 - "POST /api/v1/config/files/command/live-consumer.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:20:33,202 - INFO - 192.168.1.118:64697 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:33,413 - INFO - 192.168.1.118:64697 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:20:33,425 - INFO - 192.168.1.118:64697 - "GET /api/v1/workspace/files/config/command/live-consumer.yaml HTTP/1.1" 200
+2026-09-29 21:20:33,561 - INFO - 192.168.1.118:64697 - "POST /api/v1/config/files/command/live-consumer.yaml/inspection HTTP/1.1" 200
+[5/17] [edge-full] › e2e\localflow.spec.js:255:1 › invalid configuration keeps a debuggable run surface
+2026-09-29 21:20:34,063 - INFO - 192.168.1.118:39068 - "GET / HTTP/1.1" 200
+2026-09-29 21:20:34,075 - INFO - 192.168.1.118:39068 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:20:34,078 - INFO - 192.168.1.118:45803 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:20:34,079 - INFO - 192.168.1.118:32367 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:20:34,102 - INFO - 192.168.1.118:32367 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:20:34,181 - INFO - 192.168.1.118:32367 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:34,182 - INFO - 192.168.1.118:45803 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:34,182 - INFO - 192.168.1.118:39068 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:34,190 - INFO - 192.168.1.118:39068 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:20:34,250 - INFO - 192.168.1.118:39068 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:34,308 - INFO - 192.168.1.118:39068 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:20:34,318 - INFO - 192.168.1.118:39068 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:34,319 - INFO - 192.168.1.118:45803 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:34,378 - INFO - 192.168.1.118:45803 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:20:34,390 - INFO - 192.168.1.118:36472 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:20:34,390 - INFO - connection open
+2026-09-29 21:20:34,390 - INFO - 192.168.1.118:39068 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:20:34,390 - INFO - 192.168.1.118:32367 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:20:34,431 - INFO - 192.168.1.118:32367 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:34,444 - INFO - 192.168.1.118:32367 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:34,516 - INFO - 192.168.1.118:32367 - "GET /api/v1/workspace/files/config/command/qa-invalid.yaml HTTP/1.1" 200
+2026-09-29 21:20:34,521 - INFO - 192.168.1.118:39068 - "GET /api/v1/workspace/files/config/command/qa-invalid.yaml HTTP/1.1" 200
+2026-09-29 21:20:34,522 - INFO - 192.168.1.118:45803 - "GET /api/v1/workspace/files/config/command/qa-invalid.yaml HTTP/1.1" 200
+[6/17] [edge-full] › e2e\localflow.spec.js:276:1 › a clean configuration reopens on its run surface
+2026-09-29 21:20:34,813 - INFO - 192.168.1.118:10587 - "GET / HTTP/1.1" 200
+2026-09-29 21:20:34,824 - INFO - 192.168.1.118:10587 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:20:34,829 - INFO - 192.168.1.118:18050 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:20:34,830 - INFO - 192.168.1.118:27645 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:20:34,850 - INFO - 192.168.1.118:27645 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:20:34,930 - INFO - 192.168.1.118:27645 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:34,932 - INFO - 192.168.1.118:18050 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:34,932 - INFO - 192.168.1.118:10587 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:34,941 - INFO - 192.168.1.118:10587 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:20:35,009 - INFO - 192.168.1.118:10587 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:35,067 - INFO - 192.168.1.118:10587 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:20:35,076 - INFO - 192.168.1.118:10587 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:35,076 - INFO - 192.168.1.118:18050 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:35,123 - INFO - 192.168.1.118:18050 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:20:35,143 - INFO - 192.168.1.118:34575 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:20:35,143 - INFO - connection open
+2026-09-29 21:20:35,145 - INFO - 192.168.1.118:10587 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:20:35,145 - INFO - 192.168.1.118:27645 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:20:35,172 - INFO - 192.168.1.118:27645 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:35,183 - INFO - 192.168.1.118:27645 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:35,253 - INFO - 192.168.1.118:27645 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:35,254 - INFO - 192.168.1.118:10587 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:35,294 - INFO - 192.168.1.118:10587 - "GET /assets/MonacoEditors-legacy-VF-jf_OI.js HTTP/1.1" 200
+2026-09-29 21:20:35,476 - INFO - 192.168.1.118:10587 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:20:35,514 - INFO - 192.168.1.118:10587 - "GET /assets/yaml-legacy-CsoxOTYF.js HTTP/1.1" 200
+2026-09-29 21:20:35,696 - INFO - 192.168.1.118:10587 - "GET /api/v1/workspace/files/config/verification/demo.yaml HTTP/1.1" 200
+2026-09-29 21:20:35,717 - INFO - 192.168.1.118:27645 - "GET /api/v1/workspace/files/config/verification/demo.yaml HTTP/1.1" 200
+2026-09-29 21:20:35,718 - INFO - 192.168.1.118:18050 - "GET /api/v1/workspace/files/config/verification/demo.yaml HTTP/1.1" 200
+2026-09-29 21:20:35,743 - INFO - 192.168.1.118:18050 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:35,748 - INFO - 192.168.1.118:27645 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:35,749 - INFO - 192.168.1.118:10587 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+[7/17] [edge-full] › e2e\localflow.spec.js:303:1 › command run information keeps content-driven compact rows
+2026-09-29 21:20:35,958 - INFO - 192.168.1.118:17867 - "GET / HTTP/1.1" 200
+2026-09-29 21:20:35,969 - INFO - 192.168.1.118:17867 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:20:35,972 - INFO - 192.168.1.118:2828 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:20:35,973 - INFO - 192.168.1.118:59883 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:20:35,993 - INFO - 192.168.1.118:59883 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:20:36,074 - INFO - 192.168.1.118:59883 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:36,075 - INFO - 192.168.1.118:2828 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:36,076 - INFO - 192.168.1.118:17867 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:36,084 - INFO - 192.168.1.118:17867 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:20:36,144 - INFO - 192.168.1.118:17867 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:36,202 - INFO - 192.168.1.118:17867 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:20:36,208 - INFO - 192.168.1.118:17867 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:36,208 - INFO - 192.168.1.118:2828 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:36,260 - INFO - 192.168.1.118:2828 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:20:36,275 - INFO - 192.168.1.118:23746 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:20:36,276 - INFO - connection open
+2026-09-29 21:20:36,278 - INFO - 192.168.1.118:17867 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:20:36,279 - INFO - 192.168.1.118:59883 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:20:36,307 - INFO - 192.168.1.118:59883 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:36,323 - INFO - 192.168.1.118:59883 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:36,374 - INFO - 192.168.1.118:59883 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:36,375 - INFO - 192.168.1.118:17867 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:36,448 - INFO - 192.168.1.118:17867 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:20:36,545 - INFO - 192.168.1.118:17867 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+[8/17] [edge-full] › e2e\localflow.spec.js:489:1 › plugin configuration console remains concise and operable in Edge
+2026-09-29 21:20:36,846 - INFO - 192.168.1.118:7744 - "GET / HTTP/1.1" 200
+2026-09-29 21:20:36,853 - INFO - 192.168.1.118:7744 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:20:36,860 - INFO - 192.168.1.118:24221 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:20:36,861 - INFO - 192.168.1.118:42972 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:20:36,883 - INFO - 192.168.1.118:42972 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:20:36,960 - INFO - 192.168.1.118:42972 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:36,960 - INFO - 192.168.1.118:24221 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:36,961 - INFO - 192.168.1.118:7744 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:36,972 - INFO - 192.168.1.118:7744 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:20:37,036 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:37,232 - INFO - 192.168.1.118:7744 - "POST /api/v1/auth/local-sessions HTTP/1.1" 401
+2026-09-29 21:20:37,322 - INFO - 192.168.1.118:7744 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:20:37,334 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:37,335 - INFO - 192.168.1.118:24221 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:37,385 - INFO - 192.168.1.118:24221 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:20:37,403 - INFO - 192.168.1.118:41209 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:20:37,403 - INFO - connection open
+2026-09-29 21:20:37,405 - INFO - 192.168.1.118:7744 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:20:37,405 - INFO - 192.168.1.118:42972 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:20:37,432 - INFO - 192.168.1.118:42972 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:37,441 - INFO - 192.168.1.118:42972 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:37,577 - INFO - 192.168.1.118:42972 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:20:37,627 - INFO - 192.168.1.118:42972 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:37,665 - INFO - 192.168.1.118:42972 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:20:38,899 - INFO - 192.168.1.118:42972 - "GET / HTTP/1.1" 200
+2026-09-29 21:20:38,908 - INFO - 192.168.1.118:42972 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 304
+2026-09-29 21:20:38,918 - INFO - 192.168.1.118:42972 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 304
+2026-09-29 21:20:38,939 - INFO - 192.168.1.118:42972 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:38,941 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:38,941 - INFO - 192.168.1.118:24221 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:38,946 - INFO - 192.168.1.118:24221 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:20:38,947 - INFO - 192.168.1.118:42972 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:20:38,997 - INFO - 192.168.1.118:42972 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:20:39,011 - INFO - 192.168.1.118:11700 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:20:39,012 - INFO - connection open
+2026-09-29 21:20:39,014 - INFO - 192.168.1.118:24221 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:20:39,015 - INFO - 192.168.1.118:7744 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:20:39,017 - INFO - 192.168.1.118:26866 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:39,027 - INFO - 192.168.1.118:26866 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:39,027 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:20:39,039 - INFO - 192.168.1.118:26866 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:20:39,047 - INFO - task queued task_id=001a0ed531083903767055484d0d41a89 name=qa-finished
+2026-09-29 21:20:39,063 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:20:39,065 - INFO - task started task_id=001a0ed531083903767055484d0d41a89
+2026-09-29 21:20:39,076 - INFO - 192.168.1.118:7744 - "GET /api/v1/tasks/001a0ed531083903767055484d0d41a89 HTTP/1.1" 200
+2026-09-29 21:20:39,137 - INFO - task finished task_id=001a0ed531083903767055484d0d41a89 state=succeeded exit_code=0
+2026-09-29 21:20:39,160 - INFO - 192.168.1.118:7744 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:20:39,200 - INFO - 192.168.1.118:7744 - "GET /api/v1/tasks/001a0ed531083903767055484d0d41a89 HTTP/1.1" 200
+2026-09-29 21:20:39,263 - INFO - 192.168.1.118:7744 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:20:40,959 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:41,954 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:41,956 - INFO - 192.168.1.118:26866 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:42,240 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed531083903767055484d0d41a89/acknowledgements HTTP/1.1" 200
+2026-09-29 21:20:42,748 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:20:42,757 - INFO - task queued task_id=001a0ed531f0109a3c73c7d1f532ff812 name=qa-terminal
+2026-09-29 21:20:42,769 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:20:42,774 - INFO - task started task_id=001a0ed531f0109a3c73c7d1f532ff812
+2026-09-29 21:20:42,783 - INFO - 192.168.1.118:26866 - "GET /api/v1/tasks/001a0ed531f0109a3c73c7d1f532ff812 HTTP/1.1" 200
+2026-09-29 21:20:42,856 - INFO - 192.168.1.118:39058 - "WebSocket /api/v1/tasks/001a0ed531083903767055484d0d41a89/terminal?offset=0&end=1164&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:20:42,857 - INFO - connection open
+2026-09-29 21:20:43,000 - INFO - 192.168.1.118:26866 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:44,966 - INFO - 192.168.1.118:26866 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:44,966 - INFO - 192.168.1.118:7744 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:44,988 - INFO - 192.168.1.118:54354 - "WebSocket /api/v1/tasks/001a0ed531f0109a3c73c7d1f532ff812/terminal?offset=0&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:20:44,991 - INFO - connection open
+2026-09-29 21:20:45,006 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:47,022 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:47,987 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:47,987 - INFO - 192.168.1.118:26866 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:49,028 - INFO - 192.168.1.118:26866 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:51,001 - INFO - 192.168.1.118:26866 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:51,001 - INFO - 192.168.1.118:7744 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:51,044 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:53,058 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:54,018 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:54,018 - INFO - 192.168.1.118:26866 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:54,524 - INFO - 192.168.1.118:29115 - "WebSocket /api/v1/tasks/001a0ed531083903767055484d0d41a89/terminal?offset=0&end=1164&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:20:54,524 - INFO - connection open
+2026-09-29 21:20:54,585 - INFO - 192.168.1.118:42650 - "WebSocket /api/v1/tasks/001a0ed531f0109a3c73c7d1f532ff812/terminal?offset=0&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:20:54,586 - INFO - connection open
+2026-09-29 21:20:55,073 - INFO - 192.168.1.118:26866 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:55,519 - INFO - 192.168.1.118:2454 - "WebSocket /api/v1/tasks/001a0ed531f0109a3c73c7d1f532ff812/terminal?offset=0&window=rows&columns=78&direction=tail" [accepted]
+2026-09-29 21:20:55,519 - INFO - connection open
+2026-09-29 21:20:55,674 - INFO - 192.168.1.118:44296 - "WebSocket /api/v1/tasks/001a0ed531f0109a3c73c7d1f532ff812/terminal?offset=0&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:20:55,674 - INFO - connection open
+2026-09-29 21:20:55,781 - INFO - 192.168.1.118:12208 - "WebSocket /api/v1/tasks/001a0ed531083903767055484d0d41a89/terminal?offset=0&end=1164&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:20:55,782 - INFO - connection open
+2026-09-29 21:20:57,031 - INFO - 192.168.1.118:26866 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:20:57,031 - INFO - 192.168.1.118:7744 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:20:57,088 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:20:57,178 - INFO - 192.168.1.118:35840 - "WebSocket /api/v1/tasks/001a0ed531f0109a3c73c7d1f532ff812/terminal?offset=0&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:20:57,179 - INFO - connection open
+2026-09-29 21:20:59,111 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:00,046 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:00,046 - INFO - 192.168.1.118:26866 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:01,118 - INFO - 192.168.1.118:26866 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:01,670 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:01,679 - INFO - task queued task_id=001a0ed5368eab62dd869fcd4b8a77c62 name=qa-duplicate
+2026-09-29 21:21:01,680 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:01,689 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:01,697 - INFO - task queued task_id=001a0ed5368fd3463b7f77e323e56e030 name=qa-duplicate
+2026-09-29 21:21:01,698 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,057 - INFO - 192.168.1.118:26866 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:03,057 - INFO - 192.168.1.118:7744 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:03,135 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:03,583 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,591 - INFO - task queued task_id=001a0ed53706298c256deeae095a17193 name=qa-queued-2
+2026-09-29 21:21:03,591 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,599 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,627 - INFO - task queued task_id=001a0ed53707200bd3eb2b8c856b87dff name=qa-queued-3
+2026-09-29 21:21:03,627 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,637 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,646 - INFO - task queued task_id=001a0ed53709a8ba281043e58c1a0db2e name=qa-queued-4
+2026-09-29 21:21:03,647 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,654 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,664 - INFO - task queued task_id=001a0ed5370aba26c92a42d50c4d86aaf name=qa-queued-5
+2026-09-29 21:21:03,665 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,673 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,682 - INFO - task queued task_id=001a0ed5370be7a31de846a7580394760 name=qa-queued-6
+2026-09-29 21:21:03,683 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,691 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,699 - INFO - task queued task_id=001a0ed5370cfeab7f9f953f8eae7bad7 name=qa-queued-7
+2026-09-29 21:21:03,700 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,708 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,708 - INFO - task queued task_id=001a0ed5370dc1c65cd13e575400f5e15 name=qa-queued-8
+2026-09-29 21:21:03,708 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,727 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,727 - INFO - task queued task_id=001a0ed5370efc871e0d68f542429dd3a name=qa-queued-9
+2026-09-29 21:21:03,738 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,746 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,754 - INFO - task queued task_id=001a0ed53710607c72688f36c3031a430 name=qa-queued-10
+2026-09-29 21:21:03,755 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,764 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,768 - INFO - task queued task_id=001a0ed537118724d3bdac4822fcd2e24 name=qa-queued-11
+2026-09-29 21:21:03,768 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,781 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,789 - INFO - task queued task_id=001a0ed53712889c06ec99c5ed2d1ad9b name=qa-queued-12
+2026-09-29 21:21:03,789 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,799 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,807 - INFO - task queued task_id=001a0ed53713cdec514dde063647922c4 name=qa-queued-13
+2026-09-29 21:21:03,809 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,817 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,825 - INFO - task queued task_id=001a0ed53714d7b779149feb40f393fa3 name=qa-queued-14
+2026-09-29 21:21:03,826 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,836 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,845 - INFO - task queued task_id=001a0ed5371618791c0e89627ba123663 name=qa-queued-15
+2026-09-29 21:21:03,846 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,855 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,863 - INFO - task queued task_id=001a0ed537173c18545e99fd250ce735c name=qa-queued-16
+2026-09-29 21:21:03,865 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,873 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,879 - INFO - task queued task_id=001a0ed537182a9511000fa3106fa5f37 name=qa-queued-17
+2026-09-29 21:21:03,882 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,890 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,899 - INFO - task queued task_id=001a0ed537197f7d49b1297203a6f9c9d name=qa-queued-18
+2026-09-29 21:21:03,900 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,908 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,916 - INFO - task queued task_id=001a0ed5371a892e01b91f059fc4ed92d name=qa-queued-19
+2026-09-29 21:21:03,917 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:03,920 - INFO - 192.168.1.118:7744 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:03,929 - INFO - task queued task_id=001a0ed5371b9839e3132b4c1c1014d2d name=qa-queued-20
+2026-09-29 21:21:03,936 - INFO - 192.168.1.118:7744 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:05,148 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:06,088 - INFO - 192.168.1.118:7744 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:06,089 - INFO - 192.168.1.118:26866 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:06,404 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,409 - INFO - queued task cancelled task_id=001a0ed5368eab62dd869fcd4b8a77c62
+2026-09-29 21:21:06,419 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed5368eab62dd869fcd4b8a77c62/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,431 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,435 - INFO - queued task cancelled task_id=001a0ed5368fd3463b7f77e323e56e030
+2026-09-29 21:21:06,445 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed5368fd3463b7f77e323e56e030/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,457 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,461 - INFO - queued task cancelled task_id=001a0ed53706298c256deeae095a17193
+2026-09-29 21:21:06,468 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed53706298c256deeae095a17193/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,478 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,481 - INFO - queued task cancelled task_id=001a0ed53707200bd3eb2b8c856b87dff
+2026-09-29 21:21:06,489 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed53707200bd3eb2b8c856b87dff/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,500 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,504 - INFO - queued task cancelled task_id=001a0ed53709a8ba281043e58c1a0db2e
+2026-09-29 21:21:06,512 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed53709a8ba281043e58c1a0db2e/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,514 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,526 - INFO - queued task cancelled task_id=001a0ed5370aba26c92a42d50c4d86aaf
+2026-09-29 21:21:06,536 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed5370aba26c92a42d50c4d86aaf/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,547 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,550 - INFO - queued task cancelled task_id=001a0ed5370be7a31de846a7580394760
+2026-09-29 21:21:06,558 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed5370be7a31de846a7580394760/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,568 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,572 - INFO - queued task cancelled task_id=001a0ed5370cfeab7f9f953f8eae7bad7
+2026-09-29 21:21:06,582 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed5370cfeab7f9f953f8eae7bad7/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,591 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,595 - INFO - queued task cancelled task_id=001a0ed5370dc1c65cd13e575400f5e15
+2026-09-29 21:21:06,605 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed5370dc1c65cd13e575400f5e15/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,617 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,621 - INFO - queued task cancelled task_id=001a0ed5370efc871e0d68f542429dd3a
+2026-09-29 21:21:06,637 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed5370efc871e0d68f542429dd3a/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,647 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,649 - INFO - queued task cancelled task_id=001a0ed53710607c72688f36c3031a430
+2026-09-29 21:21:06,659 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed53710607c72688f36c3031a430/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,662 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,671 - INFO - queued task cancelled task_id=001a0ed537118724d3bdac4822fcd2e24
+2026-09-29 21:21:06,680 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed537118724d3bdac4822fcd2e24/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,692 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,693 - INFO - queued task cancelled task_id=001a0ed53712889c06ec99c5ed2d1ad9b
+2026-09-29 21:21:06,693 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed53712889c06ec99c5ed2d1ad9b/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,693 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,693 - INFO - queued task cancelled task_id=001a0ed53713cdec514dde063647922c4
+2026-09-29 21:21:06,726 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed53713cdec514dde063647922c4/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,734 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,738 - INFO - queued task cancelled task_id=001a0ed53714d7b779149feb40f393fa3
+2026-09-29 21:21:06,745 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed53714d7b779149feb40f393fa3/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,755 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,758 - INFO - queued task cancelled task_id=001a0ed5371618791c0e89627ba123663
+2026-09-29 21:21:06,765 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed5371618791c0e89627ba123663/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,775 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,777 - INFO - queued task cancelled task_id=001a0ed537173c18545e99fd250ce735c
+2026-09-29 21:21:06,786 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed537173c18545e99fd250ce735c/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,796 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,799 - INFO - queued task cancelled task_id=001a0ed537182a9511000fa3106fa5f37
+2026-09-29 21:21:06,807 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed537182a9511000fa3106fa5f37/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,817 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,820 - INFO - queued task cancelled task_id=001a0ed537197f7d49b1297203a6f9c9d
+2026-09-29 21:21:06,828 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed537197f7d49b1297203a6f9c9d/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,837 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,841 - INFO - queued task cancelled task_id=001a0ed5371a892e01b91f059fc4ed92d
+2026-09-29 21:21:06,848 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed5371a892e01b91f059fc4ed92d/interrupt HTTP/1.1" 200
+2026-09-29 21:21:06,858 - INFO - 192.168.1.118:26866 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:06,861 - INFO - queued task cancelled task_id=001a0ed5371b9839e3132b4c1c1014d2d
+2026-09-29 21:21:06,869 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed5371b9839e3132b4c1c1014d2d/interrupt HTTP/1.1" 200
+2026-09-29 21:21:07,142 - INFO - task stop requested task_id=001a0ed531f0109a3c73c7d1f532ff812
+2026-09-29 21:21:07,145 - INFO - 192.168.1.118:26866 - "POST /api/v1/tasks/001a0ed531f0109a3c73c7d1f532ff812/interrupt HTTP/1.1" 200
+2026-09-29 21:21:07,167 - INFO - 192.168.1.118:26866 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:07,168 - INFO - 192.168.1.118:7744 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:07,170 - INFO - 192.168.1.118:63171 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:07,171 - INFO - 192.168.1.118:44271 - "GET /api/v1/tasks/001a0ed531f0109a3c73c7d1f532ff812 HTTP/1.1" 200
+2026-09-29 21:21:07,289 - INFO - 192.168.1.118:44271 - "GET /api/v1/tasks/001a0ed531f0109a3c73c7d1f532ff812 HTTP/1.1" 200
+2026-09-29 21:21:07,380 - INFO - task finished task_id=001a0ed531f0109a3c73c7d1f532ff812 state=cancelled exit_code=1
+2026-09-29 21:21:07,562 - INFO - 192.168.1.118:44271 - "GET /api/v1/tasks/001a0ed531f0109a3c73c7d1f532ff812 HTTP/1.1" 200
+2026-09-29 21:21:07,618 - INFO - 192.168.1.118:55649 - "WebSocket /api/v1/tasks/001a0ed531f0109a3c73c7d1f532ff812/terminal?offset=0&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:21:07,619 - INFO - connection open
+2026-09-29 21:21:09,120 - INFO - 192.168.1.118:44271 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:09,120 - INFO - 192.168.1.118:63171 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:09,136 - INFO - 192.168.1.118:61491 - "WebSocket /api/v1/tasks/001a0ed531f0109a3c73c7d1f532ff812/terminal?offset=0&end=2182&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:21:09,137 - INFO - connection open
+2026-09-29 21:21:09,194 - INFO - 192.168.1.118:63171 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:10,460 - INFO - 192.168.1.118:63171 - "GET /api/v1/tasks/001a0ed531f0109a3c73c7d1f532ff812/logs/search?query=qa-terminal-ready HTTP/1.1" 200
+2026-09-29 21:21:10,621 - INFO - 192.168.1.118:63171 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:10,638 - INFO - batch queued batch_id=001a0ed538bea3deabc25bd436bfdc0a7 tasks=1 template=verification
+2026-09-29 21:21:10,654 - INFO - 192.168.1.118:63171 - "POST /api/v1/config/files/verification/demo.yaml/runs HTTP/1.1" 202
+2026-09-29 21:21:10,657 - INFO - task started task_id=001a0ed538beacad78e0428a861ec11dd
+2026-09-29 21:21:10,668 - INFO - 192.168.1.118:63171 - "GET /api/v1/tasks/001a0ed538beacad78e0428a861ec11dd HTTP/1.1" 200
+2026-09-29 21:21:10,732 - INFO - task finished task_id=001a0ed538beacad78e0428a861ec11dd state=failed exit_code=2
+2026-09-29 21:21:10,797 - INFO - 192.168.1.118:63171 - "GET /api/v1/tasks/001a0ed538beacad78e0428a861ec11dd HTTP/1.1" 200
+2026-09-29 21:21:10,811 - INFO - 192.168.1.118:63171 - "GET /api/v1/tasks/001a0ed538beacad78e0428a861ec11dd HTTP/1.1" 200
+2026-09-29 21:21:11,205 - INFO - 192.168.1.118:63171 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:12,152 - INFO - 192.168.1.118:63171 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:12,164 - INFO - 192.168.1.118:44271 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:12,232 - INFO - 192.168.1.118:44271 - "POST /api/v1/tasks/001a0ed538beacad78e0428a861ec11dd/acknowledgements HTTP/1.1" 200
+2026-09-29 21:21:12,721 - INFO - 192.168.1.118:44271 - "GET /api/v1/tasks?state=queued&state=running&state=stopping HTTP/1.1" 200
+2026-09-29 21:21:13,210 - INFO - 192.168.1.118:44271 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:15,206 - INFO - 192.168.1.118:44271 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:15,206 - INFO - 192.168.1.118:63171 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:15,226 - INFO - 192.168.1.118:63171 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:17,240 - INFO - 192.168.1.118:63171 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:18,246 - INFO - 192.168.1.118:63171 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:18,246 - INFO - 192.168.1.118:44271 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:19,259 - INFO - 192.168.1.118:44271 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:19,540 - INFO - 192.168.1.118:44271 - "PUT /api/v1/workspace/files/config/command/qa-command.yaml HTTP/1.1" 200
+2026-09-29 21:21:19,589 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:19,600 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace/files/config/command/qa-command.yaml HTTP/1.1" 200
+2026-09-29 21:21:19,609 - INFO - 192.168.1.118:44271 - "GET /assets/MonacoEditors-legacy-VF-jf_OI.js HTTP/1.1" 200
+2026-09-29 21:21:19,871 - INFO - 192.168.1.118:63171 - "POST /api/v1/config/files/command/qa-command.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:19,872 - INFO - 192.168.1.118:44271 - "GET /assets/yaml-legacy-CsoxOTYF.js HTTP/1.1" 200
+2026-09-29 21:21:20,250 - INFO - 192.168.1.118:44271 - "POST /api/v1/config/files/command/qa-command.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:20,350 - INFO - 192.168.1.118:44271 - "PUT /api/v1/workspace/files/config/command/qa-command.yaml HTTP/1.1" 200
+2026-09-29 21:21:20,356 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace/files/config/command/qa-command.yaml HTTP/1.1" 200
+2026-09-29 21:21:20,508 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:20,523 - INFO - 192.168.1.118:44271 - "POST /api/v1/config/files/command/qa-command.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:20,651 - INFO - 192.168.1.118:44271 - "POST /api/v1/config/files/command/qa-command.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:20,679 - INFO - 192.168.1.118:44271 - "PUT /api/v1/workspace/files/config/command/qa-command.yaml HTTP/1.1" 200
+2026-09-29 21:21:20,689 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace/files/config/command/qa-command.yaml HTTP/1.1" 200
+2026-09-29 21:21:21,272 - INFO - 192.168.1.118:44271 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:21,274 - INFO - 192.168.1.118:63171 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:21,274 - INFO - 192.168.1.118:9910 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:21,483 - INFO - 192.168.1.118:9910 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:21,512 - INFO - 192.168.1.118:63171 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:21,519 - INFO - 192.168.1.118:63171 - "GET /api/v1/workspace/files/config/command/qa-command.yaml HTTP/1.1" 200
+2026-09-29 21:21:21,524 - INFO - 192.168.1.118:9910 - "GET /api/v1/workspace/files/config/command/qa-command.yaml HTTP/1.1" 200
+2026-09-29 21:21:21,769 - INFO - 192.168.1.118:9910 - "POST /api/v1/config/files/command/qa-command.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:22,460 - INFO - 192.168.1.118:9910 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:22,467 - INFO - 192.168.1.118:9910 - "GET /api/v1/workspace/files/config/command/qa-command.yaml HTTP/1.1" 200
+2026-09-29 21:21:22,709 - INFO - 192.168.1.118:9910 - "POST /api/v1/config/files/command/qa-command.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:22,996 - INFO - 192.168.1.118:9910 - "PUT /api/v1/workspace/files/config/command/qa-command.yaml HTTP/1.1" 200
+2026-09-29 21:21:23,007 - INFO - 192.168.1.118:9910 - "GET /api/v1/workspace/files/config/command/qa-command.yaml HTTP/1.1" 200
+2026-09-29 21:21:23,297 - INFO - 192.168.1.118:63171 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:23,298 - INFO - 192.168.1.118:9910 - "POST /api/v1/config/files/command/qa-command.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:23,471 - INFO - 192.168.1.118:9910 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:23,480 - INFO - 192.168.1.118:9910 - "POST /api/v1/config/files/command/qa-command.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:23,983 - INFO - 192.168.1.118:9910 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:23,989 - INFO - 192.168.1.118:63171 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,034 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,046 - INFO - 192.168.1.118:9910 - "GET /api/v1/workspace/files/config/command/qa-command.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,047 - INFO - 192.168.1.118:21475 - "GET /api/v1/workspace/files/config/command/qa-command.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,048 - INFO - 192.168.1.118:16859 - "GET /api/v1/workspace/files/config/command/qa-command.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,141 - INFO - 192.168.1.118:16859 - "PUT /api/v1/workspace/files/config/command/qa-command.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,148 - INFO - 192.168.1.118:16859 - "GET /api/v1/workspace/files/config/command/qa-command.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,297 - INFO - 192.168.1.118:16859 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:24,297 - INFO - 192.168.1.118:21475 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:24,300 - INFO - 192.168.1.118:9910 - "POST /api/v1/config/files/command/qa-command.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:24,318 - INFO - 192.168.1.118:9910 - "POST /api/v1/workspace/moves HTTP/1.1" 200
+2026-09-29 21:21:24,364 - INFO - 192.168.1.118:9910 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:24,368 - INFO - 192.168.1.118:21475 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:21:24,378 - INFO - 192.168.1.118:21475 - "GET /api/v1/workspace/files/config/command/qa-renamed.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,382 - INFO - 192.168.1.118:9910 - "GET /api/v1/workspace/files/config/command/qa-renamed.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,519 - INFO - 192.168.1.118:9910 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:24,627 - INFO - 192.168.1.118:21475 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:24,628 - INFO - 192.168.1.118:16859 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:24,629 - INFO - 192.168.1.118:44271 - "DELETE /api/v1/workspace/entries/config/command/qa-renamed.yaml HTTP/1.1" 204
+2026-09-29 21:21:24,665 - INFO - 192.168.1.118:16859 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:24,683 - INFO - 192.168.1.118:16859 - "GET /api/v1/workspace/files/config/command/qa-invalid.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,683 - INFO - 192.168.1.118:21475 - "GET /api/v1/workspace/files/config/command/qa-invalid.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,683 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace/files/config/command/qa-invalid.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,802 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace/files/config/shared/qa-defaults.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,808 - INFO - 192.168.1.118:21475 - "GET /api/v1/workspace/files/config/shared/qa-defaults.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,809 - INFO - 192.168.1.118:16859 - "GET /api/v1/workspace/files/config/shared/qa-defaults.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,879 - INFO - 192.168.1.118:16859 - "GET /api/v1/workspace/files/config/verification/demo.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,885 - INFO - 192.168.1.118:21475 - "GET /api/v1/workspace/files/config/verification/demo.yaml HTTP/1.1" 200
+2026-09-29 21:21:24,885 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace/files/config/verification/demo.yaml HTTP/1.1" 200
+2026-09-29 21:21:25,028 - INFO - 192.168.1.118:44271 - "POST /api/v1/config/files/verification/demo.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:21:25,137 - INFO - 192.168.1.118:44271 - "POST /api/v1/config/files/verification/demo.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:25,153 - INFO - 192.168.1.118:44271 - "POST /api/v1/config/files/verification/demo.yaml/discover HTTP/1.1" 200
+2026-09-29 21:21:25,303 - INFO - 192.168.1.118:44271 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:25,515 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:25,933 - INFO - 192.168.1.118:44271 - "POST /api/v1/config/files/verification/demo.yaml/discover HTTP/1.1" 200
+2026-09-29 21:21:26,935 - INFO - 192.168.1.118:44271 - "POST /api/v1/config/files/verification/demo.yaml/discover HTTP/1.1" 200
+2026-09-29 21:21:27,327 - INFO - 192.168.1.118:44271 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:27,327 - INFO - 192.168.1.118:21475 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:27,362 - INFO - 192.168.1.118:21475 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:27,715 - INFO - 192.168.1.118:21475 - "POST /api/v1/config/files/verification/demo.yaml/discover HTTP/1.1" 200
+2026-09-29 21:21:28,401 - INFO - 192.168.1.118:21475 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:28,458 - INFO - 192.168.1.118:21475 - "POST /api/v1/config/files/verification/demo.yaml/discover HTTP/1.1" 200
+2026-09-29 21:21:29,278 - INFO - 192.168.1.118:21475 - "POST /api/v1/config/files/verification/demo.yaml/discover HTTP/1.1" 200
+2026-09-29 21:21:29,360 - INFO - 192.168.1.118:21475 - "GET /api/v1/workspace/files/config/generic-picker/demo.yaml HTTP/1.1" 200
+2026-09-29 21:21:29,364 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace/files/config/generic-picker/demo.yaml HTTP/1.1" 200
+2026-09-29 21:21:29,365 - INFO - 192.168.1.118:16859 - "GET /api/v1/workspace/files/config/generic-picker/demo.yaml HTTP/1.1" 200
+2026-09-29 21:21:29,367 - INFO - 192.168.1.118:21475 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:29,502 - INFO - 192.168.1.118:21475 - "POST /api/v1/config/files/generic-picker/demo.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:21:29,612 - INFO - 192.168.1.118:21475 - "POST /api/v1/config/files/generic-picker/demo.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:29,638 - INFO - 192.168.1.118:21475 - "POST /api/v1/config/files/generic-picker/demo.yaml/discover HTTP/1.1" 200
+2026-09-29 21:21:29,819 - INFO - batch queued batch_id=001a0ed53d6d43903cda690cdc331745d tasks=2 template=generic-picker
+2026-09-29 21:21:29,834 - INFO - 192.168.1.118:21475 - "POST /api/v1/config/files/generic-picker/demo.yaml/runs HTTP/1.1" 202
+2026-09-29 21:21:29,836 - INFO - task started task_id=001a0ed53d6d406d5b9f2a87a5c0dcfd9
+2026-09-29 21:21:29,849 - INFO - 192.168.1.118:21475 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:21:29,911 - INFO - task finished task_id=001a0ed53d6d406d5b9f2a87a5c0dcfd9 state=succeeded exit_code=0
+2026-09-29 21:21:29,941 - INFO - 192.168.1.118:21475 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:29,941 - INFO - 192.168.1.118:16859 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:29,944 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:29,945 - INFO - task started task_id=001a0ed53d6d4e0be25ae8424089d1f73
+2026-09-29 21:21:30,000 - INFO - batch queued batch_id=001a0ed53d78b8411ba9f98477a722c07 tasks=1 template=command
+2026-09-29 21:21:30,001 - INFO - 192.168.1.118:44271 - "POST /api/v1/config/files/command/hello-world.yaml/runs HTTP/1.1" 202
+2026-09-29 21:21:30,006 - INFO - task finished task_id=001a0ed53d6d4e0be25ae8424089d1f73 state=succeeded exit_code=0
+2026-09-29 21:21:30,039 - INFO - 192.168.1.118:44271 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:21:30,041 - INFO - task started task_id=001a0ed53d78b17a1b3aa0777b80b9863
+2026-09-29 21:21:30,076 - INFO - 192.168.1.118:44271 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:21:30,189 - INFO - 192.168.1.118:44271 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:30,354 - INFO - 192.168.1.118:44271 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:30,354 - INFO - 192.168.1.118:16859 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:30,523 - INFO - task finished task_id=001a0ed53d78b17a1b3aa0777b80b9863 state=succeeded exit_code=0
+2026-09-29 21:21:31,377 - INFO - 192.168.1.118:16859 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:33,009 - INFO - 192.168.1.118:40637 - "WebSocket /api/v1/tasks/001a0ed53d78b17a1b3aa0777b80b9863/terminal?offset=0&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:21:33,011 - INFO - connection open
+2026-09-29 21:21:33,383 - INFO - 192.168.1.118:16859 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:33,383 - INFO - 192.168.1.118:44271 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:33,383 - INFO - 192.168.1.118:21475 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:33,490 - INFO - 192.168.1.118:21475 - "POST /api/v1/tasks/001a0ed53d78b17a1b3aa0777b80b9863/acknowledgements HTTP/1.1" 200
+2026-09-29 21:21:34,569 - INFO - 192.168.1.118:34888 - "WebSocket /api/v1/tasks/001a0ed53d78b17a1b3aa0777b80b9863/terminal?offset=0&end=1501&window=rows&columns=38&direction=tail" [accepted]
+2026-09-29 21:21:34,768 - INFO - connection open
+2026-09-29 21:21:34,780 - INFO - 192.168.1.118:21475 - "GET / HTTP/1.1" 200
+2026-09-29 21:21:34,791 - INFO - 192.168.1.118:21475 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 304
+2026-09-29 21:21:34,801 - INFO - 192.168.1.118:21475 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 304
+2026-09-29 21:21:34,839 - INFO - 192.168.1.118:21475 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:34,841 - INFO - 192.168.1.118:44271 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:34,841 - INFO - 192.168.1.118:16859 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:34,845 - INFO - 192.168.1.118:17860 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:21:34,847 - INFO - 192.168.1.118:16859 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:34,911 - INFO - 192.168.1.118:17860 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:34,941 - INFO - 192.168.1.118:50360 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:21:34,942 - INFO - connection open
+2026-09-29 21:21:34,943 - INFO - 192.168.1.118:16859 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:21:35,024 - INFO - 192.168.1.118:44271 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:21:35,028 - INFO - 192.168.1.118:21475 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:35,046 - INFO - 192.168.1.118:17860 - "GET /api/v1/workspace/files/config/verification/demo.yaml HTTP/1.1" 200
+2026-09-29 21:21:35,051 - INFO - 192.168.1.118:56380 - "GET /api/v1/workspace/files/config/verification/demo.yaml HTTP/1.1" 200
+2026-09-29 21:21:35,053 - INFO - 192.168.1.118:46955 - "GET /api/v1/workspace/files/config/verification/demo.yaml HTTP/1.1" 200
+2026-09-29 21:21:35,054 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:35,066 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:35,198 - INFO - 192.168.1.118:44271 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:21:35,292 - INFO - 192.168.1.118:44271 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:36,023 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:36,023 - INFO - 192.168.1.118:46955 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:36,029 - INFO - 192.168.1.118:46955 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:36,168 - INFO - 192.168.1.118:46955 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:21:36,845 - INFO - 192.168.1.118:46955 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:37,180 - INFO - 192.168.1.118:46955 - "GET /api/v1/workspace/files/config/verification/demo.yaml HTTP/1.1" 200
+2026-09-29 21:21:37,187 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace/files/config/verification/demo.yaml HTTP/1.1" 200
+2026-09-29 21:21:37,187 - INFO - 192.168.1.118:56380 - "GET /api/v1/workspace/files/config/verification/demo.yaml HTTP/1.1" 200
+2026-09-29 21:21:37,340 - INFO - 192.168.1.118:56380 - "POST /api/v1/config/files/verification/demo.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:21:37,423 - INFO - 192.168.1.118:56380 - "POST /api/v1/config/files/verification/demo.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:37,451 - INFO - 192.168.1.118:56380 - "GET /api/v1/workspace/files/config/verification/qa-missing-path.yaml HTTP/1.1" 200
+2026-09-29 21:21:37,455 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace/files/config/verification/qa-missing-path.yaml HTTP/1.1" 200
+2026-09-29 21:21:37,457 - INFO - 192.168.1.118:46955 - "GET /api/v1/workspace/files/config/verification/qa-missing-path.yaml HTTP/1.1" 200
+2026-09-29 21:21:37,460 - INFO - 192.168.1.118:17860 - "POST /api/v1/config/files/verification/demo.yaml/discover HTTP/1.1" 200
+2026-09-29 21:21:37,609 - INFO - 192.168.1.118:17860 - "POST /api/v1/config/files/verification/qa-missing-path.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:21:37,690 - INFO - 192.168.1.118:17860 - "POST /api/v1/config/files/verification/qa-missing-path.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:37,719 - INFO - 192.168.1.118:17860 - "POST /api/v1/config/files/verification/qa-missing-path.yaml/discover HTTP/1.1" 200
+2026-09-29 21:21:37,884 - INFO - 192.168.1.118:17860 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:38,432 - INFO - 192.168.1.118:46955 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:38,664 - INFO - 192.168.1.118:46955 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:38,670 - INFO - 192.168.1.118:17860 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:38,670 - INFO - 192.168.1.118:44271 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:38,755 - INFO - batch queued batch_id=001a0ed53f9be530a4a8aa7e22156e0ea tasks=1 template=command
+2026-09-29 21:21:38,765 - INFO - 192.168.1.118:44271 - "POST /api/v1/config/files/command/hello-world.yaml/runs HTTP/1.1" 202
+2026-09-29 21:21:38,767 - INFO - task started task_id=001a0ed53f9be767508b4904e2a41cc1c
+2026-09-29 21:21:38,784 - INFO - 192.168.1.118:44271 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:21:38,806 - INFO - 192.168.1.118:44271 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:21:38,850 - INFO - 192.168.1.118:44271 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:38,915 - INFO - 192.168.1.118:44271 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:39,268 - INFO - task finished task_id=001a0ed53f9be767508b4904e2a41cc1c state=succeeded exit_code=0
+2026-09-29 21:21:40,877 - INFO - 192.168.1.118:44271 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:41,460 - INFO - 192.168.1.118:44271 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:41,460 - INFO - 192.168.1.118:17860 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:41,869 - INFO - 192.168.1.118:17860 - "GET /api/v1/tasks/001a0ed53f9be767508b4904e2a41cc1c HTTP/1.1" 200
+2026-09-29 21:21:41,892 - INFO - 192.168.1.118:17860 - "GET /api/v1/tasks/001a0ed53f9be767508b4904e2a41cc1c HTTP/1.1" 200
+2026-09-29 21:21:41,928 - INFO - 192.168.1.118:17860 - "POST /api/v1/tasks/001a0ed53f9be767508b4904e2a41cc1c/acknowledgements HTTP/1.1" 200
+2026-09-29 21:21:42,043 - INFO - 192.168.1.118:17860 - "GET /api/v1/system/status HTTP/1.1" 200
+[9/17] [edge-full] › e2e\localflow.spec.js:1999:1 › common configurations use complete paths and preserve context
+2026-09-29 21:21:42,751 - INFO - 192.168.1.118:4419 - "GET / HTTP/1.1" 200
+2026-09-29 21:21:42,764 - INFO - 192.168.1.118:4419 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:21:42,766 - INFO - 192.168.1.118:9928 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:21:42,767 - INFO - 192.168.1.118:37909 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:21:42,789 - INFO - 192.168.1.118:37909 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:21:42,872 - INFO - 192.168.1.118:37909 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:42,874 - INFO - 192.168.1.118:9928 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:42,874 - INFO - 192.168.1.118:4419 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:42,883 - INFO - 192.168.1.118:4419 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:21:42,964 - INFO - 192.168.1.118:4419 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:43,035 - INFO - 192.168.1.118:4419 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:21:43,068 - INFO - 192.168.1.118:4419 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:43,069 - INFO - 192.168.1.118:9928 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:43,124 - INFO - 192.168.1.118:9928 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:43,152 - INFO - 192.168.1.118:60848 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:21:43,153 - INFO - connection open
+2026-09-29 21:21:43,154 - INFO - 192.168.1.118:4419 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:21:43,155 - INFO - 192.168.1.118:37909 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:21:43,172 - INFO - 192.168.1.118:37909 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:43,183 - INFO - 192.168.1.118:37909 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:43,307 - INFO - 192.168.1.118:37909 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:21:43,348 - INFO - 192.168.1.118:37909 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:43,349 - INFO - 192.168.1.118:4419 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:43,392 - INFO - batch queued batch_id=001a0ed540bde27db9eb588f6df61ec76 tasks=1 template=command
+2026-09-29 21:21:43,408 - INFO - 192.168.1.118:4419 - "POST /api/v1/config/files/command/hello-world.yaml/runs HTTP/1.1" 202
+2026-09-29 21:21:43,411 - INFO - task started task_id=001a0ed540bdecb06fb519356f09feb54
+2026-09-29 21:21:43,434 - INFO - 192.168.1.118:37909 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:43,435 - INFO - 192.168.1.118:4419 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:21:43,761 - INFO - 192.168.1.118:4419 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:43,764 - INFO - 192.168.1.118:37909 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:21:43,805 - INFO - 192.168.1.118:37909 - "GET / HTTP/1.1" 200
+2026-09-29 21:21:43,880 - INFO - 192.168.1.118:37909 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:43,904 - INFO - 192.168.1.118:4419 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:43,906 - INFO - 192.168.1.118:9928 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:43,908 - INFO - 192.168.1.118:36725 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:21:43,913 - INFO - task finished task_id=001a0ed540bdecb06fb519356f09feb54 state=succeeded exit_code=0
+2026-09-29 21:21:43,948 - INFO - 192.168.1.118:36725 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:44,018 - INFO - 192.168.1.118:36725 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:44,030 - INFO - 192.168.1.118:7429 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:21:44,030 - INFO - connection open
+2026-09-29 21:21:44,034 - INFO - 192.168.1.118:9928 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:21:44,035 - INFO - 192.168.1.118:4419 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:21:44,046 - INFO - 192.168.1.118:4419 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:44,183 - INFO - 192.168.1.118:4419 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:21:44,280 - INFO - 192.168.1.118:4419 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+[10/17] [edge-full] › e2e\localflow.spec.js:2105:1 › terminal to task navigation preserves the workbench within a paint budget
+2026-09-29 21:21:45,174 - INFO - 192.168.1.118:40733 - "GET / HTTP/1.1" 200
+2026-09-29 21:21:45,184 - INFO - 192.168.1.118:40733 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:21:45,187 - INFO - 192.168.1.118:35849 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:21:45,189 - INFO - 192.168.1.118:39837 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:21:45,210 - INFO - 192.168.1.118:39837 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:21:45,291 - INFO - 192.168.1.118:39837 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:45,292 - INFO - 192.168.1.118:35849 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:45,293 - INFO - 192.168.1.118:40733 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:45,301 - INFO - 192.168.1.118:40733 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:21:45,391 - INFO - 192.168.1.118:40733 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:45,460 - INFO - 192.168.1.118:40733 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:21:45,488 - INFO - 192.168.1.118:40733 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:45,488 - INFO - 192.168.1.118:35849 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:45,556 - INFO - 192.168.1.118:35849 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:45,561 - INFO - 192.168.1.118:50360 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:21:45,570 - INFO - connection open
+2026-09-29 21:21:45,572 - INFO - 192.168.1.118:40733 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:21:45,573 - INFO - 192.168.1.118:39837 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:21:45,589 - INFO - 192.168.1.118:39837 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:45,600 - INFO - 192.168.1.118:39837 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:45,721 - INFO - 192.168.1.118:39837 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:21:45,745 - INFO - 192.168.1.118:39837 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:45,745 - INFO - 192.168.1.118:40733 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:45,844 - INFO - 192.168.1.118:48691 - "WebSocket /api/v1/tasks/001a0ed540bdecb06fb519356f09feb54/terminal?offset=0&end=1510&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:21:45,845 - INFO - connection open
+2026-09-29 21:21:45,854 - INFO - 192.168.1.118:40733 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+[11/17] [edge-full] › e2e\localflow.spec.js:2145:1 › a sourced task shows every frozen source path in task details
+2026-09-29 21:21:46,135 - INFO - 192.168.1.118:25766 - "GET / HTTP/1.1" 200
+2026-09-29 21:21:46,147 - INFO - 192.168.1.118:25766 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:21:46,149 - INFO - 192.168.1.118:12500 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:21:46,151 - INFO - 192.168.1.118:47987 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:21:46,171 - INFO - 192.168.1.118:47987 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:21:46,266 - INFO - 192.168.1.118:47987 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:46,272 - INFO - 192.168.1.118:12500 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:46,272 - INFO - 192.168.1.118:25766 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:46,284 - INFO - 192.168.1.118:25766 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:21:46,358 - INFO - 192.168.1.118:25766 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:46,429 - INFO - 192.168.1.118:25766 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:21:46,461 - INFO - 192.168.1.118:25766 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:46,461 - INFO - 192.168.1.118:12500 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:46,531 - INFO - 192.168.1.118:12500 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:46,544 - INFO - 192.168.1.118:5591 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:21:46,545 - INFO - connection open
+2026-09-29 21:21:46,547 - INFO - 192.168.1.118:25766 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:21:46,548 - INFO - 192.168.1.118:47987 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:21:46,552 - INFO - 192.168.1.118:58325 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:46,566 - INFO - 192.168.1.118:58325 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:46,575 - INFO - task queued task_id=001a0ed54184b63429dde3bd68dee0228 name=browser-source-visibility
+2026-09-29 21:21:46,586 - ERROR - task failed to start task_id=001a0ed54184b63429dde3bd68dee0228
+2026-09-29 21:21:46,601 - INFO - 192.168.1.118:47987 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:46,607 - INFO - 192.168.1.118:58325 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:46,618 - INFO - 192.168.1.118:58325 - "GET /api/v1/tasks/001a0ed54184b63429dde3bd68dee0228 HTTP/1.1" 200
+2026-09-29 21:21:46,701 - INFO - 192.168.1.118:58325 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:21:46,801 - INFO - 192.168.1.118:58325 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:48,286 - INFO - 192.168.1.118:58325 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:49,322 - INFO - 192.168.1.118:58325 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:49,322 - INFO - 192.168.1.118:47987 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:49,640 - INFO - 192.168.1.118:47987 - "POST /api/v1/tasks/001a0ed54184b63429dde3bd68dee0228/acknowledgements HTTP/1.1" 200
+2026-09-29 21:21:49,679 - INFO - 192.168.1.118:47987 - "GET /api/v1/tasks/001a0ed54184b63429dde3bd68dee0228 HTTP/1.1" 200
+[12/17] [edge-full] › e2e\localflow.spec.js:2193:1 › terminal opens a large archive at its newest continuous window
+2026-09-29 21:21:49,887 - INFO - 192.168.1.118:25395 - "GET / HTTP/1.1" 200
+2026-09-29 21:21:49,901 - INFO - 192.168.1.118:25395 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:21:49,904 - INFO - 192.168.1.118:28123 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:21:49,905 - INFO - 192.168.1.118:64869 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:21:49,926 - INFO - 192.168.1.118:64869 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:21:50,014 - INFO - 192.168.1.118:64869 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:50,015 - INFO - 192.168.1.118:28123 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:50,015 - INFO - 192.168.1.118:25395 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:50,030 - INFO - 192.168.1.118:25395 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:21:50,115 - INFO - 192.168.1.118:25395 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:50,173 - INFO - 192.168.1.118:25395 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:21:50,205 - INFO - 192.168.1.118:25395 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:50,205 - INFO - 192.168.1.118:28123 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:50,298 - INFO - 192.168.1.118:27841 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:21:50,300 - INFO - connection open
+2026-09-29 21:21:50,302 - INFO - 192.168.1.118:28123 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:50,303 - INFO - 192.168.1.118:25395 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:21:50,304 - INFO - 192.168.1.118:64869 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:21:50,323 - INFO - 192.168.1.118:64869 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:50,348 - INFO - 192.168.1.118:64869 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:50,412 - INFO - 192.168.1.118:64869 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:50,421 - INFO - task queued task_id=001a0ed54275069df56e9fca178b029e1 name=qa-terminal-tail-first
+2026-09-29 21:21:50,434 - INFO - 192.168.1.118:64869 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:50,437 - INFO - task started task_id=001a0ed54275069df56e9fca178b029e1
+2026-09-29 21:21:50,477 - INFO - 192.168.1.118:25395 - "GET /api/v1/tasks/001a0ed54275069df56e9fca178b029e1 HTTP/1.1" 200
+2026-09-29 21:21:50,478 - INFO - 192.168.1.118:64869 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:21:50,571 - INFO - 192.168.1.118:64869 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:50,608 - INFO - 192.168.1.118:64869 - "GET /api/v1/tasks/001a0ed54275069df56e9fca178b029e1 HTTP/1.1" 200
+2026-09-29 21:21:52,030 - INFO - 192.168.1.118:64869 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:52,936 - INFO - 192.168.1.118:48333 - "WebSocket /api/v1/tasks/001a0ed54184b63429dde3bd68dee0228/terminal?offset=0&end=2361&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:21:52,936 - INFO - connection open
+2026-09-29 21:21:53,067 - INFO - 192.168.1.118:64869 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:53,068 - INFO - 192.168.1.118:25395 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:53,096 - INFO - 192.168.1.118:20132 - "WebSocket /api/v1/tasks/001a0ed54275069df56e9fca178b029e1/terminal?offset=201939&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:21:53,097 - INFO - connection open
+2026-09-29 21:21:53,377 - INFO - 192.168.1.118:37261 - "WebSocket /api/v1/tasks/001a0ed54275069df56e9fca178b029e1/terminal?offset=0&end=4059823&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:21:53,377 - INFO - connection open
+2026-09-29 21:21:53,579 - INFO - 192.168.1.118:38164 - "WebSocket /api/v1/tasks/001a0ed54275069df56e9fca178b029e1/terminal?offset=3947652&end=4396243&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:21:53,579 - INFO - connection open
+2026-09-29 21:21:53,884 - INFO - 192.168.1.118:25395 - "GET /api/v1/tasks/001a0ed54275069df56e9fca178b029e1/logs/search?query=qa-terminal-search-archive-marker HTTP/1.1" 200
+2026-09-29 21:21:53,966 - INFO - 192.168.1.118:49265 - "WebSocket /api/v1/tasks/001a0ed54275069df56e9fca178b029e1/terminal?offset=0&end=262144&window=rows&columns=126&direction=hit&hit=448" [accepted]
+2026-09-29 21:21:53,967 - INFO - connection open
+2026-09-29 21:21:54,086 - INFO - 192.168.1.118:25395 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:54,091 - INFO - task stop requested task_id=001a0ed54275069df56e9fca178b029e1
+2026-09-29 21:21:54,095 - INFO - 192.168.1.118:25395 - "POST /api/v1/tasks/001a0ed54275069df56e9fca178b029e1/interrupt HTTP/1.1" 200
+2026-09-29 21:21:54,106 - INFO - 192.168.1.118:25395 - "GET /api/v1/tasks/001a0ed54275069df56e9fca178b029e1 HTTP/1.1" 200
+2026-09-29 21:21:54,227 - INFO - 192.168.1.118:25395 - "GET /api/v1/tasks/001a0ed54275069df56e9fca178b029e1 HTTP/1.1" 200
+2026-09-29 21:21:54,274 - INFO - 192.168.1.118:25395 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:54,317 - INFO - task finished task_id=001a0ed54275069df56e9fca178b029e1 state=cancelled exit_code=1
+2026-09-29 21:21:54,502 - INFO - 192.168.1.118:25395 - "GET /api/v1/tasks/001a0ed54275069df56e9fca178b029e1 HTTP/1.1" 200
+[13/17] [edge-full] › e2e\localflow.spec.js:2296:1 › terminal preserves a native cross-line selection in live and retained output
+2026-09-29 21:21:54,718 - INFO - 192.168.1.118:18731 - "GET / HTTP/1.1" 200
+2026-09-29 21:21:54,729 - INFO - 192.168.1.118:18731 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:21:54,732 - INFO - 192.168.1.118:46842 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:21:54,733 - INFO - 192.168.1.118:3487 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:21:54,755 - INFO - 192.168.1.118:3487 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:21:54,838 - INFO - 192.168.1.118:3487 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:54,840 - INFO - 192.168.1.118:46842 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:54,840 - INFO - 192.168.1.118:18731 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:54,890 - INFO - 192.168.1.118:18731 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:21:54,933 - INFO - 192.168.1.118:18731 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:55,004 - INFO - 192.168.1.118:18731 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:21:55,037 - INFO - 192.168.1.118:18731 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:55,040 - INFO - 192.168.1.118:46842 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:55,094 - INFO - 192.168.1.118:46842 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:55,121 - INFO - 192.168.1.118:16704 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:21:55,121 - INFO - connection open
+2026-09-29 21:21:55,124 - INFO - 192.168.1.118:18731 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:21:55,125 - INFO - 192.168.1.118:3487 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:21:55,142 - INFO - 192.168.1.118:3487 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:55,153 - INFO - 192.168.1.118:3487 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:55,244 - INFO - 192.168.1.118:3487 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:55,253 - INFO - task queued task_id=001a0ed543a31d874eb4a465a8ae926cf name=qa-terminal-cross-line-selection
+2026-09-29 21:21:55,267 - INFO - 192.168.1.118:3487 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:21:55,269 - INFO - task started task_id=001a0ed543a31d874eb4a465a8ae926cf
+2026-09-29 21:21:55,277 - INFO - 192.168.1.118:3487 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:21:55,280 - INFO - 192.168.1.118:18731 - "GET /api/v1/tasks/001a0ed543a31d874eb4a465a8ae926cf HTTP/1.1" 200
+2026-09-29 21:21:55,378 - INFO - 192.168.1.118:7381 - "WebSocket /api/v1/tasks/001a0ed54275069df56e9fca178b029e1/terminal?offset=202008&end=4396312&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:21:55,378 - INFO - connection open
+2026-09-29 21:21:55,387 - INFO - 192.168.1.118:18731 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:21:56,862 - INFO - 192.168.1.118:18731 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:57,886 - INFO - 192.168.1.118:18731 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:57,887 - INFO - 192.168.1.118:3487 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:57,913 - INFO - 192.168.1.118:3119 - "WebSocket /api/v1/tasks/001a0ed543a31d874eb4a465a8ae926cf/terminal?offset=0&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:21:57,914 - INFO - connection open
+2026-09-29 21:21:58,870 - INFO - 192.168.1.118:3487 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:59,047 - INFO - 192.168.1.118:18731 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:59,051 - INFO - task stop requested task_id=001a0ed543a31d874eb4a465a8ae926cf
+2026-09-29 21:21:59,054 - INFO - 192.168.1.118:18731 - "POST /api/v1/tasks/001a0ed543a31d874eb4a465a8ae926cf/interrupt HTTP/1.1" 200
+2026-09-29 21:21:59,065 - INFO - 192.168.1.118:18731 - "GET /api/v1/tasks/001a0ed543a31d874eb4a465a8ae926cf HTTP/1.1" 200
+2026-09-29 21:21:59,185 - INFO - 192.168.1.118:18731 - "GET /api/v1/tasks/001a0ed543a31d874eb4a465a8ae926cf HTTP/1.1" 200
+2026-09-29 21:21:59,260 - INFO - task finished task_id=001a0ed543a31d874eb4a465a8ae926cf state=cancelled exit_code=1
+2026-09-29 21:21:59,458 - INFO - 192.168.1.118:18731 - "GET /api/v1/tasks/001a0ed543a31d874eb4a465a8ae926cf HTTP/1.1" 200
+2026-09-29 21:21:59,474 - INFO - 192.168.1.118:18731 - "GET / HTTP/1.1" 200
+2026-09-29 21:21:59,479 - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Զ������ǿ�ȹر���һ�����е����ӡ�
+2026-09-29 21:21:59,521 - INFO - 192.168.1.118:18731 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:21:59,547 - INFO - 192.168.1.118:3487 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:21:59,547 - INFO - 192.168.1.118:46842 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:21:59,549 - INFO - 192.168.1.118:45652 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:21:59,552 - INFO - 192.168.1.118:46842 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:21:59,621 - INFO - 192.168.1.118:46842 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:21:59,633 - INFO - 192.168.1.118:52694 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:21:59,635 - INFO - connection open
+2026-09-29 21:21:59,637 - INFO - 192.168.1.118:45652 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:21:59,638 - INFO - 192.168.1.118:3487 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:21:59,651 - INFO - 192.168.1.118:6485 - "WebSocket /api/v1/tasks/001a0ed543a31d874eb4a465a8ae926cf/terminal?offset=0&end=1490&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:21:59,652 - INFO - connection open
+2026-09-29 21:21:59,675 - INFO - 192.168.1.118:3487 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:59,690 - INFO - 192.168.1.118:3487 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:21:59,811 - INFO - 192.168.1.118:3487 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:21:59,927 - INFO - 192.168.1.118:3487 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+[14/17] [edge-full] › e2e\log-integrity.spec.js:33:3 › dense archive reaches its first output without a scrollback gap 0
+2026-09-29 21:22:00,504 - INFO - 192.168.1.118:15570 - "GET / HTTP/1.1" 200
+2026-09-29 21:22:00,519 - INFO - 192.168.1.118:15570 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:22:00,520 - INFO - 192.168.1.118:48671 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:22:00,522 - INFO - 192.168.1.118:25560 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:22:00,546 - INFO - 192.168.1.118:25560 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:22:00,636 - INFO - 192.168.1.118:25560 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:00,637 - INFO - 192.168.1.118:48671 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:00,637 - INFO - 192.168.1.118:15570 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:00,647 - INFO - 192.168.1.118:15570 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:22:00,691 - INFO - 192.168.1.118:15570 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:22:00,706 - INFO - 192.168.1.118:15570 - "GET / HTTP/1.1" 200
+2026-09-29 21:22:00,777 - INFO - 192.168.1.118:15570 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:00,779 - INFO - 192.168.1.118:48671 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:00,779 - INFO - 192.168.1.118:25560 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:00,782 - INFO - 192.168.1.118:10270 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:22:00,784 - INFO - 192.168.1.118:25560 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:22:00,784 - INFO - 192.168.1.118:26994 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:22:00,788 - INFO - task queued task_id=001a0ed544fd43d3428d8f68466259416 name=dense-0
+2026-09-29 21:22:00,812 - INFO - 192.168.1.118:10270 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:22:00,882 - INFO - 192.168.1.118:23107 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:22:00,882 - INFO - connection open
+2026-09-29 21:22:00,884 - INFO - task started task_id=001a0ed544fd43d3428d8f68466259416
+2026-09-29 21:22:00,884 - INFO - 192.168.1.118:25560 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:22:00,884 - INFO - 192.168.1.118:48671 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:22:00,884 - INFO - 192.168.1.118:15570 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:22:00,892 - INFO - 192.168.1.118:10270 - "GET /api/v1/tasks/001a0ed544fd43d3428d8f68466259416 HTTP/1.1" 200
+2026-09-29 21:22:00,897 - INFO - 192.168.1.118:10270 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:22:00,911 - INFO - task finished task_id=001a0ed544fd43d3428d8f68466259416 state=succeeded exit_code=0
+2026-09-29 21:22:00,927 - INFO - 192.168.1.118:10270 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:22:01,048 - INFO - 192.168.1.118:15570 - "GET /api/v1/tasks/001a0ed544fd43d3428d8f68466259416 HTTP/1.1" 200
+2026-09-29 21:22:01,048 - INFO - 192.168.1.118:10270 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:22:01,148 - INFO - 192.168.1.118:10270 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:22:02,785 - INFO - 192.168.1.118:10270 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:03,363 - INFO - 192.168.1.118:40446 - "WebSocket /api/v1/tasks/001a0ed543a31d874eb4a465a8ae926cf/terminal?offset=0&end=1490&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:22:03,364 - INFO - connection open
+2026-09-29 21:22:03,825 - INFO - 192.168.1.118:10270 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:03,827 - INFO - 192.168.1.118:15570 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:04,255 - INFO - 192.168.1.118:4808 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=561247&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:22:04,256 - INFO - connection open
+2026-09-29 21:22:04,373 - INFO - 192.168.1.118:42646 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=523416&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:04,374 - INFO - connection open
+2026-09-29 21:22:04,605 - INFO - 192.168.1.118:9307 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=485616&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:04,606 - INFO - connection open
+2026-09-29 21:22:04,802 - INFO - 192.168.1.118:15570 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:04,839 - INFO - 192.168.1.118:1232 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=447816&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:04,839 - INFO - connection open
+2026-09-29 21:22:05,062 - INFO - 192.168.1.118:16500 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=410016&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:05,063 - INFO - connection open
+2026-09-29 21:22:05,288 - INFO - 192.168.1.118:51240 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=372216&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:05,288 - INFO - connection open
+2026-09-29 21:22:05,514 - INFO - 192.168.1.118:48966 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=334416&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:05,515 - INFO - connection open
+2026-09-29 21:22:05,753 - INFO - 192.168.1.118:52185 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=296616&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:05,754 - INFO - connection open
+2026-09-29 21:22:05,972 - INFO - 192.168.1.118:32441 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=258816&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:05,973 - INFO - connection open
+2026-09-29 21:22:06,194 - INFO - 192.168.1.118:62905 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=221016&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:06,194 - INFO - connection open
+2026-09-29 21:22:06,421 - INFO - 192.168.1.118:27776 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=183216&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:06,429 - INFO - connection open
+2026-09-29 21:22:06,645 - INFO - 192.168.1.118:27983 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=145416&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:06,647 - INFO - connection open
+2026-09-29 21:22:06,817 - INFO - 192.168.1.118:15570 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:06,855 - INFO - 192.168.1.118:15570 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:06,855 - INFO - 192.168.1.118:10270 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:06,888 - INFO - 192.168.1.118:10719 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=107616&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:06,890 - INFO - connection open
+2026-09-29 21:22:07,108 - INFO - 192.168.1.118:46814 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=69816&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:07,109 - INFO - connection open
+2026-09-29 21:22:07,330 - INFO - 192.168.1.118:5545 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=32016&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:07,331 - INFO - connection open
+2026-09-29 21:22:07,768 - INFO - 192.168.1.118:27665 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=24012&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:07,777 - INFO - connection open
+2026-09-29 21:22:08,012 - INFO - 192.168.1.118:35563 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=61812&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:08,014 - INFO - connection open
+2026-09-29 21:22:08,256 - INFO - 192.168.1.118:5854 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=99612&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:08,257 - INFO - connection open
+2026-09-29 21:22:08,506 - INFO - 192.168.1.118:3797 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=137412&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:08,507 - INFO - connection open
+2026-09-29 21:22:08,730 - INFO - 192.168.1.118:30027 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=175212&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:08,730 - INFO - connection open
+2026-09-29 21:22:08,830 - INFO - 192.168.1.118:10270 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:08,969 - INFO - 192.168.1.118:9107 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=213012&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:08,969 - INFO - connection open
+2026-09-29 21:22:09,207 - INFO - 192.168.1.118:46692 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=250812&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:09,209 - INFO - connection open
+2026-09-29 21:22:09,452 - INFO - 192.168.1.118:8077 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=288612&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:09,453 - INFO - connection open
+2026-09-29 21:22:09,695 - INFO - 192.168.1.118:47954 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=326412&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:09,696 - INFO - connection open
+2026-09-29 21:22:09,886 - INFO - 192.168.1.118:10270 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:09,887 - INFO - 192.168.1.118:15570 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:09,934 - INFO - 192.168.1.118:61414 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=364212&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:09,935 - INFO - connection open
+2026-09-29 21:22:10,164 - INFO - 192.168.1.118:63220 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=402012&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:10,165 - INFO - connection open
+2026-09-29 21:22:10,402 - INFO - 192.168.1.118:1451 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=439812&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:10,404 - INFO - connection open
+2026-09-29 21:22:10,634 - INFO - 192.168.1.118:23090 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=477612&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:10,635 - INFO - connection open
+2026-09-29 21:22:10,830 - INFO - 192.168.1.118:15570 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:10,879 - INFO - 192.168.1.118:19229 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=515412&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:10,880 - INFO - connection open
+2026-09-29 21:22:11,342 - INFO - 192.168.1.118:19232 - "GET /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/logs/download HTTP/1.1" 200
+2026-09-29 21:22:11,645 - INFO - 192.168.1.118:15570 - "GET /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/logs/search?query=dense-000001 HTTP/1.1" 200
+2026-09-29 21:22:11,707 - INFO - 192.168.1.118:26612 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=262144&window=rows&columns=126&direction=hit&hit=1192" [accepted]
+2026-09-29 21:22:11,707 - INFO - connection open
+2026-09-29 21:22:11,844 - INFO - 192.168.1.118:7117 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=262144&window=rows&columns=64&direction=hit" [accepted]
+2026-09-29 21:22:11,844 - INFO - connection open
+[15/17] [edge-full] › e2e\log-integrity.spec.js:33:3 › dense archive reaches its first output without a scrollback gap 1
+2026-09-29 21:22:12,141 - INFO - 192.168.1.118:22493 - "GET / HTTP/1.1" 200
+2026-09-29 21:22:12,154 - INFO - 192.168.1.118:22493 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:22:12,156 - INFO - 192.168.1.118:34630 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:22:12,158 - INFO - 192.168.1.118:9536 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:22:12,178 - INFO - 192.168.1.118:9536 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:22:12,257 - INFO - 192.168.1.118:9536 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:12,262 - INFO - 192.168.1.118:34630 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:12,262 - INFO - 192.168.1.118:22493 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:12,274 - INFO - 192.168.1.118:22493 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:22:12,311 - INFO - 192.168.1.118:22493 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:22:12,330 - INFO - 192.168.1.118:22493 - "GET / HTTP/1.1" 200
+2026-09-29 21:22:12,395 - INFO - 192.168.1.118:22493 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:12,396 - INFO - 192.168.1.118:34630 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:12,396 - INFO - 192.168.1.118:9536 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:12,399 - INFO - 192.168.1.118:41558 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:22:12,401 - INFO - 192.168.1.118:43413 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:22:12,402 - INFO - 192.168.1.118:9536 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:22:12,409 - INFO - task queued task_id=001a0ed547d3657e444661a2ca6ebeed1 name=dense-1
+2026-09-29 21:22:12,444 - INFO - 192.168.1.118:41558 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:22:12,504 - INFO - 192.168.1.118:24026 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:22:12,504 - INFO - connection open
+2026-09-29 21:22:12,511 - INFO - task started task_id=001a0ed547d3657e444661a2ca6ebeed1
+2026-09-29 21:22:12,511 - INFO - 192.168.1.118:9536 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:22:12,511 - INFO - 192.168.1.118:34630 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:22:12,511 - INFO - 192.168.1.118:22493 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:22:12,516 - INFO - 192.168.1.118:41558 - "GET /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1 HTTP/1.1" 200
+2026-09-29 21:22:12,523 - INFO - 192.168.1.118:41558 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:22:12,534 - INFO - task finished task_id=001a0ed547d3657e444661a2ca6ebeed1 state=succeeded exit_code=0
+2026-09-29 21:22:12,546 - INFO - 192.168.1.118:41558 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:22:12,654 - INFO - 192.168.1.118:41558 - "GET /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1 HTTP/1.1" 200
+2026-09-29 21:22:12,664 - INFO - 192.168.1.118:41558 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:22:12,779 - INFO - 192.168.1.118:41558 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:22:14,404 - INFO - 192.168.1.118:41558 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:14,957 - INFO - 192.168.1.118:30745 - "WebSocket /api/v1/tasks/001a0ed544fd43d3428d8f68466259416/terminal?offset=0&end=561247&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:22:14,957 - INFO - connection open
+2026-09-29 21:22:15,438 - INFO - 192.168.1.118:41558 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:15,438 - INFO - 192.168.1.118:22493 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:15,861 - INFO - 192.168.1.118:44657 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=561247&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:22:15,862 - INFO - connection open
+2026-09-29 21:22:15,976 - INFO - 192.168.1.118:8691 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=523416&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:15,977 - INFO - connection open
+2026-09-29 21:22:16,198 - INFO - 192.168.1.118:9987 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=485616&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:16,198 - INFO - connection open
+2026-09-29 21:22:16,410 - INFO - 192.168.1.118:22493 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:16,430 - INFO - 192.168.1.118:10232 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=447816&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:16,431 - INFO - connection open
+2026-09-29 21:22:16,659 - INFO - 192.168.1.118:51603 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=410016&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:16,660 - INFO - connection open
+2026-09-29 21:22:16,878 - INFO - 192.168.1.118:10597 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=372216&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:16,880 - INFO - connection open
+2026-09-29 21:22:17,108 - INFO - 192.168.1.118:15309 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=334416&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:17,109 - INFO - connection open
+2026-09-29 21:22:17,323 - INFO - 192.168.1.118:8119 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=296616&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:17,323 - INFO - connection open
+2026-09-29 21:22:17,549 - INFO - 192.168.1.118:37101 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=258816&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:17,549 - INFO - connection open
+2026-09-29 21:22:17,780 - INFO - 192.168.1.118:54214 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=221016&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:17,781 - INFO - connection open
+2026-09-29 21:22:17,999 - INFO - 192.168.1.118:42376 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=183216&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:18,000 - INFO - connection open
+2026-09-29 21:22:18,224 - INFO - 192.168.1.118:47999 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=145416&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:18,226 - INFO - connection open
+2026-09-29 21:22:18,422 - INFO - 192.168.1.118:22493 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:18,452 - INFO - 192.168.1.118:16969 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=107616&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:18,452 - INFO - connection open
+2026-09-29 21:22:18,485 - INFO - 192.168.1.118:22493 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:18,485 - INFO - 192.168.1.118:41558 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:18,671 - INFO - 192.168.1.118:52700 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=69816&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:18,671 - INFO - connection open
+2026-09-29 21:22:18,903 - INFO - 192.168.1.118:21187 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=32016&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:18,925 - INFO - connection open
+2026-09-29 21:22:19,351 - INFO - 192.168.1.118:61405 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=24012&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:19,351 - INFO - connection open
+2026-09-29 21:22:19,589 - INFO - 192.168.1.118:6121 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=61812&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:19,590 - INFO - connection open
+2026-09-29 21:22:19,833 - INFO - 192.168.1.118:48548 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=99612&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:19,834 - INFO - connection open
+2026-09-29 21:22:20,074 - INFO - 192.168.1.118:52118 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=137412&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:20,075 - INFO - connection open
+2026-09-29 21:22:20,318 - INFO - 192.168.1.118:19569 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=175212&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:20,320 - INFO - connection open
+2026-09-29 21:22:20,427 - INFO - 192.168.1.118:41558 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:20,557 - INFO - 192.168.1.118:55944 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=213012&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:20,558 - INFO - connection open
+2026-09-29 21:22:20,796 - INFO - 192.168.1.118:59441 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=250812&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:20,797 - INFO - connection open
+2026-09-29 21:22:21,038 - INFO - 192.168.1.118:7005 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=288612&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:21,039 - INFO - connection open
+2026-09-29 21:22:21,267 - INFO - 192.168.1.118:16417 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=326412&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:21,268 - INFO - connection open
+2026-09-29 21:22:21,494 - INFO - 192.168.1.118:17207 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=364212&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:21,495 - INFO - connection open
+2026-09-29 21:22:21,526 - INFO - 192.168.1.118:41558 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:21,527 - INFO - 192.168.1.118:22493 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:21,721 - INFO - 192.168.1.118:14321 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=402012&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:21,721 - INFO - connection open
+2026-09-29 21:22:21,946 - INFO - 192.168.1.118:51268 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=439812&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:21,946 - INFO - connection open
+2026-09-29 21:22:22,179 - INFO - 192.168.1.118:55654 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=477612&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:22,205 - INFO - connection open
+2026-09-29 21:22:22,430 - INFO - 192.168.1.118:23106 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=515412&end=561247&window=rows&columns=126&direction=later" [accepted]
+2026-09-29 21:22:22,431 - INFO - connection open
+2026-09-29 21:22:22,432 - INFO - 192.168.1.118:22493 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:22,875 - INFO - 192.168.1.118:23107 - "GET /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/logs/download HTTP/1.1" 200
+2026-09-29 21:22:23,191 - INFO - 192.168.1.118:22493 - "GET /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/logs/search?query=dense-000001 HTTP/1.1" 200
+2026-09-29 21:22:23,252 - INFO - 192.168.1.118:20551 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=262144&window=rows&columns=126&direction=hit&hit=1192" [accepted]
+2026-09-29 21:22:23,252 - INFO - connection open
+2026-09-29 21:22:23,416 - INFO - 192.168.1.118:16015 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=262144&window=rows&columns=64&direction=hit" [accepted]
+2026-09-29 21:22:23,418 - INFO - connection open
+2026-09-29 21:22:23,597 - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Զ������ǿ�ȹر���һ�����е����ӡ�
+[16/17] [edge-full] › e2e\log-integrity.spec.js:111:1 › live append preserves a historical reading range and the raw tail
+2026-09-29 21:22:23,729 - INFO - 192.168.1.118:12859 - "GET / HTTP/1.1" 200
+2026-09-29 21:22:23,743 - INFO - 192.168.1.118:12859 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:22:23,744 - INFO - 192.168.1.118:61388 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:22:23,746 - INFO - 192.168.1.118:37243 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:22:23,765 - INFO - 192.168.1.118:37243 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:22:23,847 - INFO - 192.168.1.118:37243 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:23,848 - INFO - 192.168.1.118:61388 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:23,848 - INFO - 192.168.1.118:12859 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:23,854 - INFO - 192.168.1.118:12859 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:22:23,903 - INFO - 192.168.1.118:12859 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:22:23,918 - INFO - 192.168.1.118:12859 - "GET / HTTP/1.1" 200
+2026-09-29 21:22:23,986 - INFO - 192.168.1.118:12859 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:23,987 - INFO - 192.168.1.118:61388 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:23,988 - INFO - 192.168.1.118:37243 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:23,992 - INFO - 192.168.1.118:44930 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:22:23,993 - INFO - 192.168.1.118:37243 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:22:23,993 - INFO - 192.168.1.118:15253 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:22:24,002 - INFO - task queued task_id=001a0ed54aa7e020474a5c5d676952f3a name=history-live
+2026-09-29 21:22:24,016 - INFO - 192.168.1.118:44930 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:22:24,065 - INFO - task started task_id=001a0ed54aa7e020474a5c5d676952f3a
+2026-09-29 21:22:24,077 - INFO - 192.168.1.118:15253 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:22:24,079 - INFO - 192.168.1.118:37243 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:22:24,080 - INFO - 192.168.1.118:9066 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:22:24,080 - INFO - connection open
+2026-09-29 21:22:24,083 - INFO - 192.168.1.118:61388 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:22:24,084 - INFO - 192.168.1.118:44930 - "GET /api/v1/tasks/001a0ed54aa7e020474a5c5d676952f3a HTTP/1.1" 200
+2026-09-29 21:22:24,100 - INFO - 192.168.1.118:44930 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:22:24,113 - INFO - 192.168.1.118:44930 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:22:24,219 - INFO - 192.168.1.118:44930 - "GET /api/v1/tasks/001a0ed54aa7e020474a5c5d676952f3a HTTP/1.1" 200
+2026-09-29 21:22:24,236 - INFO - 192.168.1.118:44930 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:22:24,339 - INFO - 192.168.1.118:44930 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:22:25,998 - INFO - 192.168.1.118:44930 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:26,529 - INFO - 192.168.1.118:59756 - "WebSocket /api/v1/tasks/001a0ed547d3657e444661a2ca6ebeed1/terminal?offset=0&end=561247&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:22:26,530 - INFO - connection open
+2026-09-29 21:22:27,025 - INFO - 192.168.1.118:44930 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:27,026 - INFO - 192.168.1.118:61388 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:27,053 - INFO - 192.168.1.118:46703 - "WebSocket /api/v1/tasks/001a0ed54aa7e020474a5c5d676952f3a/terminal?offset=0&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:22:27,054 - INFO - connection open
+2026-09-29 21:22:27,464 - INFO - 192.168.1.118:37970 - "WebSocket /api/v1/tasks/001a0ed54aa7e020474a5c5d676952f3a/terminal?offset=0&end=485989&window=rows&columns=126&direction=earlier" [accepted]
+2026-09-29 21:22:27,465 - INFO - connection open
+2026-09-29 21:22:27,513 - INFO - 192.168.1.118:61388 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:22:27,513 - INFO - 192.168.1.118:61388 - "POST /api/v1/tasks/001a0ed54aa7e020474a5c5d676952f3a/terminal/input HTTP/1.1" 200
+2026-09-29 21:22:27,528 - INFO - task finished task_id=001a0ed54aa7e020474a5c5d676952f3a state=succeeded exit_code=0
+2026-09-29 21:22:27,539 - INFO - 192.168.1.118:61388 - "GET /api/v1/tasks/001a0ed54aa7e020474a5c5d676952f3a HTTP/1.1" 200
+2026-09-29 21:22:28,012 - INFO - 192.168.1.118:61388 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:29,796 - INFO - 192.168.1.118:37978 - "GET /api/v1/tasks/001a0ed54aa7e020474a5c5d676952f3a/logs/download HTTP/1.1" 200
+[17/17] [edge-full] › e2e\log-integrity.spec.js:142:1 › socket failures have a bounded retry budget and retain the saved output
+2026-09-29 21:22:29,995 - INFO - 192.168.1.118:17986 - "GET / HTTP/1.1" 200
+2026-09-29 21:22:30,008 - INFO - 192.168.1.118:17986 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:22:30,009 - INFO - 192.168.1.118:48352 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:22:30,011 - INFO - 192.168.1.118:61042 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:22:30,032 - INFO - 192.168.1.118:61042 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:22:30,113 - INFO - 192.168.1.118:61042 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:30,114 - INFO - 192.168.1.118:48352 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:30,114 - INFO - 192.168.1.118:17986 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:30,120 - INFO - 192.168.1.118:17986 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:22:30,165 - INFO - 192.168.1.118:17986 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:22:30,180 - INFO - 192.168.1.118:17986 - "GET / HTTP/1.1" 200
+2026-09-29 21:22:30,224 - INFO - 192.168.1.118:17986 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:30,250 - INFO - 192.168.1.118:48352 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:30,250 - INFO - 192.168.1.118:61042 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:30,254 - INFO - 192.168.1.118:38570 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:22:30,256 - INFO - 192.168.1.118:31866 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:22:30,257 - INFO - 192.168.1.118:61042 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:22:30,264 - INFO - task queued task_id=001a0ed54c2f3444d0e41be6d34d7a14f name=connection-retry
+2026-09-29 21:22:30,277 - INFO - 192.168.1.118:38570 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:22:30,279 - INFO - task started task_id=001a0ed54c2f3444d0e41be6d34d7a14f
+2026-09-29 21:22:30,343 - INFO - 192.168.1.118:40536 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:22:30,344 - INFO - connection open
+2026-09-29 21:22:30,346 - INFO - 192.168.1.118:38570 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:22:30,347 - INFO - 192.168.1.118:31866 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:22:30,348 - INFO - 192.168.1.118:61042 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:22:30,351 - INFO - 192.168.1.118:48352 - "GET /api/v1/tasks/001a0ed54c2f3444d0e41be6d34d7a14f HTTP/1.1" 200
+2026-09-29 21:22:30,353 - INFO - task finished task_id=001a0ed54c2f3444d0e41be6d34d7a14f state=succeeded exit_code=0
+2026-09-29 21:22:30,366 - INFO - 192.168.1.118:48352 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:22:30,376 - INFO - 192.168.1.118:48352 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:22:30,500 - INFO - 192.168.1.118:61042 - "GET /api/v1/tasks/001a0ed54c2f3444d0e41be6d34d7a14f HTTP/1.1" 200
+2026-09-29 21:22:30,502 - INFO - 192.168.1.118:48352 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:22:30,609 - INFO - 192.168.1.118:48352 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:22:32,255 - INFO - 192.168.1.118:48352 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:32,829 - INFO - 192.168.1.118:64470 - "WebSocket /api/v1/tasks/001a0ed54aa7e020474a5c5d676952f3a/terminal?offset=0&end=521424&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:22:32,829 - INFO - connection open
+2026-09-29 21:22:33,309 - INFO - 192.168.1.118:48352 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:33,309 - INFO - 192.168.1.118:61042 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:33,740 - INFO - 192.168.1.118:62430 - "WebSocket /api/v1/tasks/001a0ed54c2f3444d0e41be6d34d7a14f/terminal?offset=0&end=1169&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:22:33,741 - INFO - connection open
+2026-09-29 21:22:34,124 - INFO - 192.168.1.118:36615 - "WebSocket /api/v1/tasks/001a0ed54c2f3444d0e41be6d34d7a14f/terminal?offset=0&end=1169&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:22:34,125 - INFO - connection open
+2026-09-29 21:22:34,262 - INFO - 192.168.1.118:61042 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:34,746 - INFO - 192.168.1.118:52868 - "WebSocket /api/v1/tasks/001a0ed54c2f3444d0e41be6d34d7a14f/terminal?offset=0&end=1169&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:22:34,746 - INFO - connection open
+2026-09-29 21:22:35,882 - INFO - 192.168.1.118:24582 - "WebSocket /api/v1/tasks/001a0ed54c2f3444d0e41be6d34d7a14f/terminal?offset=0&end=1169&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:22:35,883 - INFO - connection open
+2026-09-29 21:22:36,268 - INFO - 192.168.1.118:61042 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:36,341 - INFO - 192.168.1.118:61042 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:36,341 - INFO - 192.168.1.118:48352 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:38,196 - INFO - 192.168.1.118:42350 - "GET /api/v1/tasks/001a0ed54c2f3444d0e41be6d34d7a14f/logs/download HTTP/1.1" 200
+  17 passed (2.2m)
+
+> localflow-frontend@0.0.0 test:compat
+> playwright test --project=chromium-compat --project=firefox-compat
+
+
+Running 2 tests using 1 worker
+
+(node:52724) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/2] [chromium-compat] › e2e\compatibility.spec.js:37:1 › Ubuntu browser can operate the released web console
+2026-09-29 21:22:40,839 - INFO - 192.168.1.118:31017 - "GET / HTTP/1.1" 200
+2026-09-29 21:22:40,850 - INFO - 192.168.1.118:31017 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:22:40,855 - INFO - 192.168.1.118:1655 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:22:40,857 - INFO - 192.168.1.118:31017 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:22:40,879 - INFO - 192.168.1.118:31017 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:22:40,963 - INFO - 192.168.1.118:31017 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:40,965 - INFO - 192.168.1.118:1655 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:40,965 - INFO - 192.168.1.118:41113 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:41,597 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:41,658 - INFO - 192.168.1.118:41113 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:22:41,695 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:41,695 - INFO - 192.168.1.118:1655 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:41,767 - INFO - 192.168.1.118:1655 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:22:41,768 - INFO - 192.168.1.118:60052 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:22:41,768 - INFO - connection open
+2026-09-29 21:22:41,768 - INFO - 192.168.1.118:41113 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:22:41,768 - INFO - 192.168.1.118:31017 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:22:41,787 - INFO - 192.168.1.118:31017 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:22:41,797 - INFO - 192.168.1.118:31017 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:22:41,970 - INFO - 192.168.1.118:31017 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:22:42,027 - INFO - 192.168.1.118:31017 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:22:42,822 - INFO - 192.168.1.118:31017 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:22:42,984 - INFO - 192.168.1.118:31017 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:43,299 - INFO - 192.168.1.118:31017 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:22:43,301 - INFO - 192.168.1.118:41113 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:22:44,002 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:44,002 - INFO - 192.168.1.118:31017 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:44,997 - INFO - 192.168.1.118:31017 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:47,012 - INFO - 192.168.1.118:31017 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:47,012 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:47,041 - INFO - 192.168.1.118:60194 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:49,020 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:50,086 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:50,087 - INFO - 192.168.1.118:41113 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:51,057 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:53,074 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:53,127 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:53,128 - INFO - 192.168.1.118:60194 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:55,088 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:56,158 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:56,158 - INFO - 192.168.1.118:41113 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:22:57,094 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:59,103 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:22:59,191 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:22:59,191 - INFO - 192.168.1.118:60194 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:01,118 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:02,235 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:02,235 - INFO - 192.168.1.118:41113 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:03,132 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:05,148 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:05,266 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:05,266 - INFO - 192.168.1.118:60194 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:07,164 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:08,314 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:08,314 - INFO - 192.168.1.118:41113 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:09,179 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:11,194 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:11,370 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:11,370 - INFO - 192.168.1.118:60194 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:13,209 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:14,397 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:14,397 - INFO - 192.168.1.118:41113 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:15,226 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:17,239 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:17,441 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:17,442 - INFO - 192.168.1.118:60194 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:19,258 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:20,479 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:20,479 - INFO - 192.168.1.118:41113 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:21,269 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:23,274 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:23,521 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:23,521 - INFO - 192.168.1.118:60194 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:25,293 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:26,581 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:26,581 - INFO - 192.168.1.118:41113 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:27,310 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:29,319 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:29,615 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:29,616 - INFO - 192.168.1.118:60194 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:31,331 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:32,644 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:32,644 - INFO - 192.168.1.118:41113 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:33,346 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:35,361 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:35,697 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:35,697 - INFO - 192.168.1.118:60194 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:37,375 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:38,733 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:38,736 - INFO - 192.168.1.118:41113 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:39,391 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:41,406 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:41,781 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:41,782 - INFO - 192.168.1.118:60194 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:43,433 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:44,809 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:44,810 - INFO - 192.168.1.118:41113 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:45,452 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:47,476 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:47,840 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:47,844 - INFO - 192.168.1.118:60194 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:49,480 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:50,890 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:50,890 - INFO - 192.168.1.118:41113 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:51,490 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:53,504 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:53,931 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:53,932 - INFO - 192.168.1.118:60194 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:55,512 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:56,971 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:23:56,971 - INFO - 192.168.1.118:41113 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:23:57,526 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:23:59,542 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:24:00,001 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:24:00,001 - INFO - 192.168.1.118:60194 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:24:01,558 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:24:03,053 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:24:03,053 - INFO - 192.168.1.118:41113 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:24:03,561 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:24:05,571 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:24:06,090 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:24:06,090 - INFO - 192.168.1.118:60194 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:24:07,587 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:24:09,129 - INFO - 192.168.1.118:60194 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:24:09,129 - INFO - 192.168.1.118:41113 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:24:09,604 - INFO - 192.168.1.118:41113 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+  1) [chromium-compat] › e2e\compatibility.spec.js:37:1 › Ubuntu browser can operate the released web console 
+
+    Test timeout of 90000ms exceeded.
+
+    Error: page.waitForResponse: Test timeout of 90000ms exceeded.
+
+      104 |   );
+      105 |   await expect(page.locator(`[data-file="config/command/${notificationName}"]`)).toBeVisible();
+    > 106 |   const inspectionResponse = page.waitForResponse(
+          |                                   ^
+      107 |     (response) =>
+      108 |       response.url().endsWith(
+      109 |         "/api/v1/config/files/command/hello-world.yaml/inspection",
+        at F:\Project\python\localflow\frontend\e2e\compatibility.spec.js:106:35
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\quality\evidence\browser\test-results\compatibility-Ubuntu-brows-2e87d-te-the-released-web-console-chromium-compat\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\quality\evidence\browser\test-results\compatibility-Ubuntu-brows-2e87d-te-the-released-web-console-chromium-compat\error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    ..\quality\evidence\browser\test-results\compatibility-Ubuntu-brows-2e87d-te-the-released-web-console-chromium-compat\trace.zip
+    Usage:
+
+        npx playwright show-trace ..\quality\evidence\browser\test-results\compatibility-Ubuntu-brows-2e87d-te-the-released-web-console-chromium-compat\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+(node:32340) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[2/2] [firefox-compat] › e2e\compatibility.spec.js:37:1 › Ubuntu browser can operate the released web console
+2026-09-29 21:24:13,560 - INFO - 192.168.1.118:52853 - "GET / HTTP/1.1" 200
+2026-09-29 21:24:13,694 - INFO - 192.168.1.118:52858 - "GET /compat-boot.js HTTP/1.1" 200
+2026-09-29 21:24:13,696 - INFO - 192.168.1.118:52859 - "GET /theme-boot.js HTTP/1.1" 200
+2026-09-29 21:24:13,698 - INFO - 192.168.1.118:52860 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-09-29 21:24:13,800 - INFO - 192.168.1.118:52862 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-09-29 21:24:13,821 - INFO - 192.168.1.118:52864 - "GET /favicon.ico HTTP/1.1" 200
+2026-09-29 21:24:13,904 - INFO - 192.168.1.118:52868 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:24:13,911 - INFO - 192.168.1.118:52869 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:24:13,912 - INFO - 192.168.1.118:52870 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:24:14,654 - INFO - 192.168.1.118:52885 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:24:14,996 - INFO - 192.168.1.118:52888 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-09-29 21:24:15,041 - INFO - 192.168.1.118:52891 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:24:15,045 - INFO - 192.168.1.118:52892 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:24:15,119 - INFO - 192.168.1.118:52896 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:24:15,143 - INFO - 192.168.1.118:52900 - "WebSocket /api/v1/events" [accepted]
+2026-09-29 21:24:15,144 - INFO - connection open
+2026-09-29 21:24:15,158 - INFO - 192.168.1.118:52898 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-09-29 21:24:15,160 - INFO - 192.168.1.118:52899 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-09-29 21:24:15,181 - INFO - 192.168.1.118:16900 - "GET /api/v1/workspace/files/config/command/compat-chromium-compat-notification.yaml HTTP/1.1" 200
+2026-09-29 21:24:15,202 - INFO - 192.168.1.118:16902 - "GET /api/v1/workspace/files/config/command/compat-chromium-compat-notification.yaml HTTP/1.1" 200
+2026-09-29 21:24:15,391 - INFO - 192.168.1.118:16907 - "POST /api/v1/config/files/command/compat-chromium-compat-notification.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:24:15,427 - INFO - 192.168.1.118:16913 - "POST /api/v1/config/files/command/compat-chromium-compat-notification.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:24:15,950 - INFO - 192.168.1.118:16918 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:24:16,196 - INFO - 192.168.1.118:16926 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-09-29 21:24:16,497 - INFO - 192.168.1.118:16932 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:24:16,503 - INFO - 192.168.1.118:16933 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:24:16,509 - INFO - 192.168.1.118:16935 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-09-29 21:24:16,649 - INFO - 192.168.1.118:16937 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-09-29 21:24:16,728 - INFO - 192.168.1.118:16939 - "GET /assets/MonacoEditors-legacy-VF-jf_OI.js HTTP/1.1" 200
+2026-09-29 21:24:16,751 - INFO - 192.168.1.118:16941 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-09-29 21:24:16,967 - INFO - 192.168.1.118:16945 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:24:16,971 - INFO - 192.168.1.118:16946 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:24:17,002 - INFO - 192.168.1.118:16951 - "GET /assets/yaml-legacy-CsoxOTYF.js HTTP/1.1" 200
+2026-09-29 21:24:17,225 - INFO - 192.168.1.118:16954 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:24:17,241 - INFO - task queued task_id=001a0ed5664d3de5a03ca7a5ca968fcb0 name=firefox-compat-finished
+2026-09-29 21:24:17,253 - INFO - 192.168.1.118:16956 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:24:17,257 - INFO - task started task_id=001a0ed5664d3de5a03ca7a5ca968fcb0
+2026-09-29 21:24:17,293 - INFO - 192.168.1.118:16958 - "GET /api/v1/tasks/001a0ed5664d3de5a03ca7a5ca968fcb0 HTTP/1.1" 200
+2026-09-29 21:24:17,331 - INFO - task finished task_id=001a0ed5664d3de5a03ca7a5ca968fcb0 state=succeeded exit_code=0
+2026-09-29 21:24:17,417 - INFO - 192.168.1.118:16962 - "GET /api/v1/tasks/001a0ed5664d3de5a03ca7a5ca968fcb0 HTTP/1.1" 200
+2026-09-29 21:24:17,973 - INFO - 192.168.1.118:16976 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:24:20,041 - INFO - 192.168.1.118:16996 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:24:20,098 - INFO - 192.168.1.118:16999 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:24:20,098 - INFO - 192.168.1.118:17000 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:24:20,565 - INFO - 192.168.1.118:17003 - "POST /api/v1/tasks/001a0ed5664d3de5a03ca7a5ca968fcb0/acknowledgements HTTP/1.1" 200
+2026-09-29 21:24:20,675 - INFO - 192.168.1.118:17005 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:24:20,687 - INFO - task queued task_id=001a0ed56724bc29183b2891e5bbc8b55 name=firefox-compat-terminal
+2026-09-29 21:24:20,695 - INFO - 192.168.1.118:17007 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-09-29 21:24:20,705 - INFO - task started task_id=001a0ed56724bc29183b2891e5bbc8b55
+2026-09-29 21:24:20,723 - INFO - 192.168.1.118:17011 - "GET /api/v1/tasks/001a0ed56724bc29183b2891e5bbc8b55 HTTP/1.1" 200
+2026-09-29 21:24:20,843 - INFO - 192.168.1.118:17013 - "WebSocket /api/v1/tasks/001a0ed5664d3de5a03ca7a5ca968fcb0/terminal?offset=0&end=1173&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:24:20,844 - INFO - connection open
+2026-09-29 21:24:22,062 - INFO - 192.168.1.118:57593 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:24:23,232 - INFO - 192.168.1.118:57607 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:24:23,232 - INFO - 192.168.1.118:57608 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:24:23,316 - INFO - 192.168.1.118:57610 - "WebSocket /api/v1/tasks/001a0ed56724bc29183b2891e5bbc8b55/terminal?offset=0&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:24:23,317 - INFO - connection open
+2026-09-29 21:24:23,871 - INFO - 192.168.1.118:57613 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-09-29 21:24:23,882 - INFO - task stop requested task_id=001a0ed56724bc29183b2891e5bbc8b55
+2026-09-29 21:24:23,884 - INFO - 192.168.1.118:57615 - "POST /api/v1/tasks/001a0ed56724bc29183b2891e5bbc8b55/interrupt HTTP/1.1" 200
+2026-09-29 21:24:23,906 - INFO - 192.168.1.118:57617 - "GET /api/v1/tasks/001a0ed56724bc29183b2891e5bbc8b55 HTTP/1.1" 200
+2026-09-29 21:24:24,038 - INFO - 192.168.1.118:57621 - "GET /api/v1/tasks/001a0ed56724bc29183b2891e5bbc8b55 HTTP/1.1" 200
+2026-09-29 21:24:24,080 - INFO - 192.168.1.118:57623 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:24:24,083 - INFO - task finished task_id=001a0ed56724bc29183b2891e5bbc8b55 state=cancelled exit_code=1
+2026-09-29 21:24:24,315 - INFO - 192.168.1.118:57625 - "GET /api/v1/tasks/001a0ed56724bc29183b2891e5bbc8b55 HTTP/1.1" 200
+2026-09-29 21:24:26,094 - INFO - 192.168.1.118:57641 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-09-29 21:24:26,271 - INFO - 192.168.1.118:57644 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-09-29 21:24:26,271 - INFO - 192.168.1.118:57645 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-09-29 21:24:26,306 - INFO - 192.168.1.118:57647 - "WebSocket /api/v1/tasks/001a0ed56724bc29183b2891e5bbc8b55/terminal?offset=0&end=1243&window=rows&columns=126&direction=tail" [accepted]
+2026-09-29 21:24:26,307 - INFO - connection open
+2026-09-29 21:24:26,573 - INFO - 192.168.1.118:57651 - "GET /api/v1/system/status HTTP/1.1" 200
+  1 failed
+    [chromium-compat] › e2e\compatibility.spec.js:37:1 › Ubuntu browser can operate the released web console 
+  1 passed (1.8m)

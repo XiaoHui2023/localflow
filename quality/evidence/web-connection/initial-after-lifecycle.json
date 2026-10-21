@@ -1,0 +1,7 @@
+{
+  "source_commit": "8bbc6da7dcd510e2071ffbf639a42ab9c050136b",
+  "isolated_server_exit": 1,
+  "server_healthy_after_probe": true,
+  "fixture_removed": true,
+  "production_service_restarted": false
+}

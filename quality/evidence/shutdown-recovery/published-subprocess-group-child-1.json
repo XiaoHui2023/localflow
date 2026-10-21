@@ -1,0 +1,46 @@
+{
+  "backend": "subprocess",
+  "scenario": "group_child",
+  "controller": {
+    "pid": 523,
+    "created": 1792566205.91,
+    "argv": [
+      "/opt/exit-audit/published-localflow",
+      "--workspace",
+      "/tmp/localflow-exit-probe-auhr8y27/workspace",
+      "--data",
+      "/tmp/localflow-exit-probe-auhr8y27/state"
+    ]
+  },
+  "argv": [
+    "/opt/exit-audit/published-localflow",
+    "--workspace",
+    "/tmp/localflow-exit-probe-auhr8y27/workspace",
+    "--data",
+    "/tmp/localflow-exit-probe-auhr8y27/state"
+  ],
+  "budget_seconds": 18,
+  "natural_entry": true,
+  "endpoint": "http://127.0.0.1:43707",
+  "input_sha256": "e191efabb4e5bd4bf70f0910e246dd13a31be1b25565ccb4dfdf5608818cc43c",
+  "task_id": "001a15d45a49ebde0d7b7d95bb1c6a457",
+  "child": {
+    "pid": 535,
+    "created": 1792566207.05,
+    "argv": [
+      "/opt/exit-audit/venv/bin/python",
+      "-c",
+      "import os,time,signal; from pathlib import Path; signal.signal(signal.SIGINT,signal.SIG_IGN); signal.signal(signal.SIGTERM,signal.SIG_IGN); Path('/tmp/localflow-exit-probe-auhr8y27/child.pid').write_text(str(os.getpid())); time.sleep(120)"
+    ]
+  },
+  "task_before_shutdown": "running",
+  "shutdown_http_status": 202,
+  "controller_exited": true,
+  "controller_exit_code": 0,
+  "elapsed_seconds": 3.262,
+  "child_still_running": true,
+  "port_file_present": false,
+  "pid_file_present": false,
+  "passed": false,
+  "controller_log_sha256": "d6847d463169e32c1fcda7bb2d587a7bf86546991ba45e54a254f1837d767655"
+}

@@ -1,0 +1,67 @@
+{
+  "accessed": "2026-10-21",
+  "status": "completed",
+  "skills_find": "npx --yes skills find graceful shutdown process lifecycle completed; no packages installed",
+  "sources": [
+    {
+      "url": "https://uvicorn.dev/server-behavior/",
+      "lesson": "ASGI connection drain and application lifespan are separate phases"
+    },
+    {
+      "url": "https://github.com/encode/uvicorn/discussions/2075",
+      "lesson": "graceful timeout does not bound every lifespan shutdown step"
+    },
+    {
+      "url": "https://www.freedesktop.org/software/systemd/man/257/systemd.kill.html",
+      "lesson": "control-group ownership, SIGCONT for stopped processes and final SIGKILL"
+    },
+    {
+      "url": "https://docs.python.org/3.11/library/asyncio-subprocess.html",
+      "lesson": "leader status, pipe draining, timeouts and cancellation are independent"
+    },
+    {
+      "url": "https://man7.org/linux/man-pages/man2/PR_SET_CHILD_SUBREAPER.2const.html",
+      "lesson": "kernel reparenting enables durable orphan adoption"
+    },
+    {
+      "url": "https://github.com/krallin/tini",
+      "lesson": "dedicated subreaper, signal forwarding and child reaping"
+    },
+    {
+      "url": "https://github.com/Yelp/dumb-init",
+      "lesson": "session forwarding alone cannot represent every orphan family"
+    },
+    {
+      "url": "https://github.com/advisories/GHSA-68fv-2mgg-jv7q",
+      "lesson": "source-map-js1.2.2 patch"
+    },
+    {
+      "url": "https://github.com/advisories/GHSA-698v-4r3x-3vcv",
+      "lesson": "use Vite8.2.4 security patch on existing8.2 line"
+    }
+  ],
+  "adopted": "systemd existing owner where available; dedicated Linux subreaper + private control for fallback and stop helpers; shared notification WebSocket",
+  "rejected": [
+    "main PID or port disappearance as cleanup Oracle",
+    "killpg-only for detached descendants",
+    "late recursive psutil snapshot as durable ownership",
+    "SIGKILL frozen outer wrapper before child cleanup"
+  ],
+  "limits": [
+    "actual offline Ubuntu installation/version inaccessible",
+    "Ubuntu24.04 systemd Docker target is equivalent isolation evidence, not actual host verification",
+    "older kernel ENOSYS compatibility tested with targeted syscall failure, not a claimed physical old kernel"
+  ],
+  "resolved_environment_failures": [
+    "CRLF shell script preflight corrected",
+    "download client timeout did not kill remote pip; independently observed completion and resumed only remaining provisioning",
+    "first Firefox teardown failure preserved; full bounded second gate passed"
+  ],
+  "tool_health_remaining": {
+    "target": "independent Codex bootstrap health probe",
+    "error": "TimeoutError: bootstrap child budget exceeded; automatic_retry_allowed=false",
+    "impact": "health probe not qualified; authorized project commands and isolated product checks still completed",
+    "fallback": "no automatic retry or global core edits; project delivery checks and actual product process evidence remain separate",
+    "recovery": "formal hook owner diagnosis if the independent health probe is required"
+  }
+}

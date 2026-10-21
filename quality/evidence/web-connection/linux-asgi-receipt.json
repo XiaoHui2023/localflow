@@ -1,0 +1,7 @@
+{
+  "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+  "python": "3.11.15",
+  "source_mount": "read-only",
+  "install_exit": 0,
+  "test_exit": 0
+}

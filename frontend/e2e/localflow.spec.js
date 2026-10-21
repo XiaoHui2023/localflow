@@ -495,9 +495,24 @@ test("plugin configuration console remains concise and operable in Edge", async 
   const consoleErrors = [];
   const validationRejections = [];
   let openWebSockets = 0;
+  let openTerminalSockets = 0;
+  let openEventSockets = 0;
+  const currentSockets = new Set();
+  // A reload replaces the document. Playwright may omit close notifications
+  // for sockets from the previous document; do not count those as live UI work.
+  page.on("request", (request) => {
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+      currentSockets.clear();
+      openWebSockets = openTerminalSockets = openEventSockets = 0;
+    }
+  });
   let terminalAcks = 0;
   page.on("websocket", (socket) => {
+    currentSockets.add(socket);
     openWebSockets += 1;
+    const isEvent = new URL(socket.url()).pathname === "/api/v1/events";
+    if (isEvent) openEventSockets += 1;
+    else openTerminalSockets += 1;
     socket.on("framesent", ({ payload }) => {
       try {
         if (JSON.parse(String(payload)).type === "ack") terminalAcks += 1;
@@ -506,7 +521,10 @@ test("plugin configuration console remains concise and operable in Edge", async 
       }
     });
     socket.on("close", () => {
+      if (!currentSockets.delete(socket)) return;
       openWebSockets -= 1;
+      if (isEvent) openEventSockets -= 1;
+      else openTerminalSockets -= 1;
     });
   });
   page.on("console", (message) => {
@@ -625,6 +643,8 @@ test("plugin configuration console remains concise and operable in Edge", async 
   const firstClock = await page
     .getByLabel("时间校准", { exact: true })
     .inputValue();
+  await expect(page.getByLabel("时间校准", { exact: true })).toHaveAttribute("type", "text");
+  expect(firstClock).toMatch(/^\d{4}-\d{2}-\d{2} ([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/);
   await page.waitForTimeout(1100);
   expect(
     await page.getByLabel("时间校准", { exact: true }).inputValue(),
@@ -1294,7 +1314,9 @@ test("plugin configuration console remains concise and operable in Edge", async 
   expect(narrowExplorer.y + narrowExplorer.height).toBeLessThanOrEqual(narrowConfig.y + 1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   await page.setViewportSize({ width: 1440, height: 960 });
-  await expect.poll(() => openWebSockets).toBe(0);
+  await expect.poll(() => openTerminalSockets).toBe(0);
+  await expect.poll(() => openEventSockets).toBe(1);
+  await expect.poll(() => openWebSockets).toBe(1);
   const activeTasks = await browserApi(
     page,
     "/tasks?state=queued&state=running&state=stopping",
@@ -1804,6 +1826,8 @@ test("plugin configuration console remains concise and operable in Edge", async 
     "frontend/src/TerminalOutputAge.jsx",
     "frontend/src/Tooltip.jsx",
     "frontend/src/api.js",
+    "frontend/src/connections.js",
+    "frontend/src/time.js",
     "frontend/src/main.jsx",
     "frontend/src/index.css",
     "frontend/src/extra.css",

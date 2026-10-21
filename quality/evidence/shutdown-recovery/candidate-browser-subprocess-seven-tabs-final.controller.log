@@ -1,0 +1,146 @@
+2026-10-21 07:27:08,464 - INFO - LocalFlow starting config_root=/tmp/localflow-exit-probe-e85pxnkt/workspace state_root=/tmp/localflow-exit-probe-e85pxnkt/state backend=subprocess
+2026-10-21 07:27:08,620 - INFO - Controller signals protected; stop from the administrator settings page or with systemctl stop localflow
+2026-10-21 07:27:08,641 - INFO - Started server process [4363]
+2026-10-21 07:27:08,641 - INFO - Waiting for application startup.
+2026-10-21 07:27:08,652 - INFO - Application startup complete.
+2026-10-21 07:27:08,656 - INFO - Uvicorn running on http://127.0.0.1:44913 (Press CTRL+C to quit)
+http://127.0.0.1:44913
+2026-10-21 07:27:08,727 - INFO - 127.0.0.1:39102 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-10-21 07:27:08,740 - INFO - task queued task_id=001a15d5b53bf57dd625eac3d84aa2639 name=exit-probe
+2026-10-21 07:27:08,749 - INFO - 127.0.0.1:39102 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-10-21 07:27:08,754 - INFO - 127.0.0.1:39102 - "GET /api/v1/tasks/001a15d5b53bf57dd625eac3d84aa2639 HTTP/1.1" 200
+2026-10-21 07:27:08,807 - INFO - 127.0.0.1:39102 - "GET /api/v1/tasks/001a15d5b53bf57dd625eac3d84aa2639 HTTP/1.1" 200
+2026-10-21 07:27:08,855 - INFO - task started task_id=001a15d5b53bf57dd625eac3d84aa2639
+2026-10-21 07:27:08,860 - INFO - 127.0.0.1:39102 - "GET /api/v1/tasks/001a15d5b53bf57dd625eac3d84aa2639 HTTP/1.1" 200
+2026-10-21 07:27:09,417 - INFO - 127.0.0.1:39102 - "GET /api/v1/tasks/001a15d5b53bf57dd625eac3d84aa2639 HTTP/1.1" 200
+2026-10-21 07:27:10,415 - INFO - 127.0.0.1:39106 - "GET / HTTP/1.1" 200
+2026-10-21 07:27:10,446 - INFO - 127.0.0.1:39106 - "GET /compat-boot.js HTTP/1.1" 200
+2026-10-21 07:27:10,447 - INFO - 127.0.0.1:39110 - "GET /theme-boot.js HTTP/1.1" 200
+2026-10-21 07:27:10,458 - INFO - 127.0.0.1:39120 - "GET /assets/polyfills-legacy-D3aFWEOh.js HTTP/1.1" 200
+2026-10-21 07:27:10,679 - INFO - 127.0.0.1:39120 - "GET /assets/index-legacy-CF8NL9X4.js HTTP/1.1" 200
+2026-10-21 07:27:10,809 - INFO - 127.0.0.1:39120 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-10-21 07:27:10,809 - INFO - 127.0.0.1:39110 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-10-21 07:27:10,809 - INFO - 127.0.0.1:39106 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-10-21 07:27:10,878 - INFO - 127.0.0.1:39106 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-10-21 07:27:10,998 - INFO - 127.0.0.1:39106 - "GET / HTTP/1.1" 200
+2026-10-21 07:27:11,040 - INFO - 127.0.0.1:39106 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-10-21 07:27:11,041 - INFO - 127.0.0.1:39110 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-10-21 07:27:11,041 - INFO - 127.0.0.1:39120 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-10-21 07:27:11,049 - INFO - 127.0.0.1:39120 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-10-21 07:27:11,090 - INFO - 127.0.0.1:39124 - "WebSocket /api/v1/events" [accepted]
+2026-10-21 07:27:11,090 - INFO - connection open
+2026-10-21 07:27:11,091 - INFO - 127.0.0.1:39120 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-10-21 07:27:11,091 - INFO - 127.0.0.1:39110 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-10-21 07:27:11,091 - INFO - 127.0.0.1:39106 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-10-21 07:27:11,100 - INFO - 127.0.0.1:39106 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-10-21 07:27:11,137 - INFO - 127.0.0.1:39106 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-10-21 07:27:11,261 - INFO - 127.0.0.1:39106 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-10-21 07:27:11,361 - INFO - 127.0.0.1:39106 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-10-21 07:27:11,707 - INFO - 127.0.0.1:39106 - "GET / HTTP/1.1" 200
+2026-10-21 07:27:11,753 - INFO - 127.0.0.1:39106 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-10-21 07:27:11,753 - INFO - 127.0.0.1:39110 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-10-21 07:27:11,754 - INFO - 127.0.0.1:39120 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-10-21 07:27:11,763 - INFO - 127.0.0.1:39120 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-10-21 07:27:11,806 - INFO - 127.0.0.1:39120 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-10-21 07:27:11,806 - INFO - 127.0.0.1:39136 - "WebSocket /api/v1/events" [accepted]
+2026-10-21 07:27:11,806 - INFO - connection open
+2026-10-21 07:27:11,807 - INFO - 127.0.0.1:39110 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-10-21 07:27:11,807 - INFO - 127.0.0.1:39106 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-10-21 07:27:11,825 - INFO - 127.0.0.1:39106 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-10-21 07:27:11,841 - INFO - 127.0.0.1:39106 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-10-21 07:27:11,964 - INFO - 127.0.0.1:39106 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-10-21 07:27:12,063 - INFO - 127.0.0.1:39106 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-10-21 07:27:12,349 - INFO - 127.0.0.1:39106 - "GET / HTTP/1.1" 200
+2026-10-21 07:27:12,399 - INFO - 127.0.0.1:39106 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-10-21 07:27:12,400 - INFO - 127.0.0.1:39110 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-10-21 07:27:12,400 - INFO - 127.0.0.1:39120 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-10-21 07:27:12,409 - INFO - 127.0.0.1:39120 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-10-21 07:27:12,441 - INFO - 127.0.0.1:39138 - "WebSocket /api/v1/events" [accepted]
+2026-10-21 07:27:12,441 - INFO - connection open
+2026-10-21 07:27:12,441 - INFO - 127.0.0.1:39120 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-10-21 07:27:12,442 - INFO - 127.0.0.1:39110 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-10-21 07:27:12,442 - INFO - 127.0.0.1:39106 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-10-21 07:27:12,449 - INFO - 127.0.0.1:39106 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-10-21 07:27:12,475 - INFO - 127.0.0.1:39106 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-10-21 07:27:12,597 - INFO - 127.0.0.1:39106 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-10-21 07:27:12,697 - INFO - 127.0.0.1:39106 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-10-21 07:27:13,047 - INFO - 127.0.0.1:39106 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-10-21 07:27:13,077 - INFO - 127.0.0.1:39106 - "GET / HTTP/1.1" 200
+2026-10-21 07:27:13,125 - INFO - 127.0.0.1:39106 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-10-21 07:27:13,125 - INFO - 127.0.0.1:39110 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-10-21 07:27:13,125 - INFO - 127.0.0.1:39120 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-10-21 07:27:13,134 - INFO - 127.0.0.1:39120 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-10-21 07:27:13,168 - INFO - 127.0.0.1:39144 - "WebSocket /api/v1/events" [accepted]
+2026-10-21 07:27:13,168 - INFO - connection open
+2026-10-21 07:27:13,178 - INFO - 127.0.0.1:39120 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-10-21 07:27:13,178 - INFO - 127.0.0.1:39110 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-10-21 07:27:13,178 - INFO - 127.0.0.1:39106 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-10-21 07:27:13,186 - INFO - 127.0.0.1:39106 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-10-21 07:27:13,203 - INFO - 127.0.0.1:39106 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-10-21 07:27:13,324 - INFO - 127.0.0.1:39106 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-10-21 07:27:13,425 - INFO - 127.0.0.1:39106 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-10-21 07:27:13,764 - INFO - 127.0.0.1:39106 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-10-21 07:27:13,786 - INFO - 127.0.0.1:39106 - "GET / HTTP/1.1" 200
+2026-10-21 07:27:13,833 - INFO - 127.0.0.1:39106 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-10-21 07:27:13,834 - INFO - 127.0.0.1:39110 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-10-21 07:27:13,834 - INFO - 127.0.0.1:39120 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-10-21 07:27:13,843 - INFO - 127.0.0.1:39120 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-10-21 07:27:13,867 - INFO - 127.0.0.1:39148 - "WebSocket /api/v1/events" [accepted]
+2026-10-21 07:27:13,867 - INFO - connection open
+2026-10-21 07:27:13,875 - INFO - 127.0.0.1:39120 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-10-21 07:27:13,876 - INFO - 127.0.0.1:39110 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-10-21 07:27:13,876 - INFO - 127.0.0.1:39106 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-10-21 07:27:13,885 - INFO - 127.0.0.1:39106 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-10-21 07:27:13,902 - INFO - 127.0.0.1:39106 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-10-21 07:27:14,024 - INFO - 127.0.0.1:39106 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-10-21 07:27:14,054 - INFO - 127.0.0.1:39106 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-10-21 07:27:14,054 - INFO - 127.0.0.1:39110 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-10-21 07:27:14,125 - INFO - 127.0.0.1:39110 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-10-21 07:27:14,411 - INFO - 127.0.0.1:39110 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-10-21 07:27:14,493 - INFO - 127.0.0.1:39110 - "GET / HTTP/1.1" 200
+2026-10-21 07:27:14,541 - INFO - 127.0.0.1:39110 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-10-21 07:27:14,541 - INFO - 127.0.0.1:39106 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-10-21 07:27:14,542 - INFO - 127.0.0.1:39120 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-10-21 07:27:14,551 - INFO - 127.0.0.1:39120 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-10-21 07:27:14,585 - INFO - 127.0.0.1:39150 - "WebSocket /api/v1/events" [accepted]
+2026-10-21 07:27:14,585 - INFO - connection open
+2026-10-21 07:27:14,593 - INFO - 127.0.0.1:39120 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-10-21 07:27:14,594 - INFO - 127.0.0.1:39106 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-10-21 07:27:14,594 - INFO - 127.0.0.1:39110 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-10-21 07:27:14,612 - INFO - 127.0.0.1:39110 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-10-21 07:27:14,626 - INFO - 127.0.0.1:39110 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-10-21 07:27:14,748 - INFO - 127.0.0.1:39110 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-10-21 07:27:14,767 - INFO - 127.0.0.1:39110 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-10-21 07:27:14,767 - INFO - 127.0.0.1:39106 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-10-21 07:27:14,848 - INFO - 127.0.0.1:39106 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-10-21 07:27:15,053 - INFO - 127.0.0.1:39106 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-10-21 07:27:15,135 - INFO - 127.0.0.1:39106 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-10-21 07:27:15,204 - INFO - 127.0.0.1:39106 - "GET / HTTP/1.1" 200
+2026-10-21 07:27:15,252 - INFO - 127.0.0.1:39106 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-10-21 07:27:15,253 - INFO - 127.0.0.1:39110 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-10-21 07:27:15,253 - INFO - 127.0.0.1:39120 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-10-21 07:27:15,262 - INFO - 127.0.0.1:39120 - "GET /api/v1/auth/session HTTP/1.1" 200
+2026-10-21 07:27:15,300 - INFO - 127.0.0.1:39152 - "WebSocket /api/v1/events" [accepted]
+2026-10-21 07:27:15,300 - INFO - connection open
+2026-10-21 07:27:15,310 - INFO - 127.0.0.1:39120 - "GET /api/v1/workspace HTTP/1.1" 200
+2026-10-21 07:27:15,310 - INFO - 127.0.0.1:39110 - "GET /api/v1/config/recent HTTP/1.1" 200
+2026-10-21 07:27:15,311 - INFO - 127.0.0.1:39106 - "GET /api/v1/plugins HTTP/1.1" 200
+2026-10-21 07:27:15,330 - INFO - 127.0.0.1:39106 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-10-21 07:27:15,345 - INFO - 127.0.0.1:39106 - "GET /api/v1/workspace/files/config/command/hello-world.yaml HTTP/1.1" 200
+2026-10-21 07:27:15,414 - INFO - 127.0.0.1:39106 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-10-21 07:27:15,414 - INFO - 127.0.0.1:39110 - "GET /api/v1/tasks?limit=200 HTTP/1.1" 200
+2026-10-21 07:27:15,467 - INFO - 127.0.0.1:39110 - "POST /api/v1/config/files/command/hello-world.yaml/inspection HTTP/1.1" 200
+2026-10-21 07:27:15,567 - INFO - 127.0.0.1:39110 - "POST /api/v1/config/files/command/hello-world.yaml/diagnosis HTTP/1.1" 200
+2026-10-21 07:27:15,769 - INFO - 127.0.0.1:39110 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-10-21 07:27:15,845 - INFO - 127.0.0.1:39110 - "GET /api/v1/system/ui-revision HTTP/1.1" 200
+2026-10-21 07:27:15,861 - INFO - 127.0.0.1:39110 - "GET /api/v1/system/status HTTP/1.1" 200
+2026-10-21 07:27:15,999 - INFO - LocalFlow shutdown requested by administrator
+2026-10-21 07:27:15,999 - INFO - 127.0.0.1:39110 - "POST /api/v1/system/shutdown HTTP/1.1" 202
+2026-10-21 07:27:16,080 - INFO - Shutting down
+2026-10-21 07:27:16,181 - INFO - Waiting for application shutdown.
+2026-10-21 07:27:16,194 - INFO - task stop requested task_id=001a15d5b53bf57dd625eac3d84aa2639
+2026-10-21 07:27:17,010 - WARNING - task stop escalated to force cleanup task_id=001a15d5b53bf57dd625eac3d84aa2639
+2026-10-21 07:27:17,077 - INFO - task finished task_id=001a15d5b53bf57dd625eac3d84aa2639 state=cancelled exit_code=0
+2026-10-21 07:27:17,108 - INFO - Application shutdown complete.
+2026-10-21 07:27:17,108 - INFO - Finished server process [4363]
+2026-10-21 07:27:17,110 - INFO - LocalFlow stopped

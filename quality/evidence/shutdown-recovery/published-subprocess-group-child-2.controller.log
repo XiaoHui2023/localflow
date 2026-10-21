@@ -1,0 +1,23 @@
+2026-10-21 07:03:32,639 - INFO - LocalFlow starting config_root=/tmp/localflow-exit-probe-sgfxpmx3/workspace state_root=/tmp/localflow-exit-probe-sgfxpmx3/state backend=subprocess
+2026-10-21 07:03:32,749 - INFO - Controller signals protected; stop from the administrator settings page or with systemctl stop localflow
+2026-10-21 07:03:32,765 - INFO - Started server process [541]
+2026-10-21 07:03:32,766 - INFO - Waiting for application startup.
+2026-10-21 07:03:32,770 - INFO - Application startup complete.
+2026-10-21 07:03:32,772 - INFO - Uvicorn running on http://127.0.0.1:36799 (Press CTRL+C to quit)
+http://127.0.0.1:36799
+2026-10-21 07:03:32,847 - INFO - 127.0.0.1:35752 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-10-21 07:03:32,863 - INFO - task queued task_id=001a15d45b8f5b0c425133e26f72fb5d4 name=exit-probe
+2026-10-21 07:03:32,871 - INFO - 127.0.0.1:35752 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-10-21 07:03:32,877 - INFO - task started task_id=001a15d45b8f5b0c425133e26f72fb5d4
+2026-10-21 07:03:32,879 - INFO - 127.0.0.1:35752 - "GET /api/v1/tasks/001a15d45b8f5b0c425133e26f72fb5d4 HTTP/1.1" 200
+2026-10-21 07:03:33,437 - INFO - 127.0.0.1:35752 - "GET /api/v1/tasks/001a15d45b8f5b0c425133e26f72fb5d4 HTTP/1.1" 200
+2026-10-21 07:03:33,439 - INFO - LocalFlow shutdown requested by administrator
+2026-10-21 07:03:33,439 - INFO - 127.0.0.1:35752 - "POST /api/v1/system/shutdown HTTP/1.1" 202
+2026-10-21 07:03:33,473 - INFO - Shutting down
+2026-10-21 07:03:33,574 - INFO - Waiting for application shutdown.
+2026-10-21 07:03:33,579 - INFO - task stop requested task_id=001a15d45b8f5b0c425133e26f72fb5d4
+2026-10-21 07:03:34,393 - WARNING - task stop escalated to force cleanup task_id=001a15d45b8f5b0c425133e26f72fb5d4
+2026-10-21 07:03:36,402 - INFO - forced task exit confirmed task_id=001a15d45b8f5b0c425133e26f72fb5d4 exit_code=0
+2026-10-21 07:03:36,498 - INFO - Application shutdown complete.
+2026-10-21 07:03:36,498 - INFO - Finished server process [541]
+2026-10-21 07:03:36,499 - INFO - LocalFlow stopped

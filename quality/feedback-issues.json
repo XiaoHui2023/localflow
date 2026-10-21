@@ -370,6 +370,206 @@
       ],
       "resolution_evidence": "quality/evidence/log-integrity/verification.json#LF-TERM-003",
       "resolution_scope": "source tests and current Windows browsers; target and publication require producer/consumer CI"
+    },
+    {
+      "id": "LF-WEB-RECONNECT-001",
+      "summary": "长时间运行后网页刷新连接失败",
+      "expected": "多标签页和断网恢复后刷新可访问服务",
+      "actual": "六个真实登录网页的六条SSE使第七页和原页刷新超时；独立API200，关闭一页恢复。现场单页长期问题尚未确认同因。",
+      "status": "resolved",
+      "execution_scope": "production_equivalent_isolated",
+      "baseline_revision": "8bbc6da7dcd510e2071ffbf639a42ab9c050136b",
+      "owner_paths": [
+        "frontend/src/App.jsx",
+        "frontend/src/api.js",
+        "src/localflow/api.py"
+      ],
+      "reproduction_paths": [
+        "frontend/e2e",
+        "quality/evidence/web-connection"
+      ],
+      "reproduction_attempts": [
+        {
+          "result": "reproduced",
+          "method": "正式CLI临时配置根；真实管理员网页六标签页，无故障注入。",
+          "evidence": "quality/evidence/web-connection/baseline-actual-ui.json",
+          "baseline_revision": "8bbc6da7dcd510e2071ffbf639a42ab9c050136b"
+        }
+      ],
+      "runner_paths": [
+        "tools/run_web_recovery.py",
+        "frontend/e2e/web-recovery.mjs",
+        "tests_v2/test_event_socket.py",
+        "frontend/e2e/connection-lifecycle.test.mjs"
+      ],
+      "entrypoint": {
+        "kind": "ui",
+        "command": [
+          "python",
+          "tools/run_web_recovery.py",
+          "--minutes",
+          "30"
+        ]
+      },
+      "oracle": {
+        "command": [
+          "python",
+          "tools/run_web_recovery.py",
+          "--minutes",
+          "30"
+        ],
+        "read_only": false,
+        "reported_symptom_direct": true,
+        "scope": "private temporary fixture only; valid task/config writes"
+      },
+      "reproduction_proves": "Edge HTTP/1.1六个正常已登录网页可自然耗尽请求槽。",
+      "reproduction_does_not_prove": "不能确认现场单页长时退化、真实代理/URL、Ubuntu部署或数日稳定性。",
+      "resolution_evidence": "quality/evidence/web-connection/verification.json#LF-WEB-RECONNECT-001",
+      "resolution_scope": "isolated Windows/Edge production build; 30-minute active soak, six tabs, offline/server recovery; current Chromium/Firefox and Chrome84/Firefox78 compatibility; actual operator endpoint and Ubuntu systemd unverified"
+    },
+    {
+      "id": "LF-EXIT-001",
+      "summary": "离线Ubuntu网页确认退出后控制器终端进程仍未结束",
+      "expected": "管理员正常网页退出后控制器在有界时间结束，停止监听并清理本实例身份；不依赖刷新或额外信号。",
+      "actual": "2026-10-21用户反馈：还是无法正常退出，刷新网页也没用，进程也没杀干净；进一步确认在另一离线Ubuntu环境，通过网页菜单关闭服务，终端进程不能正常结束。具体启动方式、版本和残留进程身份待核实。",
+      "status": "resolved",
+      "execution_scope": "production_equivalent_isolated",
+      "owner_paths": [
+        "src/localflow/cli.py",
+        "src/localflow/api.py",
+        "frontend/src/App.jsx",
+        "frontend/src/connections.js"
+      ],
+      "reproduction_paths": [
+        "tools",
+        "tests_v2",
+        "tests_target",
+        "frontend/e2e",
+        "quality/evidence/shutdown-recovery"
+      ],
+      "baseline_revision": "8bbc6da7dcd510e2071ffbf639a42ab9c050136b",
+      "baseline_worktree": "existing web recovery changes retained; freeze fingerprint before reproduction",
+      "recurrent_signature": "web-admin-shutdown-accepted-but-owned-processes-not-terminated",
+      "historical_metric_ids": [
+        "QM-039",
+        "QM-041",
+        "QM-052",
+        "QM-053",
+        "QM-066"
+      ],
+      "entrypoint": {
+        "kind": "ui_and_public_api",
+        "description": "authenticated admin settings shutdown, disposable configuration/state, actual Linux processes"
+      },
+      "reproduction_attempts": [
+        {
+          "result": "reproduced",
+          "evidence": "quality/evidence/shutdown-recovery/published-browser-six-tabs-1.json",
+          "method": "actual six-tab Chrome84 settings exit on published staticx",
+          "observed": "exit click completed; no shutdown POST arrived; controller remained alive beyond18s"
+        },
+        {
+          "result": "reproduced",
+          "evidence": "quality/evidence/shutdown-recovery/published-browser-six-tabs-2.json",
+          "method": "actual six-tab Chrome84 settings exit on published staticx",
+          "observed": "exit click completed; no shutdown POST arrived; controller remained alive beyond18s"
+        }
+      ],
+      "reproduction_proves": "published binary actual six-tab admin UI can queue shutdown behind SSE connection slots",
+      "reproduction_does_not_prove": "Windows subprocess results cannot prove Ubuntu systemd/PTTY/offline release behavior; fault injection is separate.",
+      "runner_paths": [
+        "tools/reproduce_shutdown.py",
+        "tools/reproduce_browser_exit.py"
+      ],
+      "oracle": {
+        "command": [
+          "python",
+          "tools/reproduce_shutdown.py"
+        ],
+        "read_only": false,
+        "reported_symptom_direct": true,
+        "description": "independent OS PID creation identity, wrapper exit and retained child measurement before fixture cleanup"
+      },
+      "resolution_evidence": "quality/evidence/shutdown-recovery/receipt.json#LF-EXIT-001",
+      "resolution_scope": "source-level isolated equivalent reproduction; final binary/publication verified separately before final delivery"
+    },
+    {
+      "id": "LF-EXIT-002",
+      "summary": "网页关闭服务后任务进程树仍有残留",
+      "expected": "关闭本实例后所有已归属任务的cgroup/进程树清理已独立验证，正常进程不误杀；仅请求接受、主PID退出或任务数据库终态不得冒充清理完成。",
+      "actual": "2026-10-21用户反馈：还是无法正常退出，刷新网页也没用，进程也没杀干净；进一步确认在另一离线Ubuntu环境，通过网页菜单关闭服务，终端进程不能正常结束。具体启动方式、版本和残留进程身份待核实。",
+      "status": "resolved",
+      "execution_scope": "production_equivalent_isolated",
+      "owner_paths": [
+        "src/localflow/service.py",
+        "src/localflow/executor.py",
+        "src/localflow/supervisor.py",
+        "src/localflow/process_owner.py"
+      ],
+      "reproduction_paths": [
+        "tools",
+        "tests_v2",
+        "tests_target",
+        "frontend/e2e",
+        "quality/evidence/shutdown-recovery"
+      ],
+      "baseline_revision": "8bbc6da7dcd510e2071ffbf639a42ab9c050136b",
+      "baseline_worktree": "existing web recovery changes retained; freeze fingerprint before reproduction",
+      "recurrent_signature": "web-admin-shutdown-accepted-but-owned-processes-not-terminated",
+      "historical_metric_ids": [
+        "QM-039",
+        "QM-041",
+        "QM-052",
+        "QM-053",
+        "QM-066"
+      ],
+      "entrypoint": {
+        "kind": "ui_and_public_api",
+        "description": "authenticated admin settings shutdown, disposable configuration/state, actual Linux processes"
+      },
+      "reproduction_attempts": [
+        {
+          "result": "reproduced",
+          "evidence": "quality/evidence/shutdown-recovery/published-subprocess-group-child-1.json",
+          "method": "published binary + real Linux processes + authenticated public shutdown",
+          "observed": "controller exit0, owned child or stop helper still present before fixture cleanup"
+        },
+        {
+          "result": "reproduced",
+          "evidence": "quality/evidence/shutdown-recovery/published-subprocess-group-child-2.json",
+          "method": "published binary + real Linux processes + authenticated public shutdown",
+          "observed": "controller exit0, owned child or stop helper still present before fixture cleanup"
+        },
+        {
+          "result": "reproduced",
+          "evidence": "quality/evidence/shutdown-recovery/published-stop-helper-1.json",
+          "method": "published binary + real Linux processes + authenticated public shutdown",
+          "observed": "controller exit0, owned child or stop helper still present before fixture cleanup"
+        },
+        {
+          "result": "reproduced",
+          "evidence": "quality/evidence/shutdown-recovery/published-stop-helper-2.json",
+          "method": "published binary + real Linux processes + authenticated public shutdown",
+          "observed": "controller exit0, owned child or stop helper still present before fixture cleanup"
+        }
+      ],
+      "reproduction_proves": "Linux subprocess backend, including auto fallback, can falsely complete shutdown with a living same-group descendant after parent exit.",
+      "reproduction_does_not_prove": "Does not prove actual offline installation version/backend, all systemd cases, or browser request arrival.",
+      "runner_paths": [
+        "tools/reproduce_shutdown.py",
+        "tools/reproduce_browser_exit.py"
+      ],
+      "oracle": {
+        "command": [
+          "python",
+          "tools/reproduce_shutdown.py"
+        ],
+        "read_only": false,
+        "reported_symptom_direct": true,
+        "description": "independent OS PID creation identity, wrapper exit and retained child measurement before fixture cleanup"
+      },
+      "resolution_evidence": "quality/evidence/shutdown-recovery/receipt.json#LF-EXIT-002",
+      "resolution_scope": "source-level isolated equivalent reproduction; final binary/publication verified separately before final delivery"
     }
   ]
 }

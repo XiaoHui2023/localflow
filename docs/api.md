@@ -34,9 +34,12 @@
 | `POST` | `/tasks/{task_id}/terminal/resize` | 调整 PTY 行列 | signed-client 或 admin |
 | `GET` | `/tasks/{task_id}/logs/search` | 流式检索完整保留日志 | readonly、signed-client 或 admin |
 | `GET` | `/events` | 从事件 ID 之后订阅 SSE | signed-client、admin 或按匿名设置 |
+| `WS` | `/events` | 网页配置通知与事件续传 | 同源 admin 或按匿名设置 |
 | `WS` | `/tasks/{task_id}/terminal` | 终端输出；管理员可输入和调尺寸 | readonly 或 admin |
 
 `GET /events` 默认从建立连接时的最新事件开始，只推送随后发生的事件，避免新页面重放全部历史。需要补读时显式传 `after=<event_id>`；浏览器断线重连可使用标准 `Last-Event-ID`。显式 `after` 的优先级最高。
+
+网页使用同源 `ws(s)://<host>/api/v1/events`，避免 HTTP/1.1 下多标签页 SSE 占满普通请求连接。握手后先收到 `{"type":"ready","id":<cursor>}`，随后为 `{"type":"event","id":<id>,"event":<kind>,"data":<payload>}` 和每秒 `{"type":"heartbeat"}`。重连携带 `after=<last-delivered-id>`；初次连接省略时从最新事件开始。负数或非整数游标以 4400 拒绝，非同源或禁止匿名时以 4403 拒绝；权限在连接期间重新核实。此通道只读，不接受任务操作。现有 SSE 接口与 `Last-Event-ID` 合同继续有效。
 
 创建任务示例：
 

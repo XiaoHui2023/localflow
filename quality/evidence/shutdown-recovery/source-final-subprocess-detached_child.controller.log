@@ -1,0 +1,25 @@
+2026-10-21 07:34:14,942 - INFO - LocalFlow starting config_root=/tmp/localflow-exit-probe-cu9w92mf/workspace state_root=/tmp/localflow-exit-probe-cu9w92mf/state backend=subprocess
+2026-10-21 07:34:15,121 - INFO - Controller signals protected; stop from the administrator settings page or with systemctl stop localflow
+2026-10-21 07:34:15,141 - INFO - Started server process [4539]
+2026-10-21 07:34:15,141 - INFO - Waiting for application startup.
+2026-10-21 07:34:15,152 - INFO - Application startup complete.
+2026-10-21 07:34:15,156 - INFO - Uvicorn running on http://127.0.0.1:43977 (Press CTRL+C to quit)
+http://127.0.0.1:43977
+2026-10-21 07:34:15,234 - INFO - 127.0.0.1:45616 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-10-21 07:34:15,248 - INFO - task queued task_id=001a15d61d5ca5ccc0b89583fcb141e02 name=exit-probe
+2026-10-21 07:34:15,257 - INFO - 127.0.0.1:45616 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-10-21 07:34:15,262 - INFO - 127.0.0.1:45616 - "GET /api/v1/tasks/001a15d61d5ca5ccc0b89583fcb141e02 HTTP/1.1" 200
+2026-10-21 07:34:15,315 - INFO - 127.0.0.1:45616 - "GET /api/v1/tasks/001a15d61d5ca5ccc0b89583fcb141e02 HTTP/1.1" 200
+2026-10-21 07:34:15,364 - INFO - task started task_id=001a15d61d5ca5ccc0b89583fcb141e02
+2026-10-21 07:34:15,368 - INFO - 127.0.0.1:45616 - "GET /api/v1/tasks/001a15d61d5ca5ccc0b89583fcb141e02 HTTP/1.1" 200
+2026-10-21 07:34:15,925 - INFO - 127.0.0.1:45616 - "GET /api/v1/tasks/001a15d61d5ca5ccc0b89583fcb141e02 HTTP/1.1" 200
+2026-10-21 07:34:15,929 - INFO - LocalFlow shutdown requested by administrator
+2026-10-21 07:34:15,930 - INFO - 127.0.0.1:45616 - "POST /api/v1/system/shutdown HTTP/1.1" 202
+2026-10-21 07:34:15,960 - INFO - Shutting down
+2026-10-21 07:34:16,060 - INFO - Waiting for application shutdown.
+2026-10-21 07:34:16,115 - INFO - task stop requested task_id=001a15d61d5ca5ccc0b89583fcb141e02
+2026-10-21 07:34:16,929 - WARNING - task stop escalated to force cleanup task_id=001a15d61d5ca5ccc0b89583fcb141e02
+2026-10-21 07:34:16,997 - INFO - task finished task_id=001a15d61d5ca5ccc0b89583fcb141e02 state=cancelled exit_code=0
+2026-10-21 07:34:17,032 - INFO - Application shutdown complete.
+2026-10-21 07:34:17,032 - INFO - Finished server process [4539]
+2026-10-21 07:34:17,034 - INFO - LocalFlow stopped

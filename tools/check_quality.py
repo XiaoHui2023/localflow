@@ -270,6 +270,8 @@ def main() -> int:
                 "frontend/src/TerminalOutputAge.jsx",
                 "frontend/src/Tooltip.jsx",
                 "frontend/src/api.js",
+                "frontend/src/connections.js",
+                "frontend/src/time.js",
                 "frontend/src/main.jsx",
                 "frontend/src/index.css",
                 "frontend/src/extra.css",

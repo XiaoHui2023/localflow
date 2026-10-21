@@ -1,14 +1,29 @@
 {
-  "version": 1,
+  "version": 2,
   "required_skills_manifest": ".cursor/skills/project-required-skills.json",
-  "commands": [
-    ".venv/Scripts/ruff check src/localflow tests_v2 tests_target tools/check_quality.py tools/run_browser_quality.py",
-    ".venv/Scripts/python -m pytest",
-    "npm --prefix frontend audit",
-    ".venv/Scripts/python tools/run_browser_quality.py",
-    ".venv/Scripts/python tools/check_quality.py"
+  "delivery_command_windows": ["python.exe", "tools/run_delivery_gate.py"],
+  "delivery_command": [".venv/bin/python", "tools/run_delivery_gate.py"],
+  "validator_id": "localflow-complete-qualification-v2",
+  "ready_receipt": ".qa/delivery-ready.json",
+  "artifact_paths": [".qa/delivery-qualification.json"],
+  "timeout_seconds": 90,
+  "qualification_commands_windows": [
+    [".venv/Scripts/ruff.exe", "check", "src/localflow", "tests_v2", "tests_target", "tools/check_quality.py", "tools/run_browser_quality.py", "tools/run_delivery_gate.py"],
+    [".venv/Scripts/python.exe", "-m", "pytest"],
+    ["npm.cmd", "--prefix", "frontend", "audit"],
+    [".venv/Scripts/python.exe", "tools/run_browser_quality.py"],
+    [".venv/Scripts/python.exe", "tools/check_quality.py"],
+    ["node.exe", "--test", "frontend/e2e/connection-lifecycle.test.mjs", "frontend/e2e/time-format.test.mjs"]
+  ],
+  "qualification_commands": [
+    [".venv/bin/ruff", "check", "src/localflow", "tests_v2", "tests_target", "tools/check_quality.py", "tools/run_browser_quality.py", "tools/run_delivery_gate.py"],
+    [".venv/bin/python", "-m", "pytest"],
+    ["npm", "--prefix", "frontend", "audit"],
+    [".venv/bin/python", "tools/run_browser_quality.py"],
+    [".venv/bin/python", "tools/check_quality.py"],
+    ["node", "--test", "frontend/e2e/connection-lifecycle.test.mjs", "frontend/e2e/time-format.test.mjs"]
   ],
   "target_gate": "tests_target/test_localflow_systemd_executor.py",
-  "target_status": "passed-ubuntu-systemd-9-tests",
-  "browser_status": "passed-edge-playwright-see-quality-evidence"
+  "target_status": "historical-only-not-revalidated-by-this-qualification",
+  "browser_status": "require-current-source-bound-receipt"
 }

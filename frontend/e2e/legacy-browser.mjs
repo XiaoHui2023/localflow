@@ -60,6 +60,13 @@ try {
   await config.click();
   await driver.findElement(By.xpath("//button[normalize-space()='编辑']")).click();
   await driver.wait(until.elementLocated(By.css(".monaco-editor")), 30_000);
+  step = "verify real-time notification";
+  const notificationName = `${projectName}-notification.yaml`;
+  fs.copyFileSync(
+    path.join(process.env.LOCALFLOW_QA_ROOT, "config/command/hello-world.yaml"),
+    path.join(process.env.LOCALFLOW_QA_ROOT, "config/command", notificationName),
+  );
+  await driver.wait(until.elementLocated(By.css(`[data-file='config/command/${notificationName}']`)), 15_000);
   step = "verify adaptive focused panes";
   const editorValue = await driver.executeScript(
     "const model = window.monaco && window.monaco.editor.getModels()[0]; if (!model) return null; model.setValue(model.getValue() + '\\n# unsaved adaptive draft'); return model.getValue()",

@@ -66,6 +66,10 @@ def _run_internal_mode() -> bool:
     mode = os.environ.get(_INTERNAL_MODE)
     if mode is None:
         return False
+    if mode == "process-owner":
+        from .process_owner import main as owner_main
+
+        owner_main()
     if mode != "supervisor":
         raise SystemExit("invalid LocalFlow internal mode")
     root_text = os.environ.pop(_INTERNAL_ROOT, None)

@@ -1,0 +1,52 @@
+{
+  "backend": "systemd",
+  "scenario": "stop_helper",
+  "controller": {
+    "pid": 882,
+    "created": 1792567038.52,
+    "argv": []
+  },
+  "argv": [
+    "/opt/exit-audit/published-localflow",
+    "--workspace",
+    "/tmp/localflow-exit-probe-p79gs6qh/workspace",
+    "--data",
+    "/tmp/localflow-exit-probe-p79gs6qh/state"
+  ],
+  "budget_seconds": 75.0,
+  "natural_entry": true,
+  "endpoint": "http://127.0.0.1:40637",
+  "application": {
+    "pid": 884,
+    "created": 1792567039.01,
+    "argv": [
+      "/tmp/staticx-mIsluy/localflow.pyinstaller",
+      "--workspace",
+      "/tmp/localflow-exit-probe-p79gs6qh/workspace",
+      "--data",
+      "/tmp/localflow-exit-probe-p79gs6qh/state"
+    ]
+  },
+  "input_sha256": "57b49a2395b5ea71410ee4de7a04a53c96b2098236c8f6e30069d1ae4fd4602f",
+  "task_id": "001a15d525931c923fe3c4983d6a799f3",
+  "task_before_shutdown": "running",
+  "shutdown_http_status": 202,
+  "stop_helper": {
+    "pid": 903,
+    "created": 1792567040.06,
+    "argv": [
+      "/opt/exit-audit/venv/bin/python",
+      "-c",
+      "import os,time; from pathlib import Path; Path('/tmp/localflow-exit-probe-p79gs6qh/child.pid').write_text(str(os.getpid())); time.sleep(120)"
+    ]
+  },
+  "controller_exited": true,
+  "application_still_running": false,
+  "controller_exit_code": 0,
+  "elapsed_seconds": 62.519,
+  "child_still_running": true,
+  "port_file_present": false,
+  "pid_file_present": false,
+  "passed": false,
+  "controller_log_sha256": "9ea4327b5206186ca5f9cc4f7e812ba2f9e40457ce6873d5bb224c700294f629"
+}

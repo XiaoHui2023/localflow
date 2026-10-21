@@ -1,0 +1,26 @@
+2026-10-21 07:34:11,375 - INFO - LocalFlow starting config_root=/tmp/localflow-exit-probe-uh3ou96_/workspace state_root=/tmp/localflow-exit-probe-uh3ou96_/state backend=subprocess
+2026-10-21 07:34:11,576 - INFO - Controller signals protected; stop from the administrator settings page or with systemctl stop localflow
+2026-10-21 07:34:11,604 - INFO - Started server process [4524]
+2026-10-21 07:34:11,604 - INFO - Waiting for application startup.
+2026-10-21 07:34:11,618 - INFO - Application startup complete.
+2026-10-21 07:34:11,623 - INFO - Uvicorn running on http://127.0.0.1:40689 (Press CTRL+C to quit)
+http://127.0.0.1:40689
+2026-10-21 07:34:11,725 - INFO - 127.0.0.1:55228 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-10-21 07:34:11,742 - INFO - task queued task_id=001a15d61c8184f8fc3f1d917b8d1212c name=exit-probe
+2026-10-21 07:34:11,752 - INFO - 127.0.0.1:55228 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-10-21 07:34:11,758 - INFO - 127.0.0.1:55228 - "GET /api/v1/tasks/001a15d61c8184f8fc3f1d917b8d1212c HTTP/1.1" 200
+2026-10-21 07:34:11,812 - INFO - 127.0.0.1:55228 - "GET /api/v1/tasks/001a15d61c8184f8fc3f1d917b8d1212c HTTP/1.1" 200
+2026-10-21 07:34:11,865 - INFO - 127.0.0.1:55228 - "GET /api/v1/tasks/001a15d61c8184f8fc3f1d917b8d1212c HTTP/1.1" 200
+2026-10-21 07:34:11,878 - INFO - task started task_id=001a15d61c8184f8fc3f1d917b8d1212c
+2026-10-21 07:34:11,918 - INFO - 127.0.0.1:55228 - "GET /api/v1/tasks/001a15d61c8184f8fc3f1d917b8d1212c HTTP/1.1" 200
+2026-10-21 07:34:12,476 - INFO - 127.0.0.1:55228 - "GET /api/v1/tasks/001a15d61c8184f8fc3f1d917b8d1212c HTTP/1.1" 200
+2026-10-21 07:34:12,481 - INFO - LocalFlow shutdown requested by administrator
+2026-10-21 07:34:12,481 - INFO - 127.0.0.1:55228 - "POST /api/v1/system/shutdown HTTP/1.1" 202
+2026-10-21 07:34:12,527 - INFO - Shutting down
+2026-10-21 07:34:12,628 - INFO - Waiting for application shutdown.
+2026-10-21 07:34:12,683 - INFO - task stop requested task_id=001a15d61c8184f8fc3f1d917b8d1212c
+2026-10-21 07:34:13,498 - WARNING - task stop escalated to force cleanup task_id=001a15d61c8184f8fc3f1d917b8d1212c
+2026-10-21 07:34:13,565 - INFO - task finished task_id=001a15d61c8184f8fc3f1d917b8d1212c state=cancelled exit_code=0
+2026-10-21 07:34:13,601 - INFO - Application shutdown complete.
+2026-10-21 07:34:13,601 - INFO - Finished server process [4524]
+2026-10-21 07:34:13,602 - INFO - LocalFlow stopped

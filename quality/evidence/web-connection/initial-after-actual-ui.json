@@ -1,0 +1,10 @@
+{
+  "scenario": "six authenticated actual UI tabs",
+  "streams": 0,
+  "websockets": 7,
+  "body": "任务\n终端\n设置\n配置\n资源\n常用\ncommand\nhello-world.yaml\nverification\ndemo.yaml\nhello-world.yaml\n编辑\n运行\n工作目录\nC:\\Users\\Administrator\\AppData\\Local\\Temp\\localflow-refresh-isolated-_t547yte\n命令\nprintf 'hello world\\n' > hello-world.txt",
+  "seventh": "loaded",
+  "independent_status": 200,
+  "reload": "loaded",
+  "after_tab_closed": "loaded"
+}

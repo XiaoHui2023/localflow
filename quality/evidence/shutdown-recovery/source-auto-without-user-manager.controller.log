@@ -1,0 +1,27 @@
+2026-10-21 07:58:41,921 - INFO - LocalFlow starting config_root=/tmp/localflow-exit-probe-245n7z4q/workspace state_root=/tmp/localflow-exit-probe-245n7z4q/state backend=auto
+2026-10-21 07:58:42,031 - WARNING - systemd unavailable; using subprocess backend reason=Failed to connect to bus: No such file or directory
+2026-10-21 07:58:42,168 - INFO - Controller signals protected; stop from the administrator settings page or with systemctl stop localflow
+2026-10-21 07:58:42,213 - INFO - Started server process [5695]
+2026-10-21 07:58:42,213 - INFO - Waiting for application startup.
+2026-10-21 07:58:42,234 - INFO - Application startup complete.
+2026-10-21 07:58:42,239 - INFO - Uvicorn running on http://127.0.0.1:37143 (Press CTRL+C to quit)
+http://127.0.0.1:37143
+2026-10-21 07:58:42,386 - INFO - 127.0.0.1:46970 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-10-21 07:58:42,398 - INFO - task queued task_id=001a15d7838d857bd62187b6b1e7b1a57 name=exit-probe
+2026-10-21 07:58:42,408 - INFO - 127.0.0.1:46970 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-10-21 07:58:42,414 - INFO - 127.0.0.1:46970 - "GET /api/v1/tasks/001a15d7838d857bd62187b6b1e7b1a57 HTTP/1.1" 200
+2026-10-21 07:58:42,468 - INFO - 127.0.0.1:46970 - "GET /api/v1/tasks/001a15d7838d857bd62187b6b1e7b1a57 HTTP/1.1" 200
+2026-10-21 07:58:42,521 - INFO - 127.0.0.1:46970 - "GET /api/v1/tasks/001a15d7838d857bd62187b6b1e7b1a57 HTTP/1.1" 200
+2026-10-21 07:58:42,553 - INFO - task started task_id=001a15d7838d857bd62187b6b1e7b1a57
+2026-10-21 07:58:42,574 - INFO - 127.0.0.1:46970 - "GET /api/v1/tasks/001a15d7838d857bd62187b6b1e7b1a57 HTTP/1.1" 200
+2026-10-21 07:58:43,182 - INFO - 127.0.0.1:46970 - "GET /api/v1/tasks/001a15d7838d857bd62187b6b1e7b1a57 HTTP/1.1" 200
+2026-10-21 07:58:43,187 - INFO - LocalFlow shutdown requested by administrator
+2026-10-21 07:58:43,187 - INFO - 127.0.0.1:46970 - "POST /api/v1/system/shutdown HTTP/1.1" 202
+2026-10-21 07:58:43,242 - INFO - Shutting down
+2026-10-21 07:58:43,343 - INFO - Waiting for application shutdown.
+2026-10-21 07:58:43,361 - INFO - task stop requested task_id=001a15d7838d857bd62187b6b1e7b1a57
+2026-10-21 07:58:44,178 - WARNING - task stop escalated to force cleanup task_id=001a15d7838d857bd62187b6b1e7b1a57
+2026-10-21 07:58:44,246 - INFO - task finished task_id=001a15d7838d857bd62187b6b1e7b1a57 state=cancelled exit_code=0
+2026-10-21 07:58:44,276 - INFO - Application shutdown complete.
+2026-10-21 07:58:44,276 - INFO - Finished server process [5695]
+2026-10-21 07:58:44,278 - INFO - LocalFlow stopped

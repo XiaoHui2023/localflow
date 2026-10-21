@@ -1,0 +1,39 @@
+{
+  "backend": "systemd",
+  "scenario": "idle",
+  "controller": {
+    "pid": 564,
+    "created": 1792566590.98,
+    "argv": [
+      "/opt/exit-audit/published-localflow",
+      "--workspace",
+      "/tmp/localflow-exit-probe-_4zt9rwy/workspace",
+      "--data",
+      "/tmp/localflow-exit-probe-_4zt9rwy/state"
+    ]
+  },
+  "argv": [
+    "/opt/exit-audit/published-localflow",
+    "--workspace",
+    "/tmp/localflow-exit-probe-_4zt9rwy/workspace",
+    "--data",
+    "/tmp/localflow-exit-probe-_4zt9rwy/state"
+  ],
+  "budget_seconds": 18,
+  "natural_entry": true,
+  "endpoint": "http://127.0.0.1:34495",
+  "browser": {
+    "engine": "Chrome84",
+    "tabs": 6,
+    "entry": "actual settings UI"
+  },
+  "browser_exit_clicked": true,
+  "controller_exited": false,
+  "controller_exit_code": null,
+  "elapsed_seconds": 18.16,
+  "child_still_running": false,
+  "port_file_present": true,
+  "pid_file_present": true,
+  "passed": false,
+  "controller_log_sha256": "487d5d9b18b78a8ac556de836f37be39a771385b098fc40aa1a56c293ac0c4ef"
+}

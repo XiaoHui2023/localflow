@@ -1,0 +1,22 @@
+TAP version 13
+# Subtest: 24-hour rendering includes midnight and afternoon without meridiem markers
+ok 1 - 24-hour rendering includes midnight and afternoon without meridiem markers
+  ---
+  duration_ms: 15.4317
+  type: 'test'
+  ...
+# Subtest: calibration preserves local time and rejects partial or normalized impossible dates
+ok 2 - calibration preserves local time and rejects partial or normalized impossible dates
+  ---
+  duration_ms: 0.2839
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 98.4686

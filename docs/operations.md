@@ -1,5 +1,13 @@
 # LocalFlow Ubuntu 运维
 
+## 网页刷新与实时通知
+
+网页配置通知与终端都使用 WebSocket。反向代理应转发整个 `/api/v1/` 的升级请求，包含 `/api/v1/events`，不能只允许终端路径。保留浏览器的 `Host`，正确传递协议，并把 `server.trusted_proxies` 限定为真实代理地址；否则同源授权可能拒绝连接。后端使用固定端口时才能配置稳定的代理目标。
+
+Nginx 需要显式转发 `Upgrade` 与 `Connection`，设置合适的读取超时；心跳保持通知通道活跃。转发旧 SSE 接口时同时关闭响应缓冲。配置方式见 [Nginx 官方 WebSocket 文档](https://nginx.org/en/docs/http/websocket.html)。
+
+出现“后端独立请求正常，多个网页刷新卡住”时，检查浏览器网络面板的持续事件连接。旧版本每个页面使用 SSE，在 HTTP/1.1 下可能耗尽同源连接槽；[MDN 说明了这一限制](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)。新网页共享一个通知 WebSocket，读取请求有截止时间且周期性刷新不重叠。仍无法访问时，应分别核实当前监听地址、代理升级请求、身份拒绝及服务日志，不能仅凭页面现象判断服务已退出。
+
 ## 部署身份
 
 推荐建立专用系统用户 `localflow`，主服务不使用 root。共享工作区可由管理员统一维护，实例数据目录归该服务用户所有；普通用户通过 HTTP 只读投影查看状态。系统时间调整安装单独的特权辅助程序，并用 polkit 或 sudoers 仅开放固定参数动作。

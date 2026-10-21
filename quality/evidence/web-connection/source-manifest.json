@@ -1,0 +1,13 @@
+{
+  "captured_at": "2026-09-29 21:35 +08:00",
+  "scope": "current working tree; uncommitted implementation",
+  "source_files": {
+    "frontend/src/App.jsx": "aa222881e14040852289ff5b55fb9f2bbd459d843d5e0caf1010d9d62a7e114d",
+    "frontend/src/api.js": "53f17d522cc15245b7bddd678d0ba1bee354f6c86680d888b5796f4a7b30d7fc",
+    "frontend/src/connections.js": "25b51dc8046b2733d647b2b903c27815c35bb1ca04604631efd25fca591605fd",
+    "frontend/src/time.js": "47e325eef7adcb0c2efbf529df4243752671b97876fea3756d51d9a3de9cb29a",
+    "src/localflow/api.py": "2e5bd6369b91fa0d80fa0adedf217df49559daef7da25ae04305496eb5ea9252",
+    "frontend/e2e/web-recovery.mjs": "7f1c3a877aa4a448b7847cc15b17bf93f743403e3758aaf68e9af23b8d8c8922",
+    "tests_v2/test_event_socket.py": "4a7a065128cbc47a1d50a296199d875f1b06a6bbc47c5e1d3242baccb6ab9ef0"
+  }
+}

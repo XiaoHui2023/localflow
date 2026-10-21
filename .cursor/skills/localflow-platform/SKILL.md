@@ -68,3 +68,10 @@ No mock-only result can satisfy a target-platform metric.
 6. Read the endpoint from the selected state root's `runtime/port`; read `secrets/web-admin-key` from the configuration root only as the service user.
 7. Run all `tests_target` under the `localflow` user manager and run `tests_target/deployed_probe.py` before claiming the deployment stable.
 8. Run `tools/run_browser_quality.py` against system Edge; preserve explicit `blocked` status if neither that route nor the target route is available, and link exact evidence instead of widening the claim.
+
+
+## 退出回归要点
+
+- 网页退出必须穿过真实浏览器设置确认，至少覆盖同源7标签，保留页面直到独立确认控制器结束。成功API202或主PID结束不证明任务清空。
+- Linux subprocess与停止exec共享任务家族owner；父进程先退出、setsid、暂停、忽略信号、观察器取消、动作超时均须以/proc和进程代次后检。systemd任务cgroup清空不证明独立stop exec已回收。
+- 自然公开旧制品反例和修后结果在quality/evidence/shutdown-recovery；Linux源码专项在tests_v2/test_process_owner.py，最终staticx额外走tools/reproduce_shutdown.py五场景。不得以夹具善后清理冒充产品清理。

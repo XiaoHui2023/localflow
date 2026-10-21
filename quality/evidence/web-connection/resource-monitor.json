@@ -1,0 +1,307 @@
+{
+  "scope": "exact isolated server processes; observation begins after transport checks",
+  "pids": [
+    52680,
+    54796
+  ],
+  "samples": [
+    {
+      "elapsed_seconds": 0.0,
+      "rss_mib": 61.68,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 30.0,
+      "rss_mib": 61.95,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 60.0,
+      "rss_mib": 62.16,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 90.0,
+      "rss_mib": 62.71,
+      "handles": 223
+    },
+    {
+      "elapsed_seconds": 120.0,
+      "rss_mib": 62.76,
+      "handles": 223
+    },
+    {
+      "elapsed_seconds": 150.0,
+      "rss_mib": 62.99,
+      "handles": 223
+    },
+    {
+      "elapsed_seconds": 180.0,
+      "rss_mib": 62.99,
+      "handles": 223
+    },
+    {
+      "elapsed_seconds": 210.0,
+      "rss_mib": 63.52,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 240.0,
+      "rss_mib": 64.39,
+      "handles": 221
+    },
+    {
+      "elapsed_seconds": 270.0,
+      "rss_mib": 64.79,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 300.0,
+      "rss_mib": 64.95,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 330.0,
+      "rss_mib": 64.91,
+      "handles": 223
+    },
+    {
+      "elapsed_seconds": 360.0,
+      "rss_mib": 65.07,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 390.0,
+      "rss_mib": 63.37,
+      "handles": 225
+    },
+    {
+      "elapsed_seconds": 420.0,
+      "rss_mib": 63.46,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 450.0,
+      "rss_mib": 63.7,
+      "handles": 229
+    },
+    {
+      "elapsed_seconds": 480.0,
+      "rss_mib": 63.71,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 510.0,
+      "rss_mib": 63.87,
+      "handles": 229
+    },
+    {
+      "elapsed_seconds": 540.0,
+      "rss_mib": 63.89,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 570.0,
+      "rss_mib": 63.96,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 600.0,
+      "rss_mib": 63.97,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 630.0,
+      "rss_mib": 63.97,
+      "handles": 221
+    },
+    {
+      "elapsed_seconds": 660.0,
+      "rss_mib": 64.32,
+      "handles": 221
+    },
+    {
+      "elapsed_seconds": 690.0,
+      "rss_mib": 64.4,
+      "handles": 221
+    },
+    {
+      "elapsed_seconds": 720.0,
+      "rss_mib": 64.65,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 750.0,
+      "rss_mib": 64.65,
+      "handles": 221
+    },
+    {
+      "elapsed_seconds": 780.0,
+      "rss_mib": 65.11,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 810.0,
+      "rss_mib": 65.11,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 840.0,
+      "rss_mib": 65.3,
+      "handles": 223
+    },
+    {
+      "elapsed_seconds": 870.0,
+      "rss_mib": 65.4,
+      "handles": 224
+    },
+    {
+      "elapsed_seconds": 900.0,
+      "rss_mib": 65.74,
+      "handles": 224
+    },
+    {
+      "elapsed_seconds": 930.0,
+      "rss_mib": 65.75,
+      "handles": 224
+    },
+    {
+      "elapsed_seconds": 960.0,
+      "rss_mib": 66.05,
+      "handles": 225
+    },
+    {
+      "elapsed_seconds": 990.0,
+      "rss_mib": 66.07,
+      "handles": 225
+    },
+    {
+      "elapsed_seconds": 1020.0,
+      "rss_mib": 66.54,
+      "handles": 229
+    },
+    {
+      "elapsed_seconds": 1050.0,
+      "rss_mib": 66.55,
+      "handles": 225
+    },
+    {
+      "elapsed_seconds": 1080.0,
+      "rss_mib": 66.61,
+      "handles": 230
+    },
+    {
+      "elapsed_seconds": 1110.0,
+      "rss_mib": 66.63,
+      "handles": 223
+    },
+    {
+      "elapsed_seconds": 1140.0,
+      "rss_mib": 67.0,
+      "handles": 229
+    },
+    {
+      "elapsed_seconds": 1170.0,
+      "rss_mib": 66.98,
+      "handles": 224
+    },
+    {
+      "elapsed_seconds": 1200.0,
+      "rss_mib": 67.18,
+      "handles": 224
+    },
+    {
+      "elapsed_seconds": 1230.0,
+      "rss_mib": 64.79,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 1260.0,
+      "rss_mib": 64.97,
+      "handles": 221
+    },
+    {
+      "elapsed_seconds": 1290.0,
+      "rss_mib": 65.51,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 1320.0,
+      "rss_mib": 65.51,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 1350.0,
+      "rss_mib": 65.52,
+      "handles": 221
+    },
+    {
+      "elapsed_seconds": 1380.0,
+      "rss_mib": 65.52,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 1410.0,
+      "rss_mib": 65.64,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 1440.0,
+      "rss_mib": 65.8,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 1470.0,
+      "rss_mib": 65.83,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 1500.0,
+      "rss_mib": 65.91,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 1530.0,
+      "rss_mib": 65.91,
+      "handles": 221
+    },
+    {
+      "elapsed_seconds": 1560.0,
+      "rss_mib": 65.91,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 1590.0,
+      "rss_mib": 66.29,
+      "handles": 223
+    },
+    {
+      "elapsed_seconds": 1620.0,
+      "rss_mib": 66.34,
+      "handles": 224
+    },
+    {
+      "elapsed_seconds": 1650.0,
+      "rss_mib": 66.39,
+      "handles": 223
+    },
+    {
+      "elapsed_seconds": 1680.0,
+      "rss_mib": 66.48,
+      "handles": 222
+    },
+    {
+      "elapsed_seconds": 1710.0,
+      "rss_mib": 66.8,
+      "handles": 228
+    },
+    {
+      "elapsed_seconds": 1740.0,
+      "rss_mib": 66.86,
+      "handles": 224
+    }
+  ],
+  "max_rss_mib": 67.18,
+  "handle_growth": 2,
+  "server_stopped": true
+}

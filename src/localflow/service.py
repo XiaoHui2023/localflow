@@ -6,13 +6,12 @@ import logging
 import os
 import re
 import shutil
-import signal
 import time
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from .executor import Executor
+from .executor import Executor, SubprocessExecutor
 from .ids import new_id
 from .log_files import MIB, append_lifecycle
 from .models import (
@@ -715,22 +714,22 @@ class TaskService:
         elif action.type == "input":
             await self.executor.write(task.id, action.data.encode())
         else:
-            process = await asyncio.create_subprocess_exec(
-                *action.command,
-                cwd=task.working_directory,
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL,
-                start_new_session=os.name != "nt",
+            helper = SubprocessExecutor(
+                self.logging_settings.task_file_mb * MIB,
+                self.logging_settings.keep_free_mb * MIB,
             )
+            helper_task = task.model_copy(update={"command": action.command, "custom": {}})
+            await helper.start(
+                helper_task, self.root / "logs" / task.id / "stop-actions.log"
+            )
+            waiter = asyncio.create_task(helper.wait(task.id))
             try:
-                await asyncio.wait_for(process.wait(), timeout=action.timeout_seconds)
-            except TimeoutError:
-                if os.name != "nt":
-                    with suppress(ProcessLookupError):
-                        os.killpg(process.pid, signal.SIGKILL)
-                else:
-                    process.kill()
-                await process.wait()
+                await asyncio.wait_for(asyncio.shield(waiter), timeout=action.timeout_seconds)
+            except (TimeoutError, asyncio.CancelledError) as exc:
+                await helper.interrupt(task.id, "sigkill")
+                await asyncio.shield(waiter)
+                if isinstance(exc, asyncio.CancelledError):
+                    raise
         return max(0, action.timeout_seconds - (time.monotonic() - started))
 
     async def _wait_stop_action(

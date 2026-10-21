@@ -1,0 +1,24 @@
+2026-10-21 07:17:20,047 - INFO - LocalFlow starting config_root=/tmp/localflow-exit-probe-p79gs6qh/workspace state_root=/tmp/localflow-exit-probe-p79gs6qh/state backend=systemd
+2026-10-21 07:17:20,165 - INFO - Controller signals protected; stop from the administrator settings page or with systemctl stop localflow
+2026-10-21 07:17:20,183 - INFO - Started server process [884]
+2026-10-21 07:17:20,183 - INFO - Waiting for application startup.
+2026-10-21 07:17:20,189 - INFO - Application startup complete.
+2026-10-21 07:17:20,193 - INFO - Uvicorn running on http://127.0.0.1:40637 (Press CTRL+C to quit)
+http://127.0.0.1:40637
+2026-10-21 07:17:20,294 - INFO - 127.0.0.1:57554 - "POST /api/v1/auth/local-sessions HTTP/1.1" 200
+2026-10-21 07:17:20,311 - INFO - task queued task_id=001a15d525931c923fe3c4983d6a799f3 name=exit-probe
+2026-10-21 07:17:20,326 - INFO - 127.0.0.1:57554 - "POST /api/v1/tasks HTTP/1.1" 202
+2026-10-21 07:17:20,332 - INFO - 127.0.0.1:57554 - "GET /api/v1/tasks/001a15d525931c923fe3c4983d6a799f3 HTTP/1.1" 200
+2026-10-21 07:17:20,363 - INFO - task started task_id=001a15d525931c923fe3c4983d6a799f3
+2026-10-21 07:17:20,389 - INFO - 127.0.0.1:57554 - "GET /api/v1/tasks/001a15d525931c923fe3c4983d6a799f3 HTTP/1.1" 200
+2026-10-21 07:17:20,393 - INFO - 127.0.0.1:57554 - "GET /api/v1/tasks/001a15d525931c923fe3c4983d6a799f3 HTTP/1.1" 200
+2026-10-21 07:17:20,396 - INFO - LocalFlow shutdown requested by administrator
+2026-10-21 07:17:20,397 - INFO - 127.0.0.1:57554 - "POST /api/v1/system/shutdown HTTP/1.1" 202
+2026-10-21 07:17:20,496 - INFO - Shutting down
+2026-10-21 07:17:20,601 - INFO - Waiting for application shutdown.
+2026-10-21 07:17:20,650 - INFO - task stop requested task_id=001a15d525931c923fe3c4983d6a799f3
+2026-10-21 07:18:20,732 - WARNING - shutdown force cleanup task_id=001a15d525931c923fe3c4983d6a799f3
+2026-10-21 07:18:20,795 - INFO - task finished task_id=001a15d525931c923fe3c4983d6a799f3 state=cancelled exit_code=137
+2026-10-21 07:18:22,756 - INFO - Application shutdown complete.
+2026-10-21 07:18:22,757 - INFO - Finished server process [884]
+2026-10-21 07:18:22,758 - INFO - LocalFlow stopped

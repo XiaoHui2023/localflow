@@ -1,20 +1,22 @@
 {
-  "completed_at": "2026-09-28T08:51:53.526Z",
+  "completed_at": "2026-10-21T08:05:56.615Z",
   "browser": "Microsoft Edge",
-  "browser_version": "154.0.4258.37",
-  "base_url": "<isolated-test-server>",
+  "browser_version": "155.0.4283.62",
+  "base_url": "http://192.168.1.118:21049",
   "result": "passed",
   "source_files": {
     "frontend/index.html": "a6a84d305fed5896d32ad37d64a7b0260ddf6176c01aa9461cb13217f99e1e64",
     "frontend/public/compat-boot.js": "434b7d0948ced0a38c92f3b9453bfd57126d8dce162614f038c64ae5880ae055",
     "frontend/public/theme-boot.js": "2387cdd215685a35180bd8dbffcd7b24a9452ace53ddbf04d7277a155e5a1b51",
-    "frontend/src/App.jsx": "25446a193e2724e14391db054d86fd07f629617d60cda337ee7335f7f255690c",
+    "frontend/src/App.jsx": "9b6751d24913e12ba84522b96808be6d6d72b414fbb641b7ddd5f4372d902e46",
     "frontend/src/CopyValue.jsx": "c19fa6a8690f8508b5d55a08c1db9da29c194a7b90950bed42fa7f0afc10c118",
     "frontend/src/MonacoEditors.jsx": "2b3afd8960449900ac875e8e8468b869a1ef72e04fcb59a5356a0d29cc8b3870",
     "frontend/src/RunInspection.jsx": "47960d2cdc00ac9d101fc27b5341f44dac78447aba5d0e53de0b8ba42d93f3c8",
     "frontend/src/TerminalOutputAge.jsx": "f5d1a853cebaa454c1a3af4222ae5413556dd4b06f8379724c314ebdf8a9bce4",
     "frontend/src/Tooltip.jsx": "cd6fa98895b6501000f8f10281937a4072c7d2d7fe98d471da2d03ffb8c0aaf5",
-    "frontend/src/api.js": "ff9aea4422674a37659ff442d144f014ddc3c9fe8993d81738e0c44cae3bade0",
+    "frontend/src/api.js": "53f17d522cc15245b7bddd678d0ba1bee354f6c86680d888b5796f4a7b30d7fc",
+    "frontend/src/connections.js": "25b51dc8046b2733d647b2b903c27815c35bb1ca04604631efd25fca591605fd",
+    "frontend/src/time.js": "47e325eef7adcb0c2efbf529df4243752671b97876fea3756d51d9a3de9cb29a",
     "frontend/src/main.jsx": "505ddc1e141cc323f68d8f603ef9d66a5aecc792d3d47f47134d5b023fb79fb2",
     "frontend/src/index.css": "f7a1fcba2ce5f94ba9c5076c9f0c792efd36271e16760c99a5dc6194edb9b955",
     "frontend/src/extra.css": "ea1c655d8bb6dd99bf8ae6ae6c7411a5951ab692a9a48a37e101517a00287edc",
@@ -23,33 +25,33 @@
     "frontend/src/case-picker.css": "b45bffa1c903b3c4215fcbe1e45daef3f3bbd01d93e3b49792c442276f86b20f",
     "frontend/src/run-inspection.css": "35d4fb5bcb16fa5f2a813b231f4a7b2e8e0511a2747607366b1cdd36322a899d",
     "frontend/e2e/ui-quality.js": "67a1b851474d74f78e2c32517b823d715885da37dbf5249a0597d2e30e77867f",
-    "frontend/e2e/localflow.spec.js": "c4d8bc7b24f266195e2433df5002dbb75b7adbe310f02a3189678ddd4fd17636",
-    "frontend/e2e/compatibility.spec.js": "afe8a31f18911b07d348dea6f95b873add3bf78b734e4c748535348e5edc57d3",
+    "frontend/e2e/localflow.spec.js": "502b63ecf72c35cacf3af5e47322e1d6651e087423174acd5e07c80cfc5816f7",
+    "frontend/e2e/compatibility.spec.js": "9c233aaec7c6d24e540658ced5a5de8add0871ec6cce87bf3f79a0560226987f",
     "frontend/e2e/shutdown-live.spec.js": "f59728c0a57e6a4908ccc836a9775cdb8d08fb1e98fc3932b16d5db5c2324444",
-    "frontend/e2e/legacy-browser.mjs": "554915976f2b1db1e488bd80df3da1eaa218625edf472eefab9fa3d8df248165",
+    "frontend/e2e/legacy-browser.mjs": "047dec2d35a08db47abbdab434ef6f8c78540bc63db773f8a0af53002efbfcba",
     "frontend/playwright.config.js": "b480eea977e9423e6e4aabc43e9ffb155e498d5b69dfcd56d846cfcd89c8a6aa",
     "frontend/vite.config.js": "1b6ae4282f9f512ada4f4ef53a4662db6eafa2364c5875b71ca7a5987e0f8b55",
-    "frontend/package.json": "256ba02e5b6f015da7239d0e0cfa2a1ae4811b5371fb66d7fa06248f79a988cf",
-    "frontend/package-lock.json": "7b0e1bad431b0a220e0ae066c3313423b98fa234ee9df87bc5d1989c567c3a08",
-    "quality/resource-budgets.json": "8947a942f8a02fc025942f4eb4d4bea9fca1a6abe80854247b93e9b58293e169",
-    "tools/check_quality.py": "d4f4205254b6c31abf2841bbb4c17b4647e4ecdc37ef36a11439d0440026759d",
+    "frontend/package.json": "bc24ad88606512db4edbe570894aa80bdea0bc834a6554beb33989e42bc25076",
+    "frontend/package-lock.json": "385dfee5156aceb98b541ed5d3a3c4e0b3a6ad42f56b3fbafb23912811281d4c",
+    "quality/resource-budgets.json": "28d9fcc4954cb1f21376cc8f561b522e011ff39730fdfdaf0cfbdaa801bc06f0",
+    "tools/check_quality.py": "520938fc17c2c335e13df448b89fb503b15903053e73509c1ab5892f8331fc43",
     "tools/run_browser_quality.py": "855a43b1bdbab02211ec470ad10abcf998952689ea0e57703b2befc70a19e3c0",
     "tools/run_linux_browser_quality.py": "c322d8c96e47615b3171f3bd5d2058d9a0f2832a144ff167c307459fe6409742",
     "tests_target/test_browser_shutdown.py": "5bb0199b9d3065fbe1c828d6592bdef0a5904ab6c20719285bba92ee10289a9a"
   },
   "screenshots": {
-    "admin-common-configurations-light.png": "f95f3411016ef82ebc46afcac6ea6260152ab019abbfbab179ba7dcffeb1d6c5",
-    "admin-config-explorer-dark.png": "1c138ac1ff06c1fc05bf2c9237c60448ef76b237d029a31dbb0448074886ce34",
+    "admin-common-configurations-light.png": "83c65f14e50a37c69cfaae29f225c2c63ee5f351437ee5316842e11b34270354",
+    "admin-config-explorer-dark.png": "b99af5864346efc66c2d19f91a5e12ff58569c33661517da4f955a348d00a7d6",
     "admin-empty-light.png": "5ffe7583b9cfcd4c9f999b3ca59cde670114e763263428182fc2546b3790da06",
-    "admin-mobile-390.png": "b15de4903bbb93be133fb4e05cec980944af0633b13e4f3ec6741e19f12a256d",
+    "admin-mobile-390.png": "9cb5dab9740baa04f78af5b3e569eae45d01b4853671218b7fdddd0a968f89ed",
     "admin-run-command-compact-light.png": "8160811b2ed5cbc688929c8b388e247ee4a4cf2666e744370dbf1b2f392eceed",
-    "admin-run-verification-dark.png": "758962184d1e700a0153fb73d0f77e7c9d1ec1d40a1f17b4589e4b4329748586",
-    "admin-run-verification-empty-dark.png": "2f51806fb3f92d16aacde586d696504b4a31eb3620d23b65d8ef77982dd945f6",
-    "admin-run-verification-scope-dark.png": "47f4de2670cc1d10e8d9ad236e364f5fc832c0f8122093f5afcd915a68c07b0c",
-    "admin-settings-compact-light.png": "8f8ebcedad1ddae42852a7405129cb6ea9d3662b8c747f14dfe402ccde4f82a3",
-    "admin-shutdown-confirmation.png": "d5ae9dcf38eef425b4ea3650c61adce9e411cc1e059ec4eb8259a03b6369278e",
-    "admin-task-inline-dark.png": "ca7614a87e427cebfbb0358fc291c82cf54a08f89174127862c70f04695ddfab",
-    "admin-terminal-dark.png": "94a7e04ac22a3af46e6a94f60e2b14a3e9f20409e4f4176760951c7124391657",
+    "admin-run-verification-dark.png": "7d48ff93907b1f6380a37a91d711e5f4fd9364bd79784c8921a7be756b79ca3c",
+    "admin-run-verification-empty-dark.png": "8104279b4d951b1025f1fe33c2f0ac37638f99dafc51261302e61032a9dc0498",
+    "admin-run-verification-scope-dark.png": "4e018c2d675c867b213cfa5caaf69e8cf24d92458ccd46fd54cd61c9cee7fcd4",
+    "admin-settings-compact-light.png": "04bb2e48aad35f40ef2406cf82638c3f24187d71f24bbfcd5cbd1e18298edfa3",
+    "admin-shutdown-confirmation.png": "7e994d1607cff5bab1ba3ce0afd8a9fb5a1b9d2122eb6add41ff12b0effa758b",
+    "admin-task-inline-dark.png": "102f0ed74f6564d4f4202478ddec8a2bb63ec1cb10a4d0b70704225a3deb1665",
+    "admin-terminal-dark.png": "deecbe684d2ad38bdf330fad9643c002d69320c23efea7b9d39034a1bdc0550a",
     "anonymous-settings-login-light.png": "2590243d938aaaca9780df1edf2e7be8bb394ce38957fee016193d8bb9eb2e56",
     "anonymous-settings-login-mobile.png": "5579b9bbc1acadbdd172e0ea531ded7d8d1832c9cb690fce6791b0efb1a49e6b"
   },
@@ -69,7 +71,7 @@
       "dom_documents": 5,
       "dom_event_listeners": 1200,
       "idle_background_requests": 16,
-      "idle_websockets": 0
+      "idle_websockets": 1
     },
     "interaction_limits": {
       "terminal_to_tasks_next_paint_ms": 250
@@ -81,20 +83,20 @@
   "resource_metrics": {
     "task_process_count": 0,
     "service_process_count": 2,
-    "idle_window_seconds": 6.015,
-    "server_rss_mib": 59.988,
-    "server_cpu_one_core_percent": 1.529,
-    "renderer_js_heap_mib": 8.762,
-    "renderer_idle_cpu_one_core_percent": 0.706,
-    "dom_nodes": 1876,
-    "dom_documents": 4,
-    "dom_event_listeners": 463,
+    "idle_window_seconds": 6.021,
+    "server_rss_mib": 59.945,
+    "server_cpu_one_core_percent": 1.482,
+    "renderer_js_heap_mib": 8.779,
+    "renderer_idle_cpu_one_core_percent": 1.062,
+    "dom_nodes": 1868,
+    "dom_documents": 2,
+    "dom_event_listeners": 462,
     "idle_background_requests": 7,
-    "idle_websockets": 0,
+    "idle_websockets": 1,
     "terminal_ack_frames": 10
   },
   "bundle_metrics": {
-    "initial_legacy_entry_gzip_mib": 0.217
+    "initial_legacy_entry_gzip_mib": 0.218
   },
   "assertions": [
     "testing-ui-revision-auto-reload",
@@ -193,6 +195,6 @@
     "task-source-path-list"
   ],
   "interaction_metrics": {
-    "terminal_to_tasks_next_paint_ms": 18.3
+    "terminal_to_tasks_next_paint_ms": 23.9
   }
 }

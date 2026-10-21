@@ -89,6 +89,21 @@ jobs:
           ./tools/check_linux_compatibility.sh dist/localflow
       - name: Smoke final static executable
         run: python3 tools/run_frozen_smoke.py --binary dist/localflow
+      - name: Verify complete task-family shutdown in the final executable
+        run: |
+          set -euo pipefail
+          for scenario in idle running group_child detached_child stop_helper; do
+            python3 tools/reproduce_shutdown.py --binary "$PWD/dist/localflow" \
+              --backend subprocess --scenario "$scenario" --budget 75 \
+              --output ".qa/frozen-shutdown/${scenario}.json"
+          done
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: frozen-shutdown-evidence
+          path: .qa/frozen-shutdown
+          include-hidden-files: true
+          if-no-files-found: warn
       - name: Smoke freshly extracted archive
         run: |
           version="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"

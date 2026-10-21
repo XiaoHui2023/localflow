@@ -1,0 +1,120 @@
+{
+  "issues": {
+    "LF-WEB-RECONNECT-001": {
+      "result": "running"
+    }
+  },
+  "faults": "explicit transport interruptions, offline mode, owned isolated server restart",
+  "samples": [
+    {
+      "elapsed_ms": 114,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    },
+    {
+      "elapsed_ms": 60220,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    },
+    {
+      "elapsed_ms": 120338,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    },
+    {
+      "elapsed_ms": 180508,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    },
+    {
+      "elapsed_ms": 240675,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    },
+    {
+      "elapsed_ms": 300864,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    },
+    {
+      "elapsed_ms": 361004,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    },
+    {
+      "elapsed_ms": 421192,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    },
+    {
+      "elapsed_ms": 481404,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    },
+    {
+      "elapsed_ms": 541647,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    },
+    {
+      "elapsed_ms": 601875,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    },
+    {
+      "elapsed_ms": 662054,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    },
+    {
+      "elapsed_ms": 722240,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    },
+    {
+      "elapsed_ms": 782464,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    },
+    {
+      "elapsed_ms": 842696,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    },
+    {
+      "elapsed_ms": 902909,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    },
+    {
+      "elapsed_ms": 963137,
+      "refresh": "loaded",
+      "notification": "received",
+      "active_sockets": 1
+    }
+  ],
+  "multi_tab_refresh": "passed",
+  "terminal_successful_reconnections": 5,
+  "offline_recovery": "passed",
+  "server_restart_recovery": "passed",
+  "polling": {
+    "maxActive": 1,
+    "aborted": 1
+  }
+}

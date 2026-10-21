@@ -50,6 +50,8 @@ import {
   X,
 } from "lucide-react";
 import { api } from "./api";
+import { eventChannel, poll } from "./connections";
+import { localInputValue, parseLocalTime, showTime } from "./time";
 import { CopyValue, TaskListValue, writeClipboard } from "./CopyValue";
 import { InspectionItems } from "./RunInspection";
 import { TerminalOutputAge } from "./TerminalOutputAge";
@@ -73,16 +75,6 @@ const coreLabels = {
   cancelled: "已停止",
   lost: "状态丢失",
 };
-const showTime = (value) =>
-  value
-    ? new Intl.DateTimeFormat("zh-CN", {
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      }).format(new Date(value))
-    : "—";
 const taskLabel = (task) =>
   task.status?.label || coreLabels[task.state] || task.state;
 const taskTone = (task) =>
@@ -138,9 +130,9 @@ function useUiRevision(paused = false) {
   useEffect(() => {
     if (paused) return undefined;
     let active = true;
-    const check = async () => {
+    const check = async (signal) => {
       try {
-        const current = (await api.uiRevision()).revision;
+        const current = (await api.uiRevision(signal)).revision;
         if (!active) return;
         if (revision.current && revision.current !== current) location.reload();
         revision.current = current;
@@ -148,11 +140,10 @@ function useUiRevision(paused = false) {
         /* the service may still be starting */
       }
     };
-    check();
-    const timer = setInterval(check, 2000);
+    const stop = poll(check, 2000);
     return () => {
       active = false;
-      clearInterval(timer);
+      stop();
     };
   }, [paused]);
 }
@@ -375,6 +366,8 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
     let edgeReady = false;
     let edgeLoading = false;
     let reconnectTimer;
+    let openedAt = 0;
+    let receivedFrame = false;
     let renderedStart = rangeStart;
     let renderedEnd = endOffset;
     let streamOffset = endOffset;
@@ -431,11 +424,13 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
     element.addEventListener("wheel", loadAtEdge, { passive: true });
     onStreamStatus?.({ taskId: task.id, caughtUp: false, updatedAt: null });
     socket.onopen = () => {
+      openedAt = Date.now();
       element.dataset.connection = "open";
       setStreamError("");
     };
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data);
+      receivedFrame = true;
       if (message.type === "window") {
         renderedStart = message.start;
         renderedEnd = message.end;
@@ -509,6 +504,10 @@ function TaskTerminal({ task, interactive, theme, onStreamStatus }) {
       }
     };
     socket.onclose = (event) => {
+      // A flapping handshake is not a recovered stream. Replenish the budget
+      // after valid protocol traffic and at least one second of stable transport.
+      if (receivedFrame && openedAt && Date.now() - openedAt >= 1000)
+        reconnectAttempts.current = 0;
       if (element.isConnected) {
         element.dataset.connection = "closed";
         if (![1000, 1001, 4400, 4403].includes(event.code) && reconnectAttempts.current < 3) {
@@ -2081,7 +2080,7 @@ function Config({ theme, explorerView, onExplorerViewChange, paused = false }) {
   }, []);
   useEffect(() => {
     if (paused) return undefined;
-    const events = new EventSource("/api/v1/events");
+    const events = eventChannel();
     const changed = (event) => {
       const data = JSON.parse(event.data);
       const path = `config/${data.path}`;
@@ -2916,12 +2915,6 @@ function Config({ theme, explorerView, onExplorerViewChange, paused = false }) {
   );
 }
 
-function localInputValue(value) {
-  const date = new Date(value);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-    .toISOString()
-    .slice(0, 19);
-}
 function SettingsPage({
   theme,
   setTheme,
@@ -2965,9 +2958,14 @@ function SettingsPage({
       : "";
   useEffect(() => {
     if (!dirty || !referenceTime) return;
+    const parsedTime = parseLocalTime(referenceTime);
+    if (!parsedTime) {
+      setNotice("请输入有效的24小时日期时间，如 2026-09-29 20:08:00");
+      return;
+    }
     const timer = setTimeout(async () => {
       try {
-        await api.adjustTime(new Date(referenceTime).toISOString());
+        await api.adjustTime(parsedTime.toISOString());
         setDirty(false);
         setEditing(false);
         await loadTime();
@@ -3063,8 +3061,11 @@ function SettingsPage({
             <span className="time-control">
               <input
                 aria-label="时间校准"
-                type="datetime-local"
-                step="1"
+                type="text"
+                placeholder="YYYY-MM-DD HH:mm:ss"
+                maxLength={19}
+                autoComplete="off"
+                spellCheck={false}
                 value={displayedTime}
                 onFocus={() => {
                   setReferenceTime(displayedTime);
@@ -3157,22 +3158,27 @@ export default function App() {
   );
   const [taskWorkspaceNode, setTaskWorkspaceNode] = useState();
   const [splitReady, setSplitReady] = useState(false);
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (signal) => {
     if (shutdownAccepted) return;
     try {
-      const [state, result] = await Promise.all([api.status(), api.tasks()]);
+      // UI callbacks pass click events; only polling passes an AbortSignal.
+      const requestSignal = signal instanceof AbortSignal ? signal : undefined;
+      const settled = await Promise.allSettled([api.status(requestSignal), api.tasks("", requestSignal)]);
+      const failed = settled.find((item) => item.status === "rejected");
+      if (failed) throw failed.reason;
+      const [state, result] = settled.map((item) => item.value);
+      if (requestSignal?.aborted) return;
       setStatus(state);
       setTasks(result.items);
       setError("");
     } catch (reason) {
+      if (signal instanceof AbortSignal && signal.aborted) return;
       setError(reason.message);
     }
   }, [shutdownAccepted]);
   useEffect(() => {
     if (shutdownAccepted) return undefined;
-    refresh();
-    const timer = setInterval(refresh, 3000);
-    return () => clearInterval(timer);
+    return poll(refresh, 3000);
   }, [refresh, shutdownAccepted]);
   useEffect(() => {
     if (

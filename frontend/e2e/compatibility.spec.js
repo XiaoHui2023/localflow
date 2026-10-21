@@ -42,13 +42,18 @@ test("Ubuntu browser can operate the released web console", async ({
   const errors = [];
   const failedRequests = [];
   let eventResponses = 0;
+  let eventReady = false;
   page.on("console", (message) => {
     if (message.type() === "error") errors.push(message.text());
   });
   page.on("pageerror", (error) => errors.push(error.message));
-  page.on("response", (response) => {
-    if (response.url().endsWith("/api/v1/events") && response.status() === 200)
-      eventResponses += 1;
+  page.on("websocket", (socket) => {
+    if (new URL(socket.url()).pathname !== "/api/v1/events") return;
+    socket.on("framereceived", ({ payload }) => {
+      const message = JSON.parse(String(payload));
+      if (message.type === "ready") eventReady = true;
+      if (message.type === "event") eventResponses += 1;
+    });
   });
   page.on("requestfailed", (request) => {
     const reason = request.failure()?.errorText || "unknown failure";
@@ -91,13 +96,20 @@ test("Ubuntu browser can operate the released web console", async ({
   await expect(
     page.locator('[data-file="config/command/hello-world.yaml"]'),
   ).toBeVisible();
+  await expect.poll(() => eventReady).toBe(true);
+  const notificationName = `compat-${testInfo.project.name}-notification.yaml`;
+  fs.copyFileSync(
+    path.join(process.env.LOCALFLOW_QA_ROOT, "config/command/hello-world.yaml"),
+    path.join(process.env.LOCALFLOW_QA_ROOT, "config/command", notificationName),
+  );
+  await expect(page.locator(`[data-file="config/command/${notificationName}"]`)).toBeVisible();
   const inspectionResponse = page.waitForResponse(
     (response) =>
       response.url().endsWith(
-        "/api/v1/config/files/command/hello-world.yaml/inspection",
+        `/api/v1/config/files/command/${notificationName}/inspection`,
       ) && response.request().method() === "POST",
   );
-  await page.locator('[data-file="config/command/hello-world.yaml"]').click();
+  await page.locator(`[data-file="config/command/${notificationName}"]`).click();
   expect((await inspectionResponse).ok()).toBeTruthy();
   await page.getByRole("button", { name: "编辑" }).click();
   await expect(page.locator(".monaco-editor")).toBeVisible({ timeout: 20_000 });
@@ -148,6 +160,9 @@ test("Ubuntu browser can operate the released web console", async ({
     },
   });
   await waitForState(page, live.task_id, ["running"]);
+  // The API fixture and React projection update on different clocks. Wait for
+  // the new live row before mounting the terminal, rather than opening stale history.
+  await expect(page.getByRole("button", { name: new RegExp(`${browserName}-compat-terminal`) })).toBeVisible();
   await page.getByRole("tab", { name: "终端" }).click();
   await expect(page.locator(".terminal-page .xterm-rows")).toContainText(
     "terminal-compat-ready",
@@ -175,6 +190,9 @@ test("Ubuntu browser can operate the released web console", async ({
 
   await page.getByRole("tab", { name: "设置" }).click();
   await expect(page.getByLabel("时间校准", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("时间校准", { exact: true })).toHaveAttribute("type", "text");
+  expect(await page.getByLabel("时间校准", { exact: true }).inputValue())
+    .toMatch(/^\d{4}-\d{2}-\d{2} ([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/);
   const exitButton = page.getByRole("button", { name: "退出", exact: true });
   await exitButton.click();
   const shutdownDialog = page.getByRole("alertdialog");

@@ -9,6 +9,7 @@ import signal
 import socket
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -58,7 +59,7 @@ class Executor(Protocol):
 
 
 class SubprocessExecutor:
-    """Development executor with process-group signal semantics."""
+    """Pipe executor with durable Linux task-family ownership."""
 
     def __init__(
         self, task_log_max_bytes: int = 0, keep_free_bytes: int = 0
@@ -66,6 +67,7 @@ class SubprocessExecutor:
         self._processes: dict[str, asyncio.subprocess.Process] = {}
         self._pumps: dict[str, asyncio.Task[None]] = {}
         self._writers: dict[str, BoundedLogWriter] = {}
+        self._owners: dict[str, tempfile.TemporaryDirectory] = {}
         self.task_log_max_bytes = task_log_max_bytes
         self.keep_free_bytes = keep_free_bytes
 
@@ -84,6 +86,18 @@ class SubprocessExecutor:
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
         else:
             kwargs["start_new_session"] = True
+        owner = None
+        command = list(task.command)
+        if sys.platform == "linux":
+            owner = tempfile.TemporaryDirectory(prefix="lf-owner-")
+            kwargs["env"] = {
+                **os.environ, "LOCALFLOW_PROCESS_OWNER": owner.name,
+                "LOCALFLOW_INTERNAL_MODE": "process-owner",
+            }
+            if getattr(sys, "frozen", False):
+                command = [os.environ.get("STATICX_PROG_PATH", sys.executable), *command]
+            else:
+                command = [sys.executable, "-m", "localflow.process_owner", *command]
         try:
             shown_command = command_for_log(task.command, str(workdir))
             source_invocations = task.custom.get("_source_invocations", [])
@@ -103,14 +117,18 @@ class SubprocessExecutor:
                     log.write(lifecycle_line("process.source", path=str(source_file)))
             log.write(lifecycle_line("process.command", cwd=str(workdir), command=shown_command))
             process = await asyncio.create_subprocess_exec(
-                *task.command,
+                *command,
                 cwd=workdir,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
                 stdin=asyncio.subprocess.PIPE,
                 **kwargs,
             )
+            if owner is not None:
+                self._owners[task.id] = owner
         except BaseException as exc:
+            if owner is not None:
+                owner.cleanup()
             log.write(lifecycle_line("executor.start_failed", error=f"{type(exc).__name__}: {exc}"))
             log.close()
             raise
@@ -124,7 +142,31 @@ class SubprocessExecutor:
                 log.write(chunk)
 
         self._pumps[task.id] = asyncio.create_task(pump(), name=f"task-log-{task.id}")
-        return StartResult(process.pid, f"process:{process.pid}")
+        task_pid = process.pid
+        if owner is not None:
+            try:
+                async with asyncio.timeout(15):
+                    ready = Path(owner.name) / "ready"
+                    while not ready.exists():
+                        if process.returncode is not None:
+                            raise RuntimeError("task-family owner exited before command startup")
+                        await asyncio.sleep(0.02)
+                    receipt = json.loads(ready.read_text())
+                    if "error" in receipt:
+                        await self.wait(task.id)
+                        raise OSError(receipt["error"])
+                    task_pid = int(receipt["pid"])
+            except BaseException:
+                # Startup cancellation still has to discharge acquired ownership.
+                async def abort_start() -> None:
+                    if task.id not in self._processes:
+                        return
+                    await self.interrupt(task.id, "sigkill")
+                    await self.wait(task.id)
+
+                await asyncio.shield(abort_start())
+                raise
+        return StartResult(task_pid, f"process:{process.pid}")
 
     async def wait(self, task_id: str) -> int:
         process = self._processes[task_id]
@@ -138,16 +180,34 @@ class SubprocessExecutor:
                 log.write(lifecycle_line("process.exited", exit_code=code))
             return code
         finally:
-            self._pumps.pop(task_id, None)
-            log = self._writers.pop(task_id, None)
-            if log:
-                log.close()
-            self._processes.pop(task_id, None)
+            if process.returncode is not None:
+                self._pumps.pop(task_id, None)
+                log = self._writers.pop(task_id, None)
+                if log:
+                    log.close()
+                self._processes.pop(task_id, None)
+                owner = self._owners.pop(task_id, None)
+                if owner is not None:
+                    owner.cleanup()
 
     async def interrupt(self, task_id: str, stage: str) -> bool:
         process = self._processes.get(task_id)
         if process is None or process.returncode is not None:
             return False
+        owner = self._owners.get(task_id)
+        if owner is not None:
+            # Readiness can lag start(); never kill the owner as a substitute for
+            # its descendant cleanup protocol (including frozen launch wrappers).
+            deadline = asyncio.get_running_loop().time() + 5
+            while not (Path(owner.name) / "control").exists():
+                if process.returncode is not None:
+                    return False
+                if asyncio.get_running_loop().time() >= deadline:
+                    raise RuntimeError("task-family control channel did not become ready")
+                await asyncio.sleep(0.02)
+            with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as channel:
+                channel.sendto(stage.encode("ascii"), str(Path(owner.name) / "control"))
+            return True
         if os.name == "nt":
             if stage == "sigint":
                 if process.stdin is None:

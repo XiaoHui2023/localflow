@@ -1,0 +1,40 @@
+{
+    "schemaVersion":  1,
+    "action":  "Ensure",
+    "success":  true,
+    "startedAtUtc":  "2026-09-29T13:38:40.6521564+00:00",
+    "finishedAtUtc":  "2026-09-29T13:38:41.7105583+00:00",
+    "error":  "",
+    "steps":  [
+                  {
+                      "command":  "F:\\APP\\Docker\\docker\\resources\\bin\\docker.exe desktop status",
+                      "exitCode":  0,
+                      "timedOut":  false,
+                      "visibleWindowsObserved":  [
+
+                                                 ],
+                      "stdout":  "Name                Value\nStatus              running\nSessionID           30458162-e0b8-437e-b3c0-5f6fcfb98dea\n",
+                      "stderr":  ""
+                  },
+                  {
+                      "command":  "F:\\APP\\Docker\\docker\\resources\\bin\\docker.exe desktop status",
+                      "exitCode":  0,
+                      "timedOut":  false,
+                      "visibleWindowsObserved":  [
+
+                                                 ],
+                      "stdout":  "Name                Value\nStatus              running\nSessionID           30458162-e0b8-437e-b3c0-5f6fcfb98dea\n",
+                      "stderr":  ""
+                  },
+                  {
+                      "command":  "F:\\APP\\Docker\\docker\\resources\\bin\\docker.exe info --format \"{{json .ServerVersion}}\"",
+                      "exitCode":  0,
+                      "timedOut":  false,
+                      "visibleWindowsObserved":  [
+
+                                                 ],
+                      "stdout":  "\"29.7.2\"\n",
+                      "stderr":  ""
+                  }
+              ]
+}
