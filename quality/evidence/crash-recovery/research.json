@@ -1,0 +1,98 @@
+{
+  "sources": [
+    "https://www.freedesktop.org/software/systemd/man/249/systemctl.html",
+    "https://www.freedesktop.org/software/systemd/man/latest/systemctl.html",
+    "https://www.freedesktop.org/software/systemd/man/249/systemd-run.html",
+    "https://raw.githubusercontent.com/systemd/systemd/v240/NEWS"
+  ],
+  "decisions": [
+    "kill-who for old/new clients",
+    "version-gated collect and exec",
+    "durable host boot generation, owner plus completion evidence",
+    "unknown boot info uses actual owners, not forced terminal"
+  ],
+  "baseline": [
+    {
+      "file": "lf-red-boot-1.json",
+      "scenario": "boot",
+      "passed": false
+    },
+    {
+      "file": "lf-red-boot-2.json",
+      "scenario": "boot",
+      "passed": false
+    },
+    {
+      "file": "lf-red-cold-1.json",
+      "scenario": "cold",
+      "passed": true
+    },
+    {
+      "file": "lf-red-cold-2.json",
+      "scenario": "cold",
+      "passed": true
+    },
+    {
+      "file": "lf-red-stop-1.json",
+      "scenario": "stop",
+      "passed": false
+    },
+    {
+      "file": "lf-red-stop-2.json",
+      "scenario": "stop",
+      "passed": false
+    },
+    {
+      "file": "lf-red-tail-1.json",
+      "scenario": "tail",
+      "passed": false
+    },
+    {
+      "file": "lf-red-tail-2.json",
+      "scenario": "tail",
+      "passed": false
+    }
+  ],
+  "kernel_reboot": "not performed; boot receipt fault injection and actual owner loss are distinguished",
+  "skills_search": "succeeded; no installed skill required",
+  "raw_stop_errors": [
+    {
+      "file": "lf-red-stop-1.controller-1792727631112214613.log",
+      "sha256": "1280875848941b21b8eafa4271cbdec8f0f6812009441394bcaf4d364f9551fe",
+      "stderr_lines": [
+        "systemctl: unrecognized option '--kill-whom=main'",
+        "systemctl: unrecognized option '--kill-whom=main'",
+        "systemctl: unrecognized option '--kill-whom=all'",
+        "systemctl: unrecognized option '--kill-whom=all'",
+        "systemctl: unrecognized option '--kill-whom=all'"
+      ]
+    },
+    {
+      "file": "lf-red-stop-2.controller-1792727645748169326.log",
+      "sha256": "5cb0faf1aa277ff88d3fe3135f6217be8988767521e2b33e79dcfe5a4f9f2c41",
+      "stderr_lines": [
+        "systemctl: unrecognized option '--kill-whom=main'",
+        "systemctl: unrecognized option '--kill-whom=main'",
+        "systemctl: unrecognized option '--kill-whom=all'",
+        "systemctl: unrecognized option '--kill-whom=all'",
+        "systemctl: unrecognized option '--kill-whom=all'"
+      ]
+    }
+  ],
+  "source_green": {
+    "junit": "source-linux.xml",
+    "tests": 365,
+    "passed": 362,
+    "skipped": 3,
+    "skip_reason": "csh/tcsh absent in isolated container",
+    "http_scenarios": [
+      "stop",
+      "cold",
+      "survive",
+      "boot",
+      "tail"
+    ],
+    "entrypoint": "source Python CLI via /tmp/localflow-source wrapper; not a frozen binary",
+    "final_frozen": "required in release CI Ubuntu20/22/24; not substituted by source evidence"
+  }
+}

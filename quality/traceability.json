@@ -1186,6 +1186,32 @@
       "evidence": "quality/evidence/exit-auth/receipt.json",
       "status": "passed",
       "claim_scope": "real isolated Windows/Edge production UI; actual offline Ubuntu host unvisited; final frozen Linux browser is required in CI"
+    },
+    {
+      "metric": "QM-076",
+      "requirement": [
+        "RQ-202"
+      ],
+      "owner": "host-generation-recovery",
+      "test": "tests_v2/test_crash_recovery.py;tests_v2/test_systemd_state.py;tests_v2/test_scheduler.py;tools/reproduce_crash_recovery.py",
+      "oracle": "same/new/missing/corrupt boot receipt and owner+exit Cartesian cases; real published tail and controlled unit reuse twice; frozen recovery on three Ubuntu LTS versions",
+      "mutant": "trust old unit name across boot or completed file before group empties",
+      "evidence": "quality/evidence/crash-recovery/research.json",
+      "status": "passed",
+      "claim_scope": "current source: Linux real systemd255 full suite plus five public-HTTP recovery scenarios; public249 red baselines twice; final frozen Ubuntu20/22/24 matrix remains a separate required CI stage; physical offline reboot unvisited"
+    },
+    {
+      "metric": "QM-077",
+      "requirement": [
+        "RQ-203"
+      ],
+      "owner": "systemd-client-compatibility",
+      "test": "tests_v2/test_crash_recovery.py;tests_v2/test_systemd_state.py;tests_v2/test_scheduler.py;tools/reproduce_crash_recovery.py",
+      "oracle": "published systemd249 stop failure twice; version 229/237/239/240/245/249/252/255/unknown option tests, signal selectors and real delivery failure; frozen LTS matrix",
+      "mutant": "always pass kill-whom, collect and Type=exec or abort stop sequence after first signal failure",
+      "evidence": "quality/evidence/crash-recovery/research.json",
+      "status": "passed",
+      "claim_scope": "current source: Linux real systemd255 full suite plus five public-HTTP recovery scenarios; public249 red baselines twice; final frozen Ubuntu20/22/24 matrix remains a separate required CI stage; physical offline reboot unvisited"
     }
   ]
 }

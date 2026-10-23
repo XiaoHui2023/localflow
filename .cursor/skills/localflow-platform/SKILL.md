@@ -77,3 +77,10 @@ No mock-only result can satisfy a target-platform metric.
 - 自然公开旧制品反例和修后结果在quality/evidence/shutdown-recovery；Linux源码专项在tests_v2/test_process_owner.py，最终staticx额外走tools/reproduce_shutdown.py五场景。不得以夹具善后清理冒充产品清理。
 
 - 多标签退出复核须覆盖另一标签真实重新登录后原页确认退出。生产页缓存CSRF不等于当前共享cookie；断言202和控制器正常结束，保留401失败不提交与传输异常不重放。测试存在还须检查两套runner实际调用，关闭服务的测试放在全部消费者之后。
+
+## 离线主机重启恢复
+
+- 主机 boot_id 与控制器 PID 是两个代次；跨 boot 旧活动任务标 lost，同 boot 则核对真实 cgroup。首次升级缺少 receipt 不推断已经重启。
+- 完成文件不能覆盖仍存活的 owner；命令退出后仍有子进程时继续等待整个任务单元。
+- systemctl kill 使用旧版兼容的 --kill-who；collect 与 Type=exec 按本机版本选择。发信号失败记录具体错误并继续升级，最终清空未证实不得宣称结束。
+- tools/reproduce_crash_recovery.py 通过真实 HTTP 验证最终制品五场景，CI 覆盖 Ubuntu20.04/22.04/24.04。boot 场景是代次故障注入，不是物理断电证据。

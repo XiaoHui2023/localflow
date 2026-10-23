@@ -1,0 +1,8 @@
+{
+  "scenario": "stop",
+  "binary_sha256": "ad7193f39018db7ca9fb68ba4c09ae07b9e9a83d317229374503c9c47716b598",
+  "systemd_version": "systemd 249 (249.11-0ubuntu3.23)",
+  "real_kernel_reboot": false,
+  "passed": false,
+  "error": "RuntimeError: bounded recovery condition did not converge"
+}

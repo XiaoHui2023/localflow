@@ -47,6 +47,10 @@ sudo -u localflow ./localflow --workspace /srv/localflow --data /var/lib/localfl
 
 主服务异常重启后，不应手工删除 `runtime` 或 `logs`。恢复程序会检查未结束任务。只有确认任务进程不存在且没有退出记录时才标记 `lost`。
 
+整台主机重启或断电后，已记录的 Linux boot ID 变化会让未结束旧任务转为 `lost`（状态丢失），不自动重跑命令。普通控制器重启保留仍然存活的 systemd 任务。不要清空状态目录来修正列表：已完成、失败、取消的历史和排队任务均应保留。首次升级没有旧 boot ID 时，仍以实际单元和退出记录核对。
+
+离线部署不要求升级 systemd。客户端使用兼容旧版本的 `--kill-who=main/all`；`--kill-whom` 从 systemd 252 才提供。systemd-run 的可选新能力按工具版本启用，版本未知时采用保守选项并写出告警。`auto` 在用户管理器不可用时回退到 subprocess；这一路径支持运行和停止，但不提供 systemd 的跨控制器崩溃接管保证。
+
 ## 备份
 
 一致性备份应暂停新写入，使用 SQLite 在线备份接口复制数据库，再复制配置、插件和仍需保留的日志。不要直接复制正在变化的 WAL 文件组合。密钥单独保护，恢复到新主机后建议立即轮换。

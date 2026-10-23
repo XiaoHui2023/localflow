@@ -1,8 +1,8 @@
 {
-  "completed_at": "2026-10-21T10:04:12.213Z",
+  "completed_at": "2026-10-23T04:18:38.846Z",
   "browser": "Microsoft Edge",
   "browser_version": "155.0.4283.62",
-  "base_url": "http://192.168.1.118:53396",
+  "base_url": "http://192.168.1.118:15012",
   "result": "passed",
   "source_files": {
     "frontend/index.html": "a6a84d305fed5896d32ad37d64a7b0260ddf6176c01aa9461cb13217f99e1e64",
@@ -40,18 +40,18 @@
     "tests_target/test_browser_shutdown.py": "5bb0199b9d3065fbe1c828d6592bdef0a5904ab6c20719285bba92ee10289a9a"
   },
   "screenshots": {
-    "admin-common-configurations-light.png": "3cc1349bd3a6ced1352cc34f83367f343d4581f48ec16597be550079188de5ee",
-    "admin-config-explorer-dark.png": "3a766ef7b568b3d755732d56e5ee84316ecf05c59d7622b4b68861c13ff47c58",
-    "admin-empty-light.png": "5ffe7583b9cfcd4c9f999b3ca59cde670114e763263428182fc2546b3790da06",
-    "admin-mobile-390.png": "91914727fb50e21a5c8a036beefd2243d3e5b2797b32a44ef4ae0802d5f67be6",
+    "admin-common-configurations-light.png": "2fed0db15328ec2f7628960ebb094106c210c63fc7053e22db3afb357169b719",
+    "admin-config-explorer-dark.png": "5414ccc677874189ef017a0f6b158e868fa180c365e8aa2f01fa6c9ef664a963",
+    "admin-empty-light.png": "3abd6d434f84cdc6eb035ed99858ae71377c2f1940284dc2b288ae8269c8e0b3",
+    "admin-mobile-390.png": "906e143c04b0d0ffa6b23fc1a6f113750ebf1cbdae982df5c613c192a10fcac6",
     "admin-run-command-compact-light.png": "8160811b2ed5cbc688929c8b388e247ee4a4cf2666e744370dbf1b2f392eceed",
-    "admin-run-verification-dark.png": "748895774f2c2922e788b4a404c1d9c643fcedd6d023aaabd4a7d278abd8d205",
-    "admin-run-verification-empty-dark.png": "8d3883e705d284e046398414ecfdbc3b57df06d7aed8fce1b461c2854c72cb11",
-    "admin-run-verification-scope-dark.png": "2be87ef153b9c55d3582634ee9ca1a8c790f22e3e98ba7639f4fdaf491780f5e",
-    "admin-settings-compact-light.png": "e8a497c43b6401786e356e72e094de2e632c643b04f3b13e0ae1b1a8a42c20c2",
-    "admin-shutdown-confirmation.png": "d85fea22166ed5bf18ff028dc099ddaec610717856750ef4eea470b4f03ef47c",
-    "admin-task-inline-dark.png": "5bb012a9e6afba8cdd18909d109ef6831f2049aeb2398a7b62bf2cc97d0341d3",
-    "admin-terminal-dark.png": "fc1d3972266e1e209cca5fd86db9117265611add3299f39936a5dec60809a3d8",
+    "admin-run-verification-dark.png": "24e0e2b740d353aa64a5e9af3f9a01114f448997a9135eda9c378d8c6aae3792",
+    "admin-run-verification-empty-dark.png": "a2695629c98d6c42eb994cdc4bfceaad3129843d7b4b4b71193ca691bf0e58b4",
+    "admin-run-verification-scope-dark.png": "fd5a8ba3ad757cf0fda7c0178d30ff92dfb64e61e4ce34b6ec0a2ff9d6f0bc66",
+    "admin-settings-compact-light.png": "dd700881a08f1d31d2bbe75aca3a926f2df3843835540186e882c90c754310e3",
+    "admin-shutdown-confirmation.png": "445872045877eb1afa3dfe71317271ba25c20a7e60cb4877e1f676c41e8eb472",
+    "admin-task-inline-dark.png": "5d2a5cd52bd844523b4d02e6f374019c50eeda1db218f8b5ec73ac6f913280a0",
+    "admin-terminal-dark.png": "ae3d60f21e2a5f261807811b2d034f4eec802023dff82f52040b5a82eb72d6ad",
     "anonymous-settings-login-light.png": "2590243d938aaaca9780df1edf2e7be8bb394ce38957fee016193d8bb9eb2e56",
     "anonymous-settings-login-mobile.png": "5579b9bbc1acadbdd172e0ea531ded7d8d1832c9cb690fce6791b0efb1a49e6b"
   },
@@ -83,17 +83,17 @@
   "resource_metrics": {
     "task_process_count": 0,
     "service_process_count": 2,
-    "idle_window_seconds": 6.007,
-    "server_rss_mib": 59.93,
-    "server_cpu_one_core_percent": 2.003,
-    "renderer_js_heap_mib": 8.773,
-    "renderer_idle_cpu_one_core_percent": 0.664,
+    "idle_window_seconds": 6.013,
+    "server_rss_mib": 61.523,
+    "server_cpu_one_core_percent": 1.492,
+    "renderer_js_heap_mib": 8.8,
+    "renderer_idle_cpu_one_core_percent": 0.78,
     "dom_nodes": 1868,
     "dom_documents": 2,
-    "dom_event_listeners": 462,
+    "dom_event_listeners": 464,
     "idle_background_requests": 7,
     "idle_websockets": 1,
-    "terminal_ack_frames": 10
+    "terminal_ack_frames": 11
   },
   "bundle_metrics": {
     "initial_legacy_entry_gzip_mib": 0.218
@@ -195,6 +195,6 @@
     "task-source-path-list"
   ],
   "interaction_metrics": {
-    "terminal_to_tasks_next_paint_ms": 18.1
+    "terminal_to_tasks_next_paint_ms": 30.6
   }
 }

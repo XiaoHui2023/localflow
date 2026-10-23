@@ -1,0 +1,9 @@
+{
+  "scenario": "stop",
+  "binary_sha256": "61236bfe0e84b2dbd80cdea8c2d20a37b1e51546fc433b25434e1a781de2ce40",
+  "systemd_version": "systemd 255 (255.4-1ubuntu8.17)",
+  "real_kernel_reboot": false,
+  "state": "cancelled",
+  "product_assertions_before_cleanup": true,
+  "passed": true
+}

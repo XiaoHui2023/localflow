@@ -10,6 +10,7 @@ import time
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from uuid import UUID
 
 from .executor import Executor, SubprocessExecutor
 from .ids import new_id
@@ -271,11 +272,42 @@ class TaskService:
             await self._confirm_forced_exit(task.id)
 
     async def recover(self) -> None:
+        boot_id = None
+        try:
+            boot_id = str(UUID(Path("/proc/sys/kernel/random/boot_id").read_text().strip()))
+        except (OSError, ValueError) as exc:
+            if os.name != "nt":
+                logger.warning("Host boot ID unavailable; inspecting actual task owners: %s", exc)
+        marker = self.root / "runtime" / "host-boot.json"
+        previous_boot = None
+        if marker.exists():
+            try:
+                payload = json.loads(marker.read_text())
+                if not isinstance(payload, dict) or payload.get("version") != 1:
+                    raise ValueError("unknown host boot receipt version")
+                previous_boot = str(UUID(str(payload["boot_id"])))
+            except (OSError, ValueError, KeyError, TypeError):
+                logger.warning("Invalid host boot receipt; inspecting actual task owners")
+        host_restarted = boot_id is not None and previous_boot is not None and boot_id != previous_boot
         # Recovery follows every persisted owner, independent of today's
         # optional admission limit and of the storage page size.
         for task in self._all_tasks(["starting", "running", "stopping"]):
+            if host_restarted:
+                self.store.transition(
+                    task.id,
+                    [TaskState.STARTING, TaskState.RUNNING, TaskState.STOPPING],
+                    TaskState.LOST,
+                    ended_at=_now(),
+                    elapsed_seconds=None,
+                )
+                self.store.append_event(task.id, "task.host_restarted", {
+                    "previous_boot_id": previous_boot, "boot_id": boot_id,
+                })
+                self._terminal()
+                continue
             completed_code = await self.executor.completed_code(task.id)
-            if completed_code is not None:
+            running = await self.executor.is_running(task)
+            if completed_code is not None and not running:
                 state = TaskState.SUCCEEDED if completed_code == 0 else TaskState.FAILED
                 if task.interrupt_stage:
                     state = TaskState.CANCELLED
@@ -295,7 +327,7 @@ class TaskService:
                     custom_json=json.dumps(custom, ensure_ascii=False),
                 )
                 self._terminal()
-            elif await self.executor.is_running(task):
+            elif running:
                 self._waiters[task.id] = asyncio.create_task(self._wait(task.id))
                 if task.interrupt_stage:
                     self._start_interrupt(task, 20, 10)
@@ -309,6 +341,7 @@ class TaskService:
                     elapsed_seconds=_elapsed(task),
                 )
                 self._terminal()
+
             else:
                 self.store.transition(
                     task.id,
@@ -317,6 +350,13 @@ class TaskService:
                     ended_at=_now(),
                 )
                 self._terminal()
+
+        if boot_id is not None:
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            temporary = marker.with_suffix(".tmp")
+            temporary.write_text(json.dumps({"version": 1, "boot_id": boot_id}), encoding="ascii")
+            os.chmod(temporary, 0o600)
+            os.replace(temporary, marker)
 
     async def _loop(self) -> None:
         while not self._stopping:
@@ -673,7 +713,15 @@ class TaskService:
                 )
                 log_path = self.root / "logs" / task_id / "output.log"
                 offset = log_path.stat().st_size if log_path.exists() else 0
-                remaining = await self._apply_stop_action(current, action)
+                try:
+                    remaining = await self._apply_stop_action(current, action)
+                except Exception as exc:
+                    logger.exception("task stop action failed task_id=%s stage=%s", task_id, stage)
+                    self.store.append_event(task_id, "task.stop_action_error", {
+                        "stage": stage, "error": f"{type(exc).__name__}: {exc}",
+                    })
+                    self._log_lifecycle(current, "task.stop_action_error", stage=stage, error=str(exc))
+                    continue
                 await self._wait_stop_action(task_id, action, offset, advance, remaining)
             current = self.store.get_task(task_id)
             # systemd may need one scheduler tick to publish the exit file and

@@ -48,6 +48,43 @@ class DelayedStartExecutor(SubprocessExecutor):
 
 
 @pytest.mark.asyncio
+async def test_stop_delivery_failure_is_recorded_and_escalation_continues(root):
+    class FirstSignalFails(SubprocessExecutor):
+        async def interrupt(self, task_id, stage):
+            if stage == "sigint":
+                raise RuntimeError("first signal delivery unavailable")
+            return await super().interrupt(task_id, stage)
+
+    store = Store(root / "runtime/localflow.db")
+    service = TaskService(root, store, FirstSignalFails())
+    task = service.submit(TaskCreate(
+        name="stop-delivery", working_directory=str(root),
+        command=[sys.executable, "-c", "import time; time.sleep(30)"],
+    ))
+    try:
+        await service.start()
+        for _ in range(150):
+            if store.get_task(task.id).state == "running":
+                break
+            await asyncio.sleep(.02)
+        assert store.get_task(task.id).state == "running"
+        await service.interrupt(task.id, sigint_grace=.05, sigterm_grace=.05)
+        for _ in range(150):
+            if store.get_task(task.id).ended_at:
+                break
+            await asyncio.sleep(.02)
+        assert store.get_task(task.id).state == "cancelled"
+        errors = [event for event in store.events_after(0) if event.kind == "task.stop_action_error"]
+        assert len(errors) == 1
+        assert "first signal delivery unavailable" in errors[0].data["error"]
+        assert b"task.stop_action_error" in (root / "logs" / task.id / "output.log").read_bytes()
+    finally:
+        await service.shutdown_all(timeout_seconds=.1)
+        await service.stop()
+        store.close()
+
+
+@pytest.mark.asyncio
 async def test_shutdown_drains_more_than_one_storage_page(root: Path) -> None:
     root.mkdir()
     queued = [

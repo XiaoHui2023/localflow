@@ -1,0 +1,9 @@
+{
+  "scenario": "boot",
+  "binary_sha256": "ad7193f39018db7ca9fb68ba4c09ae07b9e9a83d317229374503c9c47716b598",
+  "systemd_version": "systemd 249 (249.11-0ubuntu3.23)",
+  "real_kernel_reboot": false,
+  "state": "running",
+  "passed": false,
+  "error": "AssertionError: {'name': 'crash-recovery-probe', 'working_directory': '/tmp/lf-recovery-fshgsk69', 'command': ['/usr/bin/python3', '-u', '-c', \"import signal,time;signal.signal(signal.SIGINT,signal.SIG_IGN);signal.signal(signal.SIGTERM,signal.SIG_IGN);print('TASK_READY',flush=True);time.sleep(300)\"], 'labels': [], 'mutex_keys': [], 'custom': {}, 'template': None, 'plugin_snapshot': {}, 'stop': None, 'id': '001a166e526fbaa95e0bb5065e49acced', 'state': 'running', 'created_at': '2026-10-23T03:54:16.187632Z', 'started_at': '2026-10-23T03:54:16.192712Z', 'ended_at': None, 'exit_code': None, 'pid': None, 'executor_ref': 'localflow-14650090786a-task-001a166e526fbaa95e0bb5065e49acced.service', 'interrupt_stage': None, 'blocked_by': [], 'blocked_keys': [], 'log_size': 793, 'started_monotonic': 1641.302132244, 'elapsed_seconds': None, 'status': {'key': 'running', 'label': '\u8fd0\u884c\u4e2d', 'tone': 'info', 'finished': False}, 'display_command': '/usr/bin/python3 -u -c \\'import signal,time;signal.signal(signal.SIGINT,signal.SIG_IGN);signal.signal(signal.SIGTERM,signal.SIG_IGN);print(\\'\"\\'\"\\'TASK_READY\\'\"\\'\"\\',flush=True);time.sleep(300)\\'', 'source_files': [], 'source_invocations': [], 'log_path': '/tmp/lf-recovery-fshgsk69/state/logs/001a166e526fbaa95e0bb5065e49acced/output.log', 'output_integrity': {'complete': True, 'reason': None}, 'log_updated_at': '2026-10-23T03:54:16.190879+00:00'}"
+}

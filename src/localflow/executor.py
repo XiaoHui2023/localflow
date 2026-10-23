@@ -3,7 +3,9 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import os
+import re
 import shutil
 import signal
 import socket
@@ -17,6 +19,8 @@ from typing import Protocol
 from .control import control_socket_path
 from .log_files import BoundedLogWriter, lifecycle_line
 from .models import TaskRecord, command_for_log
+
+logger = logging.getLogger(__name__)
 
 
 def systemd_user_manager_available() -> tuple[bool, str]:
@@ -270,6 +274,33 @@ class SystemdExecutor:
         self.root = root
         self.task_log_max_bytes = task_log_max_bytes
         self.keep_free_bytes = keep_free_bytes
+        self._version: int | None = None
+        self._version_lock = asyncio.Lock()
+
+    async def _systemd_version(self) -> int:
+        async with self._version_lock:
+            if self._version is None:
+                process = await asyncio.create_subprocess_exec(
+                    "systemd-run", "--version",
+                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+                )
+                try:
+                    stdout, _ = await asyncio.wait_for(process.communicate(), timeout=3)
+                except TimeoutError:
+                    if process.returncode is None:
+                        process.kill()
+                    await process.communicate()
+                    stdout = b""
+                except BaseException:
+                    if process.returncode is None:
+                        process.kill()
+                    await process.communicate()
+                    raise
+                found = re.match(rb"systemd\s+(\d+)\b", stdout)
+                self._version = int(found[1]) if found and process.returncode == 0 else 0
+                if not self._version:
+                    logger.warning("systemd version unknown; using portable launch options")
+            return self._version
 
     def _unit_name(self, task_id: str) -> str:
         namespace = hashlib.sha256(str(self.root.resolve()).encode()).hexdigest()[:12]
@@ -285,6 +316,7 @@ class SystemdExecutor:
         return unit if isinstance(unit, str) and unit else f"localflow-task-{task_id}.service"
 
     async def start(self, task: TaskRecord, log_path: Path) -> StartResult:
+        version = await self._systemd_version()
         unit = self._unit_name(task.id)
         descriptor = self.root / "runtime" / "instances" / f"{task.id}.json"
         descriptor.parent.mkdir(parents=True, exist_ok=True)
@@ -301,7 +333,6 @@ class SystemdExecutor:
             "--user",
             "--unit",
             unit,
-            "--collect",
             "--quiet",
             "--property",
             f"WorkingDirectory={task.working_directory}",
@@ -310,8 +341,10 @@ class SystemdExecutor:
             "--property",
             "SendSIGKILL=yes",
             "--property",
-            "Type=exec",
+            "Type=exec" if version >= 240 else "Type=simple",
         ]
+        if version >= 236:
+            command.append("--collect")
         if getattr(sys, "frozen", False):
             executable = os.environ.get("STATICX_PROG_PATH", sys.executable)
             command.extend(
@@ -369,9 +402,24 @@ class SystemdExecutor:
         signal_name = {"sigint": "SIGINT", "sigterm": "SIGTERM", "sigkill": "SIGKILL"}[stage]
         target = "all" if stage == "sigkill" else "main"
         process = await asyncio.create_subprocess_exec(
-            "systemctl", "--user", "kill", f"--kill-whom={target}", f"--signal={signal_name}", unit
+            "systemctl", "--user", "kill", f"--kill-who={target}", f"--signal={signal_name}", unit,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
         )
-        return await process.wait() == 0
+        try:
+            _, stderr = await asyncio.wait_for(process.communicate(), timeout=5)
+        except BaseException:
+            if process.returncode is None:
+                process.kill()
+            await process.communicate()
+            raise
+        if process.returncode:
+            if not await self._unit_owns_process_tree(unit):
+                return False
+            raise RuntimeError(
+                f"systemctl kill failed for {unit} ({target}, {signal_name}): "
+                + stderr.decode(errors="replace").strip()
+            )
+        return True
 
     async def is_running(self, task: TaskRecord) -> bool:
         if not task.executor_ref:

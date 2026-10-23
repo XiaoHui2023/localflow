@@ -97,6 +97,57 @@ jobs:
               --backend subprocess --scenario "$scenario" --budget 75 \
               --output ".qa/frozen-shutdown/${scenario}.json"
           done
+      - name: Verify frozen recovery and stop compatibility on Ubuntu LTS
+        run: |
+          set -euo pipefail
+          container=""
+          cleanup() { if [ -n "$container" ]; then docker rm -f "$container" >/dev/null 2>&1 || true; fi; }
+          trap cleanup EXIT
+          mkdir -p .qa/frozen-recovery
+          for version in 20.04 22.04 24.04; do
+            image="localflow-recovery:${GITHUB_RUN_ID}-${version}"
+            container="localflow-recovery-${GITHUB_RUN_ID}-${version}"
+            docker build --build-arg "UBUNTU_VERSION=$version" -f tests_target/Dockerfile.compat -t "$image" .
+            docker run --privileged --cgroupns=host --name "$container" -d \
+              --tmpfs /run --tmpfs /run/lock \
+              -v /sys/fs/cgroup:/sys/fs/cgroup:rw -v "$PWD:/work:ro" "$image"
+            for attempt in $(seq 1 60); do
+              state="$(docker exec "$container" systemctl is-system-running 2>/dev/null || true)"
+              case "$state" in running|degraded) break ;; esac
+              test "$attempt" -lt 60 || exit 1
+              sleep 1
+            done
+            docker exec "$container" bash -lc '
+              useradd --system --create-home --shell /bin/bash localflow
+              loginctl enable-linger localflow
+              uid="$(id -u localflow)"
+              systemctl start "user@${uid}.service"
+              cp /work/dist/localflow /tmp/localflow-candidate
+              chmod 755 /tmp/localflow-candidate
+            '
+            uid="$(docker exec "$container" id -u localflow | tr -d '\r')"
+            for scenario in stop cold survive boot tail; do
+              result=0
+              docker exec "$container" runuser -u localflow -- \
+                env XDG_RUNTIME_DIR="/run/user/${uid}" \
+                DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
+                python3 /work/tools/reproduce_crash_recovery.py \
+                --binary /tmp/localflow-candidate --scenario "$scenario" \
+                --output "/tmp/${scenario}.json" || result=$?
+              docker exec "$container" bash -lc "tar -czf /tmp/diagnostics.tgz /tmp/${scenario}.*"
+              docker cp "$container:/tmp/diagnostics.tgz" ".qa/frozen-recovery/${version}-${scenario}-diagnostics.tgz"
+              docker cp "$container:/tmp/${scenario}.json" ".qa/frozen-recovery/${version}-${scenario}.json"
+              test "$result" -eq 0
+            done
+            docker rm -f "$container"
+            container=""
+          done
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: frozen-recovery-evidence
+          path: .qa/frozen-recovery
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v7
         if: always()
         with:
